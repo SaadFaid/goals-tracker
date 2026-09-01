@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Reward" ADD COLUMN "linkedActionId" TEXT;
+ALTER TABLE "Reward" ADD COLUMN "linkedPercent" DOUBLE PRECISION DEFAULT 100;
