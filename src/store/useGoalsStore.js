@@ -757,6 +757,12 @@ export const useGoalsStore = create(
           }
         }
 
+        // No saved snapshot for last month: fall back to the live goals the
+        // user has set up now (they are the goals carried forward each month).
+        if (!Array.isArray(source) || source.length === 0) {
+          source = s.liveCategories ? deepClone(s.liveCategories) : deepClone(s.categories);
+        }
+
         if (!Array.isArray(source) || source.length === 0) return false;
 
         // Clone the structure but reset progress for a fresh month.
