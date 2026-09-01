@@ -25,29 +25,51 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
     r.type === "result" ? resultPct(r.item) < 100 : r.item.current < r.item.target;
   const openCount = rows.filter(notDone).length;
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
-        style={{
-          background: "var(--color-accent)",
-          color: "#101010",
-          boxShadow: "0 6px 24px rgba(109,245,227,0.4)",
-        }}
-        aria-label="Open check-in"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M9 12l2 2 4-4" />
-          <path d="M12 3a9 9 0 1 0 9 9" />
-        </svg>
-        Check in
-        {openCount > 0 && (
-          <span className="grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold" style={{ background: "#101010", color: "var(--color-accent)" }}>
-            {openCount}
-          </span>
-        )}
-      </button>
+      <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2">
+        <button
+          onClick={scrollToTop}
+          aria-label="Back to top"
+          title="Back to top"
+          className="flex items-center justify-center rounded-full px-3 py-3 font-bold"
+          style={{
+            background: "var(--color-navy-600)",
+            color: "var(--color-text-secondary)",
+            border: "1px solid var(--color-border-subtle)",
+            boxShadow: "0 6px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
+        <button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
+          style={{
+            background: "var(--color-accent)",
+            color: "#101010",
+            boxShadow: "0 6px 24px rgba(109,245,227,0.4)",
+          }}
+          aria-label="Open check-in"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 12l2 2 4-4" />
+            <path d="M12 3a9 9 0 1 0 9 9" />
+          </svg>
+          Check in
+          {openCount > 0 && (
+            <span className="grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold" style={{ background: "#101010", color: "var(--color-accent)" }}>
+              {openCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {open && (
         <div
@@ -98,9 +120,56 @@ function CheckInRow({ row, onIncrement, onDecrement, onResultToggle }) {
   const pct = type === "result" ? resultPct(item) : actionPct(item);
   const done = type === "result" ? pct >= 100 : item.current >= item.target;
 
-  // kg/invert results: simple checkbox (done / not) instead of a %.
-  if (type === "result" && isKg) {
+  // Check-type items (yes/no): a checkbox you can check or uncheck instead of a %.
+  const isCheck = type === "action"
+    ? item.actionType === "check"
+    : (item.resultType || (item.invert ? "check" : "count")) === "check";
+  if (isCheck) {
+    const toggle = () => {
+      if (type === "result") {
+        if (onResultToggle) onResultToggle(catId, idx, !done);
+      } else {
+        onIncrement(done ? -item.current : (item.target - item.current));
+      }
+    };
     return (
+      <div
+        className="flex items-center gap-2 rounded-xl p-1.5 cursor-pointer"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)" }}
+        onClick={toggle}
+      >
+        <span
+          className="grid place-items-center shrink-0"
+          style={{
+            width: 22, height: 22, borderRadius: 6,
+            background: done ? "var(--color-accent)" : "transparent",
+            border: "2px solid " + (done ? "var(--color-accent)" : "var(--color-border-active)"),
+          }}
+        >
+          {done && (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M5 13l4 4 10-10" stroke="#101010" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+        <span className="flex-1">
+          <span className="block text-sm font-medium" style={{ color: "var(--color-heading)", textDecoration: done ? "line-through" : undefined, opacity: done ? 0.6 : 1 }}>
+            {item.label}
+          </span>
+          <span className="block text-xs mono text-text-tertiary mt-0.5">
+            {item.current}{item.unit} / {item.target}{item.unit}
+          </span>
+        </span>
+        <span className="mono text-xs font-semibold shrink-0" style={{ color: done ? "var(--color-accent)" : "var(--color-text-tertiary)" }}>
+          {done ? "done" : "not yet"}
+        </span>
+      </div>
+    );
+  }
+
+  // kg/invert results: simple checkbox (done / not) instead of a %.
+  if (type === "result" && isKg) {    return (
       <div
         className="flex items-center gap-2 rounded-xl p-1.5 cursor-pointer"
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)" }}

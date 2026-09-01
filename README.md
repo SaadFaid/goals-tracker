@@ -1,48 +1,23 @@
 # august-goals
 
-A personal monthly goals tracker. Set categories, give each action a weight, track progress, and earn rewards as you hit targets. Runs fully in your browser as a guest, or sign in to sync across devices.
+A personal monthly goals tracker. You build your month out of **categories**, each holding weighted **actions** and **results**. Progress is tracked and turned into a running quality score; as the score or specific tasks reach their targets, **rewards** unlock that you can claim.
 
-## Stack
+## The concept
 
-- **Frontend** — Vite + React 19 + Tailwind v4 + Zustand (guest-first, optimistic updates)
-- **Backend** — Express + Prisma (Postgres) JSON API
+- **Categories** — the areas of your life you care about (Finance, Health, Learning, Discipline…).
+- **Actions** — things you *do* that earn you the score. Each action has a **weight**; all weights in a category must add to 100. Your "execution" score comes from how much of each weighted action you've completed.
+- **Results** — outcomes you track, but they don't earn your rating. Execution is what counts.
+- **Rewards** — the payoff. Daily/weekly rewards unlock when *all* the tasks of that reset type are complete; monthly rewards unlock at score or revenue thresholds. A reward you claim can be unclaimed/redone.
+- **Reset rhythm** — actions reset daily, weekly, monthly, or yearly, so goals roll over the way real life does. At a month boundary you can copy last month's structure forward (progress reset) and keep the same plan.
 
-The repo has two independent npm packages: the root frontend and `server/`. They are **not** a workspace — run commands in the right directory.
+## Guest-first
 
-## Frontend (from repo root)
+The app works entirely in your browser. You can start as a **guest** and everything persists locally; sign in afterwards to sync your goals to your account across devices.
 
-```bash
-npm install
-npm run dev      # Vite on :5173
-npm run lint     # oxlint
-npm run build    # production build
-```
+## Monthly snapshots
 
-## Server (from `server/`)
+Each month's layout is saved as a snapshot, so you can look back at past months, view history, restore a prior month, or copy a previous month's goals into a new one.
 
-```bash
-cp .env.example .env   # fill in JWT secrets
-docker compose up -d   # Postgres 16
-npm run migrate        # prisma migrate dev
-npm run seed           # demo user + categories
-npm run dev            # API on :4000
-```
+## Architecture (short version)
 
-Useful scripts:
-
-```bash
-npm test            # unit tests (node:test, no DB required)
-npm run generate    # rebuild Prisma client after schema changes
-npm run add-rewards # refresh reward tiers on existing accounts
-npm run studio      # Prisma Studio
-```
-
-The frontend calls the API at `VITE_API_URL || http://localhost:4000/api`. In dev, point `CLIENT_ORIGIN=http://localhost:5173` for CORS and the refresh-token cookie.
-
-## Guest mode
-
-Everything works offline in the browser. Guest data persists to `localStorage` (key `august-goals-guest-v2`). Sign in when you want to sync to the server.
-
-## Rewards
-
-Rewards unlock as you complete actions or hit score thresholds. Daily/weekly rewards unlock when all actions of that reset type are complete. Tier templates live in `generateRewardTiers` on both the client (`src/data/goals.js`) and server (`server/src/seed/defaultCategories.js`).
+Two independent npm packages: the root **frontend** (Vite + React 19 + Tailwind v4 + Zustand) and `server/` (Express + Prisma on Postgres). Guest mode runs offline in `localStorage`; the server is optional sync. The scoring math is mirrored on both sides and must be kept in sync.

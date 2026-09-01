@@ -752,6 +752,9 @@ export const useGoalsStore = create(
         const liveKey = monthKeyOf();
         const srcKey = prevMonthKey(targetKey);
 
+        // Source is ONLY the actual month before the target. If that month has no
+        // saved snapshot, there is nothing to copy — surface that to the user
+        // rather than silently substituting the live/current goals.
         let source = null;
         if (srcKey) {
           source = s.monthlySnapshots[srcKey];
@@ -763,12 +766,6 @@ export const useGoalsStore = create(
               source = null;
             }
           }
-        }
-
-        // No saved snapshot for the source month: fall back to the live goals
-        // the user has set up now (they are the goals carried forward each month).
-        if (!Array.isArray(source) || source.length === 0) {
-          source = s.liveCategories ? deepClone(s.liveCategories) : deepClone(s.categories);
         }
 
         if (!Array.isArray(source) || source.length === 0) return false;

@@ -1054,7 +1054,6 @@ function RewardEditForm({ category, initial, onSubmit, onCancel }) {
 }
 
 function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpdateReward, onDeleteReward }) {
-  const editMode = useGoalsStore((s) => s.editMode);
   const allCategories = useGoalsStore((s) => s.categories);
   const qualityPercent = useGoalsStore((s) => s.dashboard?.stats?.qualityPercent ?? Math.round(computeOverallPct(allCategories)));
   const [editingId, setEditingId] = useState(null);
@@ -1075,11 +1074,9 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
           {g.items.length === 0 && !adding ? (
             <div className="text-xs text-text-tertiary">
               No {g.title} set yet
-              {editMode && (
-                <button onClick={() => setAdding(true)} className="ml-2 font-semibold" style={{ color: "var(--color-accent)" }}>
-                  + Add
-                </button>
-              )}
+              <button onClick={() => setAdding(true)} className="ml-2 font-semibold" style={{ color: "var(--color-accent)" }}>
+                + Add
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -1100,7 +1097,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                       opacity: r.claimed ? 0.75 : 1,
                     }}
                   >
-                    {editMode && !editing && (
+                    {!editing && (
                       <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
                         <button
                           onClick={() => { setAdding(false); setEditingId(r.id); }}
@@ -1182,7 +1179,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                   </div>
                 );
               })}
-              {editMode && adding && (
+              {adding && (
                 <RewardEditForm
                   category={category}
                   initial={null}
@@ -1194,7 +1191,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
           )}
         </div>
       ))}
-      {editMode && !adding && (
+      {!adding && (
         <button
           onClick={() => setAdding(true)}
           className="mt-1 text-xs font-semibold self-start"

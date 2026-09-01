@@ -13,7 +13,7 @@ export default function Footer({ onReset, onCopyLastMonth, onEmptyMonth }) {
     if (copied) {
       notify("ok", "Copied the previous month's goals (progress reset).");
     } else {
-      notify("empty", "Nothing to copy — there are no saved goals to bring over.");
+      notify("empty", "Last month is empty — nothing to bring over.");
     }
   };
 
