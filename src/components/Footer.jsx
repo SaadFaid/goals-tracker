@@ -1,16 +1,25 @@
 import { useState } from "react";
 
-export default function Footer({ onReset, onCopyLastMonth }) {
+export default function Footer({ onReset, onCopyLastMonth, onEmptyMonth }) {
   const [hint, setHint] = useState(null);
+
+  const notify = (tone, text) => {
+    setHint({ tone, text });
+    setTimeout(() => setHint(null), 4000);
+  };
 
   const handleCopy = async () => {
     const copied = await onCopyLastMonth();
     if (copied) {
-      setHint({ tone: "ok", text: "Copied last month's goals (progress reset)." });
+      notify("ok", "Copied the previous month's goals (progress reset).");
     } else {
-      setHint({ tone: "empty", text: "Nothing to copy — last month has no saved goals." });
+      notify("empty", "Nothing to copy — there are no saved goals to bring over.");
     }
-    setTimeout(() => setHint(null), 4000);
+  };
+
+  const handleEmpty = () => {
+    onEmptyMonth();
+    notify("ok", "This month was cleared — all goals, stats and tasks removed.");
   };
 
   return (
@@ -41,10 +50,17 @@ export default function Footer({ onReset, onCopyLastMonth }) {
           <span className="text-2xl" aria-hidden="true">↗</span>
           <span className="flex flex-col">
             <span className="text-heading text-sm font-semibold">Copy goals from last month</span>
-            <span className="text-text-tertiary text-xs">Reuse last month's targets, progress reset</span>
+            <span className="text-text-tertiary text-xs">Reuse the previous month's targets, progress reset</span>
           </span>
         </button>
       </div>
+
+      <button
+        onClick={handleEmpty}
+        className="self-center text-sm text-text-tertiary hover:text-danger underline-offset-4 hover:underline transition-colors"
+      >
+        Empty this month
+      </button>
 
       <p
         aria-live="polite"

@@ -29,6 +29,12 @@ function dateOfMonthKey(key) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, (m || 1) - 1, 1);
 }
+// "YYYY-MM" key of the month before the given key (null if unparseable).
+function prevMonthKey(key) {
+  const [y, m] = String(key || "").split("-").map(Number);
+  if (!y || !m) return null;
+  return monthKeyOf(new Date(y, m - 2, 1));
+}
 
 // Targeted immutable update: replace only the matching category (cloned) so the
 // references of sibling categories stay stable. This lets React.memo on cards
@@ -736,29 +742,31 @@ export const useGoalsStore = create(
         get().derive();
       },
 
-      // Copy last month's category/action/result structure into the current
+      // Copy the month before the one currently selected into the selected
       // month, with all progress (current) reset to 0 for a fresh start.
-      // Returns true when something was copied, false when last month is empty
-      // or has no saved snapshot (caller may show a hint).
+      // Works when viewing any month (live or past). Returns true when
+      // something was copied, false when there is nothing to copy.
       copyLastMonth: async () => {
         const s = get();
-        const now = new Date();
-        const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastKey = monthKeyOf(last);
-        const liveKey = monthKeyOf(now);
+        const targetKey = s.selectedMonth || monthKeyOf();
+        const liveKey = monthKeyOf();
+        const srcKey = prevMonthKey(targetKey);
 
-        let source = s.monthlySnapshots[lastKey];
-        if (!source && !get().isGuest && (s.serverSnapshotMonths || []).includes(lastKey)) {
-          try {
-            const { data } = await api.snapshot(lastKey);
-            source = data;
-          } catch {
-            source = null;
+        let source = null;
+        if (srcKey) {
+          source = s.monthlySnapshots[srcKey];
+          if (!source && !get().isGuest && (s.serverSnapshotMonths || []).includes(srcKey)) {
+            try {
+              const { data } = await api.snapshot(srcKey);
+              source = data;
+            } catch {
+              source = null;
+            }
           }
         }
 
-        // No saved snapshot for last month: fall back to the live goals the
-        // user has set up now (they are the goals carried forward each month).
+        // No saved snapshot for the source month: fall back to the live goals
+        // the user has set up now (they are the goals carried forward each month).
         if (!Array.isArray(source) || source.length === 0) {
           source = s.liveCategories ? deepClone(s.liveCategories) : deepClone(s.categories);
         }
@@ -774,21 +782,44 @@ export const useGoalsStore = create(
           rewards: (cat.rewards || []).map((r) => ({ ...r, claimed: false })),
         })));
 
-        // Stay (or return) to live editing in the current month with fresh data.
-        set({
+        // Write into the selected month, staying on it (a past month keeps
+        // history/viewing state, the live month returns to live editing).
+        set((st) => ({
           categories: copied,
-          viewingHistory: false,
-          liveCategories: null,
-          selectedMonth: liveKey,
-          monthOffset: 0,
-        });
-        const dashboard = calculateDashboardState(copied, now, 0);
+          viewingHistory: targetKey !== liveKey,
+          selectedMonth: targetKey,
+          monthlySnapshots: { ...st.monthlySnapshots, [targetKey]: deepClone(copied) },
+        }));
+        const dashboard = calculateDashboardState(copied, dateOfMonthKey(targetKey), 0);
         set({ dashboard, bootstrapped: true, lastSyncedAt: new Date().toISOString() });
         get().pushUndo();
 
-        if (!get().isGuest) await get().syncToAccount();
-        get().captureSnapshot();
+        if (!get().isGuest) {
+          api.saveSnapshot(targetKey, deepClone(copied)).catch(() => {});
+          await get().syncToAccount();
+        }
         return true;
+      },
+
+      // Remove every category/goal/task from the current live month (empty slate).
+      emptyMonth: () => {
+        get().pushUndo();
+        const liveKey = monthKeyOf();
+        set({
+          categories: [],
+          liveCategories: null,
+          viewingHistory: false,
+          selectedMonth: liveKey,
+          monthOffset: 0,
+          monthlySnapshots: { ...get().monthlySnapshots, [liveKey]: [] },
+        });
+        const dashboard = calculateDashboardState([], new Date(), 0);
+        set({ dashboard, bootstrapped: true, lastSyncedAt: new Date().toISOString() });
+        if (!get().isGuest) {
+          api.saveSnapshot(liveKey, []).catch(() => {});
+          get().syncToAccount();
+        }
+        get().captureSnapshot();
       },
     }),
     {

@@ -63,6 +63,7 @@ function Dashboard() {
   const moveCategory = useGoalsStore((s) => s.moveCategory);
   const resetAll = useGoalsStore((s) => s.resetAll);
   const copyLastMonth = useGoalsStore((s) => s.copyLastMonth);
+  const emptyMonth = useGoalsStore((s) => s.emptyMonth);
   const checkDailyResets = useGoalsStore((s) => s.checkDailyResets);
 
   useEffect(() => {
@@ -124,7 +125,7 @@ function Dashboard() {
           ) : null}
         </div>
 
-        <Footer onReset={resetAll} onCopyLastMonth={copyLastMonth} />
+        <Footer onReset={resetAll} onCopyLastMonth={copyLastMonth} onEmptyMonth={emptyMonth} />
       </div>
       <CheckIn
         categories={categories}
