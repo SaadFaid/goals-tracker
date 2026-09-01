@@ -801,25 +801,27 @@ export const useGoalsStore = create(
         return true;
       },
 
-      // Remove every category/goal/task from the current live month (empty slate).
+      // Remove every category/goal/task from the month currently on screen
+      // (the selected month — whether that's the live month or a past one).
       emptyMonth: () => {
         get().pushUndo();
+        const targetKey = get().selectedMonth || monthKeyOf();
         const liveKey = monthKeyOf();
-        set({
+        const isLive = targetKey === liveKey;
+        set((st) => ({
           categories: [],
-          liveCategories: null,
-          viewingHistory: false,
-          selectedMonth: liveKey,
-          monthOffset: 0,
-          monthlySnapshots: { ...get().monthlySnapshots, [liveKey]: [] },
-        });
-        const dashboard = calculateDashboardState([], new Date(), 0);
+          selectedMonth: targetKey,
+          viewingHistory: isLive ? false : st.viewingHistory,
+          liveCategories: isLive ? null : st.liveCategories,
+          monthOffset: isLive ? 0 : st.monthOffset,
+          monthlySnapshots: { ...st.monthlySnapshots, [targetKey]: [] },
+        }));
+        const dashboard = calculateDashboardState([], dateOfMonthKey(targetKey), 0);
         set({ dashboard, bootstrapped: true, lastSyncedAt: new Date().toISOString() });
         if (!get().isGuest) {
-          api.saveSnapshot(liveKey, []).catch(() => {});
-          get().syncToAccount();
+          api.saveSnapshot(targetKey, []).catch(() => {});
         }
-        get().captureSnapshot();
+        if (isLive) get().captureSnapshot();
       },
     }),
     {
