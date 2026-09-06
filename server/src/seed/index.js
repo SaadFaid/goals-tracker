@@ -31,7 +31,7 @@ async function backfillRewards(prisma) {
 }
 
 async function main() {
-  const email = process.env.SEED_EMAIL || "demo@augustgoals.dev";
+  const email = process.env.SEED_EMAIL || "demo@example.com";
   const password = process.env.SEED_PASSWORD || "DemoPass1!";
   const name = process.env.SEED_NAME || "Demo";
 

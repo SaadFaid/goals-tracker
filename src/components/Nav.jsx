@@ -32,7 +32,7 @@ export default function Nav() {
               <circle cx="12" cy="12" r="3" />
             </svg>
           </span>
-          <span className="brand text-heading leading-none">Tchizu Goal Tracker</span>
+          <span className="brand text-heading leading-none">Goal Tracker</span>
           <span
             className="caption text-text-tertiary hidden sm:inline"
             style={{ color: "var(--color-text-tertiary)" }}

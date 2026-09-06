@@ -106,7 +106,7 @@ export default function Header({ daysElapsed, categories, logs }) {
       <div className="relative z-10">
         <div>
           <h1 className="display text-heading">
-            Tchizu Goal Tracker
+            Goal Tracker
           </h1>
           <p className="body text-muted mt-1.5">
             {daysElapsedSafe} of {userData.totalDays} days in. Tap any number on any card to update it — your score recalculates instantly.

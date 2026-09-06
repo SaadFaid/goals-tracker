@@ -94,7 +94,7 @@ export default function AuthScreen() {
           <circle cx="12" cy="12" r="3" />
         </svg>
       </span>
-      <h1 className="display text-heading mb-0">Tchizu Goal Tracker</h1>
+      <h1 className="display text-heading mb-0">Goal Tracker</h1>
     </div>
   );
 
