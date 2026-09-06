@@ -1,4 +1,4 @@
-# august-goals
+# Goals Tracker
 
 A personal monthly goals tracker. You build your month out of **categories**, each holding weighted **actions** and **results**. Progress is tracked and turned into a running quality score; as the score or specific tasks reach their targets, **rewards** unlock that you can claim.
 
@@ -17,7 +17,3 @@ The app works entirely in your browser. You can start as a **guest** and everyth
 ## Monthly snapshots
 
 Each month's layout is saved as a snapshot, so you can look back at past months, view history, restore a prior month, or copy a previous month's goals into a new one.
-
-## Architecture (short version)
-
-Two independent npm packages: the root **frontend** (Vite + React 19 + Tailwind v4 + Zustand) and `server/` (Express + Prisma on Postgres). Guest mode runs offline in `localStorage`; the server is optional sync. The scoring math is mirrored on both sides and must be kept in sync.
