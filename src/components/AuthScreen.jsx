@@ -21,6 +21,27 @@ export default function AuthScreen() {
     startGuest();
   };
 
+  const isNetworkError = (err) => err instanceof TypeError && !err?.status;
+
+  const guestNotice = (
+    <p className="caption text-text-tertiary mb-4 text-xs">
+      Couldn't reach the backend server — signed in as guest. Full accounts require running the
+      local server (see the repo README). Your data stays on this device.
+    </p>
+  );
+
+  const [demoNotice, setDemoNotice] = useState(null);
+
+  const fallbackToGuest = (err) => {
+    if (isNetworkError(err)) {
+      startGuestLocal();
+      setDemoNotice(true);
+      setLocalError(null);
+      return true;
+    }
+    return false;
+  };
+
   const goAuth = () => { setView("auth"); setLocalError(null); setResetMsg(null); };
 
   const submit = async (e) => {
@@ -34,7 +55,9 @@ export default function AuthScreen() {
         await login({ email, password });
       }
     } catch (err) {
-      setLocalError(err.message || "Request failed");
+      if (!fallbackToGuest(err)) {
+        setLocalError(err.message || "Request failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -55,7 +78,11 @@ export default function AuthScreen() {
         setResetMsg("If that email is registered, a reset link has been generated.");
       }
     } catch (err) {
-      setLocalError(err.message || "Request failed");
+      if (isNetworkError(err)) {
+        setLocalError("Couldn't reach the backend server — password reset only works when the local server is running.");
+      } else {
+        setLocalError(err.message || "Request failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -72,7 +99,11 @@ export default function AuthScreen() {
       setPassword("");
       setView("forgot");
     } catch (err) {
-      setLocalError(err.message || "Request failed");
+      if (isNetworkError(err)) {
+        setLocalError("Couldn't reach the backend server — password reset only works when the local server is running.");
+      } else {
+        setLocalError(err.message || "Request failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -187,6 +218,8 @@ export default function AuthScreen() {
               <span className="text-text-tertiary text-xs">or</span>
               <div className="flex-1 h-px" style={{ background: "var(--color-border-subtle)" }} />
             </div>
+
+            {demoNotice && guestNotice}
 
             <button
               onClick={startGuestLocal}
