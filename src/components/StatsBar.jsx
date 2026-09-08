@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { userData } from "../data/goals";
 import { computeOverallPct } from "../lib/score";
 
@@ -37,68 +37,71 @@ export default function StatsBar({ cats }) {
       .filter((r) => r.unit === "$");
     const moneyCurrent = moneyItems.reduce((s, r) => s + (r.current || 0), 0);
     const moneyTarget = moneyItems.reduce((s, r) => s + (r.target || 0), 0) || 1000;
-    const daysLeft = userData.totalDays - userData.daysPassed;
+    const moneyPct = moneyTarget > 0 ? Math.min(Math.round((moneyCurrent / moneyTarget) * 100), 100) : 0;
+
+    const dayOfMonth = userData.daysPassed;
+    const daysPct = Math.round((dayOfMonth / userData.totalDays) * 100);
 
     return [
-      { 
-        label: "Execution", 
-        value: score, 
-        suffix: "%", 
-        prefix: "", 
-        sub: `${hitCount} / ${totalActions} actions hit · your score`, 
-        tint: "accent" ,
-        icon: "⚡"
+      {
+        label: "Execution",
+        value: score,
+        suffix: "%",
+        prefix: "",
+        pct: score,
+        sub: `${hitCount} / ${totalActions} actions hit · your score`,
+        tint: "accent",
+        icon: "⚡",
       },
-      { 
-        label: "Results", 
+      {
+        label: "Results",
         value: resultsPct,
-        suffix: "%", 
-        prefix: "", 
-        sub: "tracked · scored", 
-        tint: "neutral" ,
-        icon: "📊"
+        suffix: "%",
+        prefix: "",
+        pct: resultsPct,
+        sub: "tracked · scored",
+        tint: "neutral",
+        icon: "📊",
       },
-      { 
-        label: "Money", 
-        value: moneyCurrent, 
-        suffix: "", 
-        prefix: "$", 
-        sub: `target $${moneyTarget}`, 
-        tint: "accent" ,
-        icon: "💰"
+      {
+        label: "Money",
+        value: moneyCurrent,
+        suffix: "",
+        prefix: "$",
+        pct: moneyPct,
+        sub: `target $${moneyTarget}`,
+        tint: "accent",
+        icon: "💰",
       },
-      { 
-        label: "Days Left", 
-        value: daysLeft, 
-        suffix: "", 
-        prefix: "", 
-        sub: `of ${userData.totalDays} in ${userData.month}`, 
-        tint: "neutral" ,
-        icon: "📅"
+      {
+        label: "Day",
+        value: dayOfMonth,
+        suffix: "",
+        prefix: "",
+        pct: daysPct,
+        sub: `of ${userData.totalDays} in ${userData.month}`,
+        tint: "neutral",
+        icon: "📅",
       },
     ];
   }, [cats]);
 
   return (
-    <div className="card card-lift flex overflow-hidden" style={{ 
-      background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
-      border: "1px solid var(--color-border-active)" 
-    }}>
-      {stats.map((s, i) => (
-        <div
-          key={s.label}
-          className={`flex-1 py-4 px-1 text-center ${
-            i < stats.length - 1 ? "border-r" : ""
-          }`}
-          style={{ 
-            borderColor: "var(--color-border-active)",
-            background: i % 2 === 0 ? "var(--color-elevated)" : "var(--color-surface)"
-          }}
-        >
+    <div
+      className="card card-lift grid grid-cols-2 gap-y-4 md:grid-cols-4 overflow-hidden"
+      style={{
+        background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
+        border: "1px solid var(--color-border-active)",
+      }}
+    >
+      {stats.map((s) => (
+        <div key={s.label} className="py-4 px-1 text-center">
           <div className="flex flex-col items-center">
             <div className="text-[18px] mb-1">{s.icon}</div>
-            <CountUpNumber {...s} />
-            <div className="caption text-text-tertiary mt-0.5 !normal-case !text-[10px]">{s.label}</div>
+            <ProgressRing pct={s.pct} tint={s.tint}>
+              <CountUpNumber {...s} />
+            </ProgressRing>
+            <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[10px]">{s.label}</div>
             <div className="text-[10px] text-text-tertiary mt-0.5">{s.sub}</div>
           </div>
         </div>
@@ -107,13 +110,56 @@ export default function StatsBar({ cats }) {
   );
 }
 
+function ProgressRing({ pct, tint, children }) {
+  const size = 76;
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const [animated, setAnimated] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimated(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
+  const clamped = Math.max(0, Math.min(100, animated));
+  const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
+
+  return (
+    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        aria-hidden="true"
+        style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}
+      >
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border-active)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={C * (1 - clamped / 100)}
+          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
+        />
+      </svg>
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+    </div>
+  );
+}
+
 function CountUpNumber({ value, suffix, prefix, tint }) {
   const animated = useCountUp(value, 300);
   const rendered = Number.isFinite(animated) ? Math.round(animated) : value;
   const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
+  const text = `${prefix}${rendered}${suffix}`;
+  const fontSize = text.length > 5 ? 17 : 21;
   return (
-    <div className="stat-num" style={{ color, fontWeight: 600 }}>
-      {prefix}{rendered}{suffix}
+    <div className="stat-num" style={{ color, fontWeight: 600, fontSize }}>
+      {text}
     </div>
   );
 }
