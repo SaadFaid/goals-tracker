@@ -2,10 +2,32 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { categories as seedCategories, generateRewardTiers } from "../data/goals";
 import { calculateDashboardState } from "../lib/score";
-import { api, setAccessToken } from "../lib/api";
+import { api } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
 
 const GUEST_KEY = "august-goals-guest-v2";
+const PROFILES_KEY = "august-goals-profiles";
+
+// ── Local profiles (frontend-only accounts) ────────────
+// Each user is a profile stored in localStorage on this device:
+//   { [email]: { name, passHash, categories } }
+// No backend involved — data never leaves this browser.
+function readProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILES_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function writeProfiles(map) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(map));
+}
+
+async function hashPassword(pw) {
+  const data = new TextEncoder().encode("august-goals::" + pw);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 // Client generates UUIDs for offline/optimistic items before server assigns real ones.
 function uid() {
@@ -267,79 +289,78 @@ export const useGoalsStore = create(
         set({ sessionStarted: false });
       },
 
-      // ── Auth lifecycle ──────────────────────────────────
-      applyAuth: (auth) => {
-        setAccessToken(auth.accessToken);
+      // ── Auth lifecycle (frontend-only local profiles) ──
+      // No backend: "accounts" are name+password entries stored in this
+      // browser's localStorage, each holding that user's own categories.
+
+      // Persist the currently logged-in user's categories back into their
+      // profile slot so edits survive logout and future visits.
+      persistLocalProfile: () => {
+        const s = get();
+        if (!s.user?.email) return;
+        const map = readProfiles();
+        const slot = map[s.user.email];
+        if (!slot) return;
+        map[s.user.email] = { ...slot, categories: deepClone(s.categories) };
+        writeProfiles(map);
+      },
+
+      applyLocalProfile: (email, { name = "User" } = {}) => {
         set({
-          user: auth.user,
+          user: { email, name },
           isGuest: false,
           sessionStarted: true,
-          categories: ensureRewardTiers(deepClone(auth.dashboard.categories)),
+          error: null,
           lastSyncedAt: new Date().toISOString(),
         });
-        const dashboard = calculateDashboardState(get().categories, new Date(), get().monthOffset);
-        set({ dashboard, bootstrapped: true });
-        get().loadProgress();
-        get().loadSnapshotMonths();
-      },
-
-      // Restore a logged-in session after a page reload: the access token lives
-      // only in memory, so use the httpOnly refresh cookie to mint a fresh one
-      // and pull the account's latest dashboard. On failure, drop back to the
-      // auth screen instead of stranding the user in a stale/guest state.
-      refreshSession: async () => {
-        const s = get();
-        if (!s.user || s.isGuest) return;
-        try {
-          const auth = await api.refresh();
-          get().applyAuth(auth);
-        } catch {
-          set({ sessionStarted: false, isGuest: true });
-        }
-      },
-
-      // ── Real per-day history for the burndown chart ─────
-      loadProgress: async () => {
-        if (get().isGuest) return;
-        try {
-          const { logs } = await api.progress({});
-          set({ progressLogs: Array.isArray(logs) ? logs : [] });
-        } catch {
-          /* non-fatal: chart just shows the live today point */
-        }
+        get().derive();
       },
 
       register: async (credentials) => {
-        set({ loading: true, error: null });
-        try {
-          const auth = await api.register(credentials);
-          get().applyAuth(auth);
-        } catch (e) {
-          set({ error: e.message, loading: false });
-          throw e;
+        const email = String(credentials?.email || "").trim().toLowerCase();
+        const password = String(credentials?.password || "");
+        if (!email || !/.+@.+\..+/.test(email)) {
+          set({ error: "Enter a valid email address", loading: false });
+          throw new Error("Enter a valid email address");
         }
-        set({ loading: false });
+        if (password.length < 4) {
+          set({ error: "Password must be at least 4 characters", loading: false });
+          throw new Error("Password must be at least 4 characters");
+        }
+        const map = readProfiles();
+        if (map[email]) {
+          const msg = "An account with this email already exists. Log in instead.";
+          set({ error: msg, loading: false });
+          throw new Error(msg);
+        }
+        const passHash = await hashPassword(password);
+        map[email] = { name: String(credentials?.name || "User").trim() || "User", passHash, categories: seedClone() };
+        writeProfiles(map);
+        get().applyLocalProfile(email, map[email]);
       },
 
       login: async (credentials) => {
-        set({ loading: true, error: null });
-        try {
-          const auth = await api.login(credentials);
-          get().applyAuth(auth);
-        } catch (e) {
-          set({ error: e.message, loading: false });
-          throw e;
+        const email = String(credentials?.email || "").trim().toLowerCase();
+        const password = String(credentials?.password || "");
+        const map = readProfiles();
+        const slot = map[email];
+        if (!slot) {
+          const msg = "No account found with that email. Register first.";
+          set({ error: msg, loading: false });
+          throw new Error(msg);
         }
-        set({ loading: false });
+        const passHash = await hashPassword(password);
+        if (passHash !== slot.passHash) {
+          const msg = "Incorrect password. Try again.";
+          set({ error: msg, loading: false });
+          throw new Error(msg);
+        }
+        get().commit(slot.categories); // load this user's own stats
+        get().applyLocalProfile(email, slot);
       },
 
-      logout: async () => {
-        try {
-          if (!get().isGuest) await api.logout();
-        } catch {
-          /* ignore */
-        }
-        setAccessToken(null);
+      logout: () => {
+        get().persistLocalProfile();
         set({
           user: null,
           isGuest: true,
@@ -367,6 +388,7 @@ export const useGoalsStore = create(
         const act = () => {
           set({ categories: nextCategories });
           if (apiCall) get().enqueue({ execute: apiCall });
+          get().persistLocalProfile();
           const dashboard = calculateDashboardState(nextCategories, new Date(), get().monthOffset);
           set({
             dashboard,
@@ -389,32 +411,9 @@ export const useGoalsStore = create(
       },
 
       flush: async () => {
-        const { pendingMutations, isGuest } = get();
-        if (isGuest || pendingMutations.length === 0) return;
-        for (const m of pendingMutations) {
-          try {
-            const result = await m.execute();
-            if (result?.dashboard) {
-              // reconcile with authoritative server state
-              set((s) => ({
-                pendingMutations: s.pendingMutations.filter((x) => x.id !== m.id),
-                categories: deepClone(result.dashboard.categories),
-              }));
-              const d = calculateDashboardState(get().categories, new Date(), get().monthOffset);
-              set({ dashboard: d, lastSyncedAt: new Date().toISOString() });
-            } else {
-              set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== m.id) }));
-            }
-          } catch (e) {
-            // mark failure; kept for retry — on permanent failure show conflict
-            set((s) => ({
-              pendingMutations: s.pendingMutations.map((x) =>
-                x.id === m.id ? { ...x, error: e.message, retryCount: (x.retryCount || 0) + 1 } : x
-              ),
-            }));
-            break; // stop the chain; retry later
-          }
-        }
+        // No backend in the frontend-only build. Local profiles are fully
+        // local; there is nothing to sync, so drop the pending queue.
+        set({ pendingMutations: [] });
       },
 
       retryAll: () => get().flush(),
@@ -836,24 +835,36 @@ export const useGoalsStore = create(
         if (isLive) get().captureSnapshot();
       },
     }),
-    {
-      name: GUEST_KEY,
-      partialize: (s) => ({
-        categories: s.categories,
-        user: s.user,
-        isGuest: s.isGuest,
-        sessionStarted: s.sessionStarted,
-        monthOffset: s.monthOffset,
-        selectedMonth: s.selectedMonth,
-        viewingHistory: s.viewingHistory,
-        liveCategories: s.liveCategories,
-        monthlySnapshots: s.monthlySnapshots,
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        state.bootstrap();
-        state.refreshSession();
-      },
-    }
-  )
+{
+        name: GUEST_KEY,
+        partialize: (s) => ({
+          categories: s.categories,
+          user: s.user,
+          isGuest: s.isGuest,
+          sessionStarted: s.sessionStarted,
+          monthOffset: s.monthOffset,
+          selectedMonth: s.selectedMonth,
+          viewingHistory: s.viewingHistory,
+          liveCategories: s.liveCategories,
+          monthlySnapshots: s.monthlySnapshots,
+        }),
+        onRehydrateStorage: () => (state) => {
+          if (!state) return;
+          state.bootstrap();
+        },
+      }
+    )
 );
+
+// Mirror every categories change into the logged-in user's local profile so
+// their stats survive logout and future visits on this device.
+useGoalsStore.subscribe((state, prev) => {
+  if (state.categories !== prev.categories && state.user?.email && !state.isGuest) {
+    const map = readProfiles();
+    const slot = map[state.user.email];
+    if (slot) {
+      map[state.user.email] = { ...slot, categories: deepClone(state.categories) };
+      writeProfiles(map);
+    }
+  }
+});
