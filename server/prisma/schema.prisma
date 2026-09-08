@@ -1,0 +1,151 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String   @default("User")
+  timezone      String   @default("UTC")
+  monthOffset   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  categories    Category[]
+  progressLogs  ProgressLog[]
+  monthlySnapshots MonthlySnapshot[]
+  refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  userId    String
+  name      String
+  dotColor  String    @default("turquoise") // turquoise | white | pink | purple | blue | orange | green | red | grey | black | yellow
+  sortOrder Int       @default(0)
+  expanded  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actions   Action[]
+  results   Result[]
+  rewards   Reward[]
+
+  @@index([userId, sortOrder])
+}
+
+model Action {
+  id            String   @id @default(uuid())
+  categoryId    String
+  label         String
+  weight        Int
+  current       Float    @default(0)
+  target        Float
+  unit          String?
+  incrementBy   Float    @default(1)               // how much a single tap adds
+  resetType     String   @default("monthly")       // "none" | "daily" | "weekly" | "monthly"
+  actionType    String   @default("count")         // "check" | "amount" | "count"
+  lastResetAt   DateTime?
+  sortOrder     Int      @default(0)
+
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, sortOrder])
+}
+
+model Result {
+  id         String   @id @default(uuid())
+  categoryId String
+  label      String
+  current    Float    @default(0)
+  target     Float
+  unit       String?
+  sortOrder  Int      @default(0)
+
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, sortOrder])
+}
+
+model Reward {
+  id             String    @id @default(uuid())
+  categoryId     String
+  name           String
+  cost           Float
+  thresholdType  String    @default("score") // "score" | "revenue" | "daily" | "weekly" | "action" | "result"
+  period         String    @default("monthly") // "daily" | "weekly" | "monthly"
+  linkedActionId String?
+  linkedResultId String?
+  linkedPercent  Float?    @default(100) // unlock when linked task/result hits this %
+  claimed        Boolean   @default(false)
+  claimedAt      DateTime?
+
+  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
+
+model ProgressLog {
+  id            String   @id @default(uuid())
+  userId        String
+  date          DateTime @db.Date
+  dayOfMonth    Int
+  month         Int
+  year          Int
+  qualityScore  Float
+  expectedScore Float
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, year, month])
+}
+
+// Full per-user category graph saved per month, so the month picker can
+// restore an entire month's dashboard from the DB (cross-device history).
+model MonthlySnapshot {
+  id           String   @id @default(uuid())
+  userId       String
+  month        String   // "YYYY-MM"
+  data         Json     // serialized Category[] graph (actions/results/rewards)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([userId, month])
+}
