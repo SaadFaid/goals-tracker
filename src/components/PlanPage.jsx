@@ -205,6 +205,8 @@ export default function PlanPage({ categories, onBack }) {
   const addSlot = usePlanStore((s) => s.addSlot);
   const updateSlot = usePlanStore((s) => s.updateSlot);
   const removeSlot = usePlanStore((s) => s.removeSlot);
+  const undoPlan = usePlanStore((s) => s.undo);
+  const canUndo = usePlanStore((s) => s.past.length > 0);
 
   const [mode, setMode] = useState("day");
   const [anchor, setAnchor] = useState(() => new Date());
@@ -591,6 +593,16 @@ export default function PlanPage({ categories, onBack }) {
           <button onClick={nav.back} className="nav-btn" style={controlBtn} aria-label="Previous">‹</button>
           <button onClick={nav.fwd} className="nav-btn" style={controlBtn} aria-label="Next">›</button>
         </div>
+        {canUndo && (
+          <button
+            onClick={() => undoPlan()}
+            className="nav-btn"
+            style={{ ...controlBtn, borderColor: "rgba(255,255,255,0.25)" }}
+            title="Undo last change (moves, resizes, adds, deletes)"
+          >
+            ↩ Undo
+          </button>
+        )}
         <h2 className="text-base font-bold text-white mx-1">{nav.title}</h2>
         <button
           onClick={() => {
