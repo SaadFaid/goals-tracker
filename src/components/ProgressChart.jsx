@@ -68,24 +68,26 @@ export default function ProgressChart({ logs, dashboard }) {
   // Expected pace: reaches 100% on the last day.
   const expectedPath = `M ${x(1)} ${y((1 / totalDays) * 100)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: continuous from 0% on day 1 through all logged points to today.
-  const allPoints = [...points, { day: today, value: liveScore }];
-  const deduped = [];
-  for (const p of allPoints) {
-    if (!deduped.length || deduped[deduped.length - 1].day !== p.day) {
-      deduped.push(p);
-    } else {
-      deduped[deduped.length - 1] = p;
-    }
+  // Execution line: continuous day-by-day, filling gaps with previous day's value.
+  const execByDay = new Map();
+  for (const p of points) execByDay.set(p.day, p.value);
+  execByDay.set(today, liveScore);
+  let lastVal = 0;
+  const execPoints = [];
+  for (let d = 1; d <= today; d++) {
+    const v = execByDay.has(d) ? execByDay.get(d) : lastVal;
+    execPoints.push({ day: d, value: v });
+    lastVal = v;
   }
-  const execPoints = [{ day: 1, value: 0 }, ...deduped];
   const actualPath = execPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
-
-  // Area fill under the execution line.
   const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: ramps from 0% on day 1 to current resultsPct at today.
-  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: ramps from 0% on day 1 to current resultsPct at today, day by day.
+  const resultsPoints = [];
+  for (let d = 1; d <= today; d++) {
+    resultsPoints.push({ day: d, value: (d / today) * resultsPct });
+  }
+  const resultsPath = resultsPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -183,14 +185,14 @@ export default function ProgressChart({ logs, dashboard }) {
             <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
-          {/* Execution dots at each logged point */}
-          {points.map((p) => (
-            <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
+          {/* Execution dots at each day */}
+          {execPoints.map((p) => (
+            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
           ))}
 
           {/* Results dots: ramp from 0% on day 1 to resultsPct at today */}
-          {allDays.map((d) => (
-            <circle key={`r-${d}`} cx={x(d)} cy={y((d / today) * resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+          {resultsPoints.map((p) => (
+            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
           {/* Today's live execution point: pink with turquoise border */}
