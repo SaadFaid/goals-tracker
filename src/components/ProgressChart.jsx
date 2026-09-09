@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { userData } from "../data/goals";
 import { useGoalsStore } from "../store/useGoalsStore";
-import MonthEndAnalysis from "./MonthEndAnalysis";
 
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
@@ -30,7 +29,6 @@ function aggregateResultsPct(categories) {
 //  - Results: aggregate result completion line.
 export default function ProgressChart({ logs, dashboard }) {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
-  const [showAnalysis, setShowAnalysis] = useState(false);
   const w = 480;
   const hMobile = 180;
   const hDesktop = 220;
@@ -214,13 +212,6 @@ export default function ProgressChart({ logs, dashboard }) {
             </text>
           ))}
 
-          {/* Month-end analysis star */}
-          <g onClick={() => setShowAnalysis(true)} className="cursor-pointer" style={{ pointerEvents: "all" }}>
-            <circle cx={x(totalDays)} cy={y(100)} r="8" fill="rgba(109,245,227,0.15)" stroke={ACCENT} strokeWidth="1.5" />
-            <text x={x(totalDays)} y={y(100) + 1} textAnchor="middle" fontSize="9" fill={ACCENT} fontWeight="700">★</text>
-            <text x={x(totalDays)} y={y(100) + 18} textAnchor="middle" fontSize="8" fill="#5A756E">analysis</text>
-          </g>
-
           {/* Tooltip */}
           {tooltip && (() => {
             const d = hoverDay;
@@ -276,9 +267,6 @@ export default function ProgressChart({ logs, dashboard }) {
           )}
         </div>
       </div>
-      {showAnalysis && (
-        <MonthEndAnalysis cats={dashboard?.categories || []} onClose={() => setShowAnalysis(false)} />
-      )}
     </section>
   );
 }

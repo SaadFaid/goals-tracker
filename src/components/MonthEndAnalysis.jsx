@@ -34,18 +34,18 @@ function getAnalysis(cats) {
       const pct = actionPct(a);
       const item = { name: a.label, cat: cat.label, pct };
       if (pct >= 80) good.push(item);
-      if (pct < 40) bad.push(item);
-      if (pct >= 60) doingWell.push(item);
-      if (pct < 60) needsWork.push(item);
+      else if (pct >= 60) doingWell.push(item);
+      else if (pct < 40) bad.push(item);
+      else needsWork.push(item);
     }
 
     for (const r of results) {
       const pct = resultPct(r);
       const item = { name: r.label, cat: cat.label, pct };
       if (pct >= 80) good.push(item);
-      if (pct < 40) bad.push(item);
-      if (pct >= 60) doingWell.push(item);
-      if (pct < 60) needsWork.push(item);
+      else if (pct >= 60) doingWell.push(item);
+      else if (pct < 40) bad.push(item);
+      else needsWork.push(item);
     }
   }
 

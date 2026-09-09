@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { userData } from "../data/goals";
 import { computeOverallPct } from "../lib/score";
+import MonthEndAnalysis from "./MonthEndAnalysis";
 
 import { useCountUp } from "../lib/hooks";
 
 export default function StatsBar({ cats }) {
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const stats = useMemo(() => {
     const actives = (cats || []).filter((c) => !c.isRewards);
     const totalActions = actives.reduce(
@@ -87,26 +89,45 @@ export default function StatsBar({ cats }) {
   }, [cats]);
 
   return (
-    <div
-      className="card card-lift grid grid-cols-2 gap-y-4 md:grid-cols-4 overflow-hidden"
-      style={{
-        background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
-        border: "1px solid var(--color-border-active)",
-      }}
-    >
-      {stats.map((s) => (
-        <div key={s.label} className="py-4 px-1 text-center">
-          <div className="flex flex-col items-center">
-            <div className="text-[18px] mb-1">{s.icon}</div>
-            <ProgressRing pct={s.pct} tint={s.tint}>
-              <CountUpNumber {...s} />
-            </ProgressRing>
-            <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[10px]">{s.label}</div>
-            <div className="text-[10px] text-text-tertiary mt-0.5">{s.sub}</div>
+    <>
+      <div
+        className="card card-lift grid grid-cols-2 gap-y-4 md:grid-cols-4 overflow-hidden"
+        style={{
+          background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
+          border: "1px solid var(--color-border-active)",
+        }}
+      >
+        {stats.map((s) => (
+          <div key={s.label} className="py-4 px-1 text-center">
+            <div className="flex flex-col items-center">
+              <div className="text-[18px] mb-1">{s.icon}</div>
+              <ProgressRing pct={s.pct} tint={s.tint}>
+                <CountUpNumber {...s} />
+              </ProgressRing>
+              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[10px]">{s.label}</div>
+              <div className="text-[10px] text-text-tertiary mt-0.5">{s.sub}</div>
+            </div>
           </div>
+        ))}
+      </div>
+      <button
+        onClick={() => setShowAnalysis(true)}
+        className="card w-full py-3 px-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+        style={{
+          background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
+          border: "1px solid var(--color-border-active)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[18px]">🔍</span>
+          <span className="text-sm font-semibold text-white">Month Analysis</span>
         </div>
-      ))}
-    </div>
+        <span className="text-xs text-text-tertiary">tap to review →</span>
+      </button>
+      {showAnalysis && (
+        <MonthEndAnalysis cats={cats || []} onClose={() => setShowAnalysis(false)} />
+      )}
+    </>
   );
 }
 
