@@ -806,11 +806,12 @@ function AddForm({ type, onAdd, onCancel }) {
           },
         ]}
         onSubmit={(d) => {
+          const isCheck = d.actionType === "check";
           onAdd({
             label: d.label,
             weight: d.weight,
-            target: d.target,
-            unit: d.unit,
+            target: isCheck ? 1 : d.target,
+            unit: isCheck ? "" : d.unit,
             actionType: d.actionType || "count",
             resetType: d.resetType || "monthly",
           });
@@ -852,10 +853,11 @@ function AddForm({ type, onAdd, onCancel }) {
           },
         ]}
         onSubmit={(d) => {
+          const isCheck = d.resultType === "check";
           onAdd({
             label: d.label,
             weight: d.weight,
-            target: d.target,
+            target: isCheck ? 1 : d.target,
             unit: d.unit,
             resultType: d.resultType || "count",
             incrementBy: 1,

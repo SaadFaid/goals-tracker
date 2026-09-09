@@ -84,8 +84,8 @@ export default function ProgressChart({ logs, dashboard }) {
   // Area fill under the execution line.
   const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: flat at resultsPct from day 1 to today.
-  const resultsPath = `M ${x(1)} ${y(resultsPct)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: ramps from 0% on day 1 to current resultsPct at today.
+  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -188,9 +188,9 @@ export default function ProgressChart({ logs, dashboard }) {
             <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
           ))}
 
-          {/* Results dots: flat at resultsPct for each day */}
+          {/* Results dots: ramp from 0% on day 1 to resultsPct at today */}
           {allDays.map((d) => (
-            <circle key={`r-${d}`} cx={x(d)} cy={y(resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+            <circle key={`r-${d}`} cx={x(d)} cy={y((d / today) * resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
           {/* Today's live execution point: pink with turquoise border */}
