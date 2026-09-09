@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlanStore } from "../store/usePlanStore";
 
 const HOUR_START = 6;   // first visible hour
@@ -147,6 +147,12 @@ export default function PlanPage({ categories, onBack }) {
   const dragState = useRef(null);
   const [draft, setDraft] = useState(null);
 
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
   const options = useMemo(() => taskOptions(categories), [categories]);
 
   const rows = useMemo(
@@ -250,13 +256,16 @@ export default function PlanPage({ categories, onBack }) {
     if (e.button !== 0 || e.target.closest("button")) return;
     const rect = gridEl.getBoundingClientRect();
     const yInRect = e.clientY - rect.top;
-    const isResize = yInRect > rect.height * ((toMin(row.end) - toMin(row.start)) / GRID_TOTAL_MIN) - 7;
+    const zone = Math.min(12, Math.max(6, rect.height * 0.18));
+    let mode = "move";
+    if (yInRect < zone) mode = "resizeStart";
+    else if (yInRect > rect.height - zone) mode = "resizeEnd";
     dragState.current = {
       id: row.id,
       grabMin: gridMinFromClientY(gridEl, e.clientY),
       startMin: toMin(row.start),
       endMin: toMin(row.end),
-      mode: isResize ? "resize" : "move",
+      mode,
     };
     gridEl.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -266,9 +275,12 @@ export default function PlanPage({ categories, onBack }) {
     const ds = dragState.current;
     if (!ds) return;
     const raw = gridMinFromClientY(gridEl, e.clientY);
-    if (ds.mode === "resize") {
+    if (ds.mode === "resizeEnd") {
       const end = clamp(snap(raw), ds.startMin + SNAP_MIN, GRID_END_MIN);
       setDraft({ id: ds.id, start: ds.startMin, end });
+    } else if (ds.mode === "resizeStart") {
+      const start = clamp(snap(raw), GRID_START_MIN, ds.endMin - SNAP_MIN);
+      setDraft({ id: ds.id, start, end: ds.endMin });
     } else {
       const start = clamp(snap(ds.startMin + (raw - ds.grabMin)), GRID_START_MIN, GRID_END_MIN - SNAP_MIN);
       const end = start + (ds.endMin - ds.startMin);
@@ -311,6 +323,54 @@ export default function PlanPage({ categories, onBack }) {
             </div>
           );
         })}
+        {(() => {
+          const isToday = key === dayKey(new Date(nowTick));
+          const nd = new Date(nowTick);
+          const nowMin = nd.getHours() * 60 + nd.getMinutes();
+          if (!isToday || nowMin < GRID_START_MIN || nowMin > GRID_END_MIN) return null;
+          return (
+            <div
+              className="absolute pointer-events-none"
+              style={{ left: 30, right: 0, top: `${((nowMin - GRID_START_MIN) / GRID_TOTAL_MIN) * 100}%` }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  top: -1.5,
+                  borderTop: "1.5px solid rgba(219,96,136,0.9)",
+                  borderBottom: "1.5px solid rgba(219,96,136,0.9)",
+                  background: "rgba(219,96,136,0.14)",
+                  backdropFilter: "blur(2px)",
+                  WebkitBackdropFilter: "blur(2px)",
+                  boxShadow: "0 0 12px rgba(219,96,136,0.4)",
+                }}
+              />
+              <span
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: -8,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  fontFamily: "var(--font-mono)",
+                  color: "#DB6088",
+                  background: "rgba(14,24,23,0.65)",
+                  backdropFilter: "blur(3px)",
+                  WebkitBackdropFilter: "blur(3px)",
+                  border: "1px solid #DB6088",
+                  borderRadius: 5,
+                  padding: "1px 5px",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                NOW {hms(nowMin)}
+              </span>
+            </div>
+          );
+        })()}
         {dayRows.map((row) => {
           const override = draft && draft.id === row.id ? draft : null;
           const pos = blockPos(row, override);
@@ -353,6 +413,7 @@ export default function PlanPage({ categories, onBack }) {
                 </span>
               </div>
               <div className="absolute bottom-0 left-1 right-1 h-[5px] cursor-ns-resize rounded-b-md opacity-60 hover:opacity-100" style={{ background: `${color}55` }} />
+              <div className="absolute top-0 left-1 right-1 h-[5px] cursor-ns-resize rounded-t-md opacity-60 hover:opacity-100" style={{ background: `${color}55` }} />
             </div>
           );
         })}
