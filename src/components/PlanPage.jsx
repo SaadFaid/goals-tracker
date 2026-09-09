@@ -53,7 +53,12 @@ const snap = (min, step = SNAP_MIN) => Math.round(min / step) * step;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // Hour strip runs top = 01:00 am down to bottom = 00:00, full 24h wrapped.
-const topPct = (min) => (((min - 60) % 1440 + 1440) % 1440) / GRID_TOTAL_MIN * 100;
+const topPct = (min) => dispOfMin(min) / GRID_TOTAL_MIN * 100;
+
+// Strip position: 0 = 01:00 am, rising downward, 1440 = (wrap) 01:00 am next cycle.
+const dispOfMin = (min) => ((min - 60) % 1440 + 1440) % 1440;
+// Real clock minutes for a strip position.
+const minOfDisp = (disp) => (disp + 60) % 1440;
 
 // "00:00" at the bottom, then 12h am/pm labels reading down from 01:00 am.
 const hourLabel = (h) => {
@@ -254,8 +259,7 @@ export default function PlanPage({ categories, onBack }) {
   // ── Drag + resize ────────────────────────────────────
   const gridMinFromClientY = (gridEl, clientY) => {
     const rect = gridEl.getBoundingClientRect();
-    const disp = ((clientY - rect.top) / rect.height) * GRID_TOTAL_MIN; // strip position (01:00 = 0)
-    return ((disp + 60) % 1440); // convert back to real clock minutes
+    return ((clientY - rect.top) / rect.height) * GRID_TOTAL_MIN; // strip position (01:00 = 0)
   };
 
   const blockPos = (row, overrideMin) => {
@@ -278,9 +282,9 @@ export default function PlanPage({ categories, onBack }) {
     else if (yInRect > bRect.height - zone) mode = "resizeEnd"; // bottom edge = end time (add/remove minutes)
     dragState.current = {
       id: row.id,
-      grabMin: gridMinFromClientY(gridEl, e.clientY),
-      startMin: toMin(row.start),
-      endMin: toMin(row.end),
+      grabDisp: gridMinFromClientY(gridEl, e.clientY),
+      startDisp: dispOfMin(toMin(row.start)),
+      endDisp: dispOfMin(toMin(row.end)),
       mode,
     };
     gridEl.setPointerCapture(e.pointerId);
@@ -292,15 +296,15 @@ export default function PlanPage({ categories, onBack }) {
     if (!ds) return;
     const raw = gridMinFromClientY(gridEl, e.clientY);
     if (ds.mode === "resizeEnd") {
-      const end = clamp(snap(raw), ds.startMin + SNAP_MIN, GRID_END_MIN);
-      setDraft({ id: ds.id, start: ds.startMin, end });
+      const endDisp = clamp(snap(raw), ds.startDisp + SNAP_MIN, GRID_END_MIN);
+      setDraft({ id: ds.id, start: minOfDisp(ds.startDisp), end: minOfDisp(endDisp) });
     } else if (ds.mode === "resizeStart") {
-      const start = clamp(snap(raw), GRID_START_MIN, ds.endMin - SNAP_MIN);
-      setDraft({ id: ds.id, start, end: ds.endMin });
+      const startDisp = clamp(snap(raw), GRID_START_MIN, ds.endDisp - SNAP_MIN);
+      setDraft({ id: ds.id, start: minOfDisp(startDisp), end: minOfDisp(ds.endDisp) });
     } else {
-      const start = clamp(snap(ds.startMin + (raw - ds.grabMin)), GRID_START_MIN, GRID_END_MIN - SNAP_MIN);
-      const end = start + (ds.endMin - ds.startMin);
-      setDraft({ id: ds.id, start, end });
+      const dur = ds.endDisp - ds.startDisp;
+      const startDisp = clamp(snap(ds.startDisp + (raw - ds.grabDisp)), GRID_START_MIN, GRID_END_MIN - SNAP_MIN);
+      setDraft({ id: ds.id, start: minOfDisp(startDisp), end: minOfDisp(startDisp + dur) });
     }
   };
 
