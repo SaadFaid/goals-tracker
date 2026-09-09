@@ -13,9 +13,10 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const REPEATS = [
-  { value: "today", label: "Today only" },
+  { value: "today", label: "Only this day" },
+  { value: "weekly", label: "Every week — pick a day" },
+  { value: "daily", label: "All days (every day)" },
   { value: "thisweek", label: "This week" },
-  { value: "daily", label: "Every day" },
   { value: "monthly", label: "Every month" },
 ];
 
@@ -123,6 +124,16 @@ function repeatInstances(row, winStart, winEnd) {
     return out;
   }
 
+  if (row.repeat === "weekly") {
+    const wd = (Number(row.repeatDay) | 0) % 7; // 0=Mon … 6=Sun (default Mon)
+    for (let d = mondayOf(rowDay); d.getTime() <= w1; d = addDays(d, 7)) {
+      const t = addDays(d, wd);
+      const tt = t.getTime();
+      if (tt >= w0 && tt <= w1) out.push(dayKey(t));
+    }
+    return out;
+  }
+
   if (row.repeat === "daily") {
     for (let d = new Date(rowDay); d.getTime() <= w1; d = addDays(d, 1)) {
       const t = d.getTime();
@@ -195,7 +206,7 @@ export default function PlanPage({ categories, onBack }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", color: "", note: "" });
+  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", repeatDay: 1, color: "", note: "" });
   const [err, setErr] = useState("");
 
   const dragState = useRef(null);
@@ -266,6 +277,7 @@ export default function PlanPage({ categories, onBack }) {
       start: form.start || "09:00",
       end: form.end || "10:00",
       repeat: form.repeat || "today",
+      repeatDay: Number(form.repeatDay) || 1,
     };
     if (editingId) updateSlot(editingId, payload);
     else addSlot(payload);
@@ -277,7 +289,7 @@ export default function PlanPage({ categories, onBack }) {
   const openFormFor = (date) => {
     const now = new Date();
     const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 2);
-    setForm({ ...form, taskKey: "", date, repeat: "today", color: "", note: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
+    setForm({ ...form, taskKey: "", date, repeat: "today", repeatDay: 1, color: "", note: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
     setEditingId(null);
     setFormOpen(true);
   };
@@ -289,6 +301,7 @@ export default function PlanPage({ categories, onBack }) {
       start: row.start,
       end: row.end,
       repeat: row.repeat || "today",
+      repeatDay: row.repeatDay ?? 1,
       color: row.color || "",
       note: row.note || "",
     });
@@ -628,6 +641,16 @@ export default function PlanPage({ categories, onBack }) {
                 ))}
               </select>
             </label>
+            {form.repeat === "weekly" && (
+              <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
+                On which day (weekly)
+                <select value={String(form.repeatDay)} onChange={(e) => setForm({ ...form, repeatDay: Number(e.target.value) })} className={selectCls}>
+                  {WEEKDAYS.map((d, i) => (
+                    <option key={d} value={i}>{d}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="flex flex-col gap-1.5 text-[11px] text-text-tertiary">
               Color
               <span className="flex items-center gap-1.5">

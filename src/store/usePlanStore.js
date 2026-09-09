@@ -28,6 +28,7 @@ export const usePlanStore = create(
           start: slot.start,
           end: slot.end,
           repeat: slot.repeat || "today",
+          repeatDay: slot.repeatDay,
         };
         set((s) => ({ schedule: [...s.schedule, row] }));
         return row;
