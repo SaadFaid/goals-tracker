@@ -68,19 +68,24 @@ export default function ProgressChart({ logs, dashboard }) {
   // Expected pace: reaches 100% on the last day.
   const expectedPath = `M ${x(1)} ${y((1 / totalDays) * 100)} L ${x(totalDays)} ${y(100)}`;
 
-  // Actual progress: line from day 1 (0%) through all logged points to today.
+  // Execution line: continuous from 0% on day 1 through all logged points to today.
   const allPoints = [...points, { day: today, value: liveScore }];
-  const actualPath = allPoints.length <= 1
-    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)}`
-    : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ");
+  const deduped = [];
+  for (const p of allPoints) {
+    if (!deduped.length || deduped[deduped.length - 1].day !== p.day) {
+      deduped.push(p);
+    } else {
+      deduped[deduped.length - 1] = p;
+    }
+  }
+  const execPoints = [{ day: 1, value: 0 }, ...deduped];
+  const actualPath = execPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
 
-  // Area fill under the actual line.
-  const areaPath = allPoints.length <= 1
-    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`
-    : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ") + ` L ${x(today)} ${y(0)} Z`;
+  // Area fill under the execution line.
+  const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: starts at 0% on day 1, jumps to current resultsPct today.
-  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: flat at resultsPct from day 1 to today.
+  const resultsPath = `M ${x(1)} ${y(resultsPct)} L ${x(today)} ${y(resultsPct)}`;
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -178,23 +183,23 @@ export default function ProgressChart({ logs, dashboard }) {
             <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
-          {/* Real historical points (past logged days) — pink with turquoise border */}
+          {/* Execution dots at each logged point */}
           {points.map((p) => (
             <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
           ))}
 
-          {/* Results dots: 0% for each day until today, then jump to resultsPct */}
+          {/* Results dots: flat at resultsPct for each day */}
           {allDays.map((d) => (
-            <circle key={`r-${d}`} cx={x(d)} cy={y(d < today ? 0 : resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+            <circle key={`r-${d}`} cx={x(d)} cy={y(resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
-          {/* Results point at today */}
-          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
-
-          {/* Today's live point: pink with turquoise border */}
+          {/* Today's live execution point: pink with turquoise border */}
           {today >= 1 ? (
             <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
           ) : null}
+
+          {/* Today's results point */}
+          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
 
           {/* Goal dot markers on expected line at every day up to today */}
           {allDays.map((d) => (
