@@ -87,7 +87,7 @@ function Dashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen text-muted overflow-hidden relative isolate">
+    <main className="min-h-screen text-muted overflow-x-clip relative isolate">
       <div aria-hidden className="bg-anim">
         <div className="bg-orb orb-mint" />
         <div className="bg-orb orb-periwinkle" />

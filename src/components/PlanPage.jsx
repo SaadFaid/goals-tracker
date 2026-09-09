@@ -579,7 +579,14 @@ export default function PlanPage({ categories, onBack }) {
 
   return (
     <div className="page-container py-4 flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className="flex flex-wrap items-center gap-2 sticky top-0 z-30 border-b border-border-subtle py-2"
+        style={{
+          background: "linear-gradient(180deg, var(--color-sunken), var(--color-elevated))",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+        }}
+      >
         <button onClick={onBack} className="nav-btn" style={controlBtn} title="Back to dashboard">
           ← Dashboard
         </button>
