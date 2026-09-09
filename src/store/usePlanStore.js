@@ -25,9 +25,16 @@ export const usePlanStore = create(
           date: slot.date,
           start: slot.start,
           end: slot.end,
+          repeat: slot.repeat || "today",
         };
         set((s) => ({ schedule: [...s.schedule, row] }));
         return row;
+      },
+
+      updateSlot(id, patch) {
+        set((s) => ({
+          schedule: s.schedule.map((r) => (r.id === id ? { ...r, ...patch, id: r.id } : r)),
+        }));
       },
 
       removeSlot(id) {

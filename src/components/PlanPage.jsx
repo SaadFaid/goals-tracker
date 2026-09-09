@@ -1,19 +1,36 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { usePlanStore } from "../store/usePlanStore";
 
 const HOUR_START = 6;   // first visible hour
 const HOUR_END = 23;    // last visible hour
 const HOUR_PX = 60;     // grid height per hour (px)
 const GRID_START_MIN = HOUR_START * 60;
-const GRID_TOTAL_MIN = (HOUR_END - HOUR_START) * 60;
+const GRID_END_MIN = HOUR_END * 60;
+const GRID_TOTAL_MIN = GRID_END_MIN - GRID_START_MIN;
+const SNAP_MIN = 15;
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+const REPEATS = [
+  { value: "today", label: "Today only" },
+  { value: "thisweek", label: "This week" },
+  { value: "daily", label: "Every day" },
+  { value: "monthly", label: "Every month" },
+];
+
 const TYPE_COLORS = { action: "#6DF5E3", result: "#A4D2EC" };
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const hms = (min) => `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
 
 const dayKey = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const parseDay = (key) => {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
 
 const addDays = (d, n) => {
   const c = new Date(d);
@@ -31,6 +48,57 @@ const toMin = (t) => {
   const [h, m] = String(t || "").split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 };
+
+const snap = (min, step = SNAP_MIN) => Math.round(min / step) * step;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// Day keys in [winStart, winEnd] that a recurring row covers.
+function repeatInstances(row, winStart, winEnd) {
+  const w0 = winStart.getTime();
+  const w1 = winEnd.getTime();
+  const out = [];
+  const rowDay = parseDay(row.date);
+  const rowT = rowDay.getTime();
+
+  if (row.repeat === "thisweek") {
+    const ws = mondayOf(rowDay);
+    for (let i = 0; i < 7; i++) {
+      const t = addDays(ws, i).getTime();
+      if (t >= w0 && t <= w1) out.push(dayKey(addDays(ws, i)));
+    }
+    return out;
+  }
+
+  if (row.repeat === "daily") {
+    for (let d = new Date(rowDay); d.getTime() <= w1; d = addDays(d, 1)) {
+      const t = d.getTime();
+      if (t >= w0) out.push(dayKey(d));
+    }
+    return out;
+  }
+
+  if (row.repeat === "monthly") {
+    let y = rowDay.getFullYear();
+    let mo = rowDay.getMonth();
+    for (let it = 0; it < 1200; it++) {
+      const dom = Math.min(rowDay.getDate(), new Date(y, mo + 1, 0).getDate());
+      const d = new Date(y, mo, dom);
+      const t = d.getTime();
+      if (t > w1) break;
+      if (t >= w0) out.push(dayKey(d));
+      mo += 1;
+      if (mo > 11) {
+        mo = 0;
+        y += 1;
+      }
+    }
+    return out;
+  }
+
+  // today (default): only on the row's own date
+  if (rowT >= w0 && rowT <= w1) out.push(row.date);
+  return out;
+}
 
 function taskOptions(categories) {
   const opts = [];
@@ -66,38 +134,57 @@ function taskOptions(categories) {
 export default function PlanPage({ categories, onBack }) {
   const schedule = usePlanStore((s) => s.schedule);
   const addSlot = usePlanStore((s) => s.addSlot);
+  const updateSlot = usePlanStore((s) => s.updateSlot);
   const removeSlot = usePlanStore((s) => s.removeSlot);
 
   const [mode, setMode] = useState("day");
   const [anchor, setAnchor] = useState(() => new Date());
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00" });
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today" });
   const [err, setErr] = useState("");
+
+  const dragState = useRef(null);
+  const [draft, setDraft] = useState(null);
 
   const options = useMemo(() => taskOptions(categories), [categories]);
 
-  const rows =
-    useMemo(
-      () =>
-        schedule.map((r) => {
-          // Resolve live label/category so renames/deletes stay honest.
-          const cat = (categories || []).find((c) => c.id === r.catId);
-          const list = cat ? cat[r.type + "s"] || [] : [];
-          const task = list[r.idx];
-          if (!task || task._deleted) return null;
-          return { ...r, label: task.label || r.label, catName: cat.name || r.catName, cat };
-        }),
-      [schedule, categories]
-    ).filter(Boolean);
+  const rows = useMemo(
+    () =>
+      schedule.map((r) => {
+        const cat = (categories || []).find((c) => c.id === r.catId);
+        const list = cat ? cat[r.type + "s"] || [] : [];
+        const task = list[r.idx];
+        if (!task || task._deleted) return null;
+        return { ...r, label: task.label || r.label, catName: cat.name || r.catName };
+      }),
+    [schedule, categories]
+  ).filter(Boolean);
 
-  const byDate = useMemo(() => {
+  // View window for the current mode (used to expand recurrences).
+  const win = useMemo(() => {
+    if (mode === "week") {
+      const ws = mondayOf(anchor);
+      return { start: ws, end: addDays(ws, 6) };
+    }
+    if (mode === "month") {
+      const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+      const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+      return { start, end };
+    }
+    return { start: new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()), end: anchor };
+  }, [mode, anchor]);
+
+  const instances = useMemo(() => {
     const m = new Map();
     for (const r of rows) {
-      if (!m.has(r.date)) m.set(r.date, []);
-      m.get(r.date).push(r);
+      for (const dk of repeatInstances(r, win.start, win.end)) {
+        if (!m.has(dk)) m.set(dk, []);
+        m.get(dk).push(r);
+      }
     }
     return m;
-  }, [rows]);
+  }, [rows, win]);
 
   const submit = () => {
     if (!form.taskKey) return setErr("Pick a task first.");
@@ -106,7 +193,8 @@ export default function PlanPage({ categories, onBack }) {
     if (b <= a) return setErr("End time must be after start time.");
     const opt = options.find((o) => o.key === form.taskKey);
     if (!opt) return setErr("That task no longer exists.");
-    addSlot({
+
+    const payload = {
       catId: opt.catId,
       type: opt.type,
       idx: opt.idx,
@@ -115,44 +203,100 @@ export default function PlanPage({ categories, onBack }) {
       date: form.date,
       start: form.start || "09:00",
       end: form.end || "10:00",
-    });
+      repeat: form.repeat || "today",
+    };
+    if (editingId) updateSlot(editingId, payload);
+    else addSlot(payload);
     setErr("");
     setFormOpen(false);
+    setEditingId(null);
   };
 
   const openFormFor = (date) => {
     const now = new Date();
-    const startH = Math.max(HOUR_START, Math.min(HOUR_END - 1, now.getHours()));
-    const pad = (n) => String(n).padStart(2, "0");
-    setForm({
-      ...form,
-      date,
-      start: `${pad(startH)}:00`,
-      end: `${pad(startH + 1)}:00`,
-    });
+    const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 1);
+    setForm({ ...form, taskKey: "", date, repeat: "today", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
+    setEditingId(null);
     setFormOpen(true);
   };
 
-  const gridStyle = { position: "relative", height: (HOUR_END - HOUR_START) * HOUR_PX };
-
-  const hourTop = (minutes) => ((minutes - GRID_START_MIN) / GRID_TOTAL_MIN) * 100;
-
-  const inSlot = (row) => {
-    const a = toMin(row.start);
-    const b = Math.max(a + 15, toMin(row.end));
-    const top = hourTop(a);
-    const height = ((b - a) / GRID_TOTAL_MIN) * 100;
-    return { top: `${top}%`, height: `${Math.max(height, 2.4)}%` };
+  const openEditFor = (row) => {
+    setForm({
+      taskKey: `${row.catId}::${row.type}::${row.idx}`,
+      date: row.date,
+      start: row.start,
+      end: row.end,
+      repeat: row.repeat || "today",
+    });
+    setEditingId(row.id);
+    setFormOpen(true);
   };
 
+  // ── Drag + resize ────────────────────────────────────
+  const gridMinFromClientY = (gridEl, clientY) => {
+    const rect = gridEl.getBoundingClientRect();
+    return GRID_START_MIN + ((clientY - rect.top) / rect.height) * GRID_TOTAL_MIN;
+  };
+
+  const blockPos = (row, overrideMin) => {
+    const a = overrideMin ? overrideMin.start : toMin(row.start);
+    const b = (overrideMin ? overrideMin.end : toMin(row.end)) || a + 15;
+    const top = ((a - GRID_START_MIN) / GRID_TOTAL_MIN) * 100;
+    const height = Math.max(((b - a) / GRID_TOTAL_MIN) * 100, 2.4);
+    return { top: `${top}%`, height: `${height}%` };
+  };
+
+  const onBlockPointerDown = (e, gridEl, row) => {
+    if (e.button !== 0 || e.target.closest("button")) return;
+    const rect = gridEl.getBoundingClientRect();
+    const yInRect = e.clientY - rect.top;
+    const isResize = yInRect > rect.height * ((toMin(row.end) - toMin(row.start)) / GRID_TOTAL_MIN) - 7;
+    dragState.current = {
+      id: row.id,
+      grabMin: gridMinFromClientY(gridEl, e.clientY),
+      startMin: toMin(row.start),
+      endMin: toMin(row.end),
+      mode: isResize ? "resize" : "move",
+    };
+    gridEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+
+  const onGridPointerMove = (e, gridEl) => {
+    const ds = dragState.current;
+    if (!ds) return;
+    const raw = gridMinFromClientY(gridEl, e.clientY);
+    if (ds.mode === "resize") {
+      const end = clamp(snap(raw), ds.startMin + SNAP_MIN, GRID_END_MIN);
+      setDraft({ id: ds.id, start: ds.startMin, end });
+    } else {
+      const start = clamp(snap(ds.startMin + (raw - ds.grabMin)), GRID_START_MIN, GRID_END_MIN - SNAP_MIN);
+      const end = start + (ds.endMin - ds.startMin);
+      setDraft({ id: ds.id, start, end });
+    }
+  };
+
+  const onGridPointerUp = () => {
+    const ds = dragState.current;
+    dragState.current = null;
+    if (ds && draft && draft.id === ds.id) {
+      updateSlot(ds.id, { start: hms(draft.start), end: hms(draft.end) });
+    }
+    setDraft(null);
+  };
+
+  // ── Rendering helpers ───────────────────────────────
   const renderDayColumn = (date) => {
     const key = dayKey(date);
-    const dayRows = byDate.get(key) || [];
+    const dayRows = instances.get(key) || [];
     return (
-      <div style={gridStyle} className="relative rounded-lg overflow-hidden" >
+      <div
+        style={{ ...gridStyle, position: "relative" }}
+        className="relative rounded-lg overflow-hidden select-none"
+      >
         <div
           className="absolute inset-0 cursor-pointer"
-          onClick={() => openFormFor(date)}
+          onClick={() => openFormFor(key)}
           title="Click to add a task"
         />
         {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => {
@@ -168,12 +312,13 @@ export default function PlanPage({ categories, onBack }) {
           );
         })}
         {dayRows.map((row) => {
-          const pos = inSlot(row);
+          const override = draft && draft.id === row.id ? draft : null;
+          const pos = blockPos(row, override);
           const color = TYPE_COLORS[row.type] || "var(--color-accent)";
           return (
             <div
-              key={row.id}
-              className="absolute rounded-md px-1.5 py-0.5 overflow-hidden flex flex-col"
+              key={row.id + key}
+              className="absolute rounded-md px-1.5 py-0.5 flex flex-col cursor-grab active:cursor-grabbing"
               style={{
                 ...pos,
                 left: "2%",
@@ -182,20 +327,32 @@ export default function PlanPage({ categories, onBack }) {
                 borderLeft: `3px solid ${color}`,
                 border: `1px solid ${color}44`,
                 borderLeftWidth: 3,
+                touchAction: "none",
               }}
-              title={row.label}
+              title={`${row.label} (${row.repeat || "today"}) — drag to move, bottom edge to resize`}
+              onPointerDown={(e) => onBlockPointerDown(e, e.currentTarget.closest(".plan-grid"), row)}
             >
-              <div className="flex items-center gap-0.5 min-w-0">
+              <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[10px] font-semibold text-white truncate">{row.label}</span>
-                <button
-                  onClick={() => removeSlot(row.id)}
-                  className="ml-auto shrink-0 text-white/50 hover:text-white/90 text-[10px] leading-none px-0.5 rounded hover:bg-white/10"
-                  aria-label={`Remove ${row.label}`}
-                >
-                  ×
-                </button>
+                <span className="shrink-0 text-[9px] mono text-white/70">{row.start}–{row.end}</span>
+                <span className="ml-auto shrink-0 flex items-center gap-0.5">
+                  <button
+                    onClick={() => openEditFor(row)}
+                    className="text-white/50 hover:text-white/90 text-[10px] leading-none px-0.5 rounded hover:bg-white/10"
+                    aria-label={`Edit ${row.label}`}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => removeSlot(row.id)}
+                    className="text-white/50 hover:text-white/90 text-[10px] leading-none px-0.5 rounded hover:bg-white/10"
+                    aria-label={`Remove ${row.label}`}
+                  >
+                    ×
+                  </button>
+                </span>
               </div>
-              <span className="text-[9px] opacity-60 mono">{row.start}–{row.end}</span>
+              <div className="absolute bottom-0 left-1 right-1 h-[5px] cursor-ns-resize rounded-b-md opacity-60 hover:opacity-100" style={{ background: `${color}55` }} />
             </div>
           );
         })}
@@ -203,18 +360,19 @@ export default function PlanPage({ categories, onBack }) {
     );
   };
 
+  const gridStyle = { height: (HOUR_END - HOUR_START) * HOUR_PX };
+
   const weekStart = mondayOf(anchor);
   const monthGrid = useMemo(() => {
     const y = anchor.getFullYear();
     const m = anchor.getMonth();
     const first = new Date(y, m, 1);
-    const startDow = first.getDay() === 0 ? 7 : first.getDay(); // Mon=1
+    const startDow = first.getDay() === 0 ? 7 : first.getDay();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     const cells = [];
     for (let i = 1 - startDow; i <= daysInMonth - startDow; i++) {
       const d = addDays(first, i - 1);
-      const inMonth = d.getMonth() === m;
-      cells.push({ date: d, inMonth });
+      cells.push({ date: d, inMonth: d.getMonth() === m });
     }
     return cells;
   }, [anchor]);
@@ -256,20 +414,14 @@ export default function PlanPage({ categories, onBack }) {
     </button>
   );
 
-  const controlBtn = {
-    border: "1px solid var(--color-border-active)",
-    color: "var(--color-text-secondary)",
-  };
+  const controlBtn = { border: "1px solid var(--color-border-active)", color: "var(--color-text-secondary)" };
+
+  const selectCls = "bg-sunken border border-border-subtle rounded-md px-2 py-1.5 text-xs text-white";
 
   return (
     <div className="page-container py-4 flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={onBack}
-          className="nav-btn"
-          style={controlBtn}
-          title="Back to dashboard"
-        >
+        <button onClick={onBack} className="nav-btn" style={controlBtn} title="Back to dashboard">
           ← Dashboard
         </button>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -284,7 +436,12 @@ export default function PlanPage({ categories, onBack }) {
         </div>
         <h2 className="text-base font-bold text-white mx-1">{nav.title}</h2>
         <button
-          onClick={() => (formOpen ? setFormOpen(false) : openFormFor(dayKey(anchor)))}
+          onClick={() => {
+            if (formOpen) {
+              setFormOpen(false);
+              setEditingId(null);
+            } else openFormFor(dayKey(anchor));
+          }}
           className="nav-btn nav-btn-primary ml-auto"
           style={formOpen ? { background: "var(--color-sunken)", color: "var(--color-text-tertiary)", border: "1px solid var(--color-border-active)" } : { background: "var(--color-accent)", color: "#101010" }}
         >
@@ -294,15 +451,14 @@ export default function PlanPage({ categories, onBack }) {
 
       {formOpen && (
         <div className="card p-4 flex flex-col gap-3">
-          <div className="text-sm font-semibold text-white">Schedule a task</div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
+          <div className="text-sm font-semibold text-white">
+            {editingId ? "Edit scheduled task" : "Schedule a task"}
+            {editingId && <span className="ml-2 text-[10px] font-normal text-text-tertiary">edits apply to all repetitions</span>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="flex flex-col gap-1 text-[11px] text-text-tertiary sm:col-span-2">
               Task
-              <select
-                value={form.taskKey}
-                onChange={(e) => setForm({ ...form, taskKey: e.target.value })}
-                className="bg-sunken border border-border-subtle rounded-md px-2 py-1.5 text-xs text-white"
-              >
+              <select value={form.taskKey} onChange={(e) => setForm({ ...form, taskKey: e.target.value })} className={selectCls}>
                 <option value="">Pick a task…</option>
                 <optgroup label="Actions">
                   {options.filter((o) => o.type === "action").map((o) => (
@@ -318,39 +474,39 @@ export default function PlanPage({ categories, onBack }) {
             </label>
             <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
               Date
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="bg-sunken border border-border-subtle rounded-md px-2 py-1.5 text-xs text-white"
-              />
+              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={selectCls} />
             </label>
             <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
               Start
-              <input
-                type="time"
-                step={900}
-                value={form.start}
-                onChange={(e) => setForm({ ...form, start: e.target.value })}
-                className="bg-sunken border border-border-subtle rounded-md px-2 py-1.5 text-xs text-white"
-              />
+              <input type="time" step={900} value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className={selectCls} />
             </label>
             <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
               End
-              <input
-                type="time"
-                step={900}
-                value={form.end}
-                onChange={(e) => setForm({ ...form, end: e.target.value })}
-                className="bg-sunken border border-border-subtle rounded-md px-2 py-1.5 text-xs text-white"
-              />
+              <input type="time" step={900} value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} className={selectCls} />
+            </label>
+            <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
+              Repeat
+              <select value={form.repeat} onChange={(e) => setForm({ ...form, repeat: e.target.value })} className={selectCls}>
+                {REPEATS.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
             </label>
           </div>
           {err && <div className="text-xs text-danger">{err}</div>}
           <div className="flex gap-2">
             <button onClick={submit} className="nav-btn nav-btn-primary" style={{ background: "var(--color-accent)", color: "#101010" }}>
-              Add to schedule
+              {editingId ? "Save changes" : "Add to schedule"}
             </button>
+            {editingId && (
+              <button
+                onClick={() => { setFormOpen(false); setEditingId(null); }}
+                className="nav-btn"
+                style={controlBtn}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -365,7 +521,7 @@ export default function PlanPage({ categories, onBack }) {
           <div className="grid grid-cols-7 gap-1.5">
             {monthGrid.map(({ date, inMonth }) => {
               const key = dayKey(date);
-              const count = (byDate.get(key) || []).length;
+              const count = (instances.get(key) || []).length;
               const isToday = key === dayKey(new Date());
               return (
                 <button
@@ -414,7 +570,14 @@ export default function PlanPage({ categories, onBack }) {
                       +
                     </button>
                   </div>
-                  {renderDayColumn(date)}
+                  <div
+                    className="plan-grid"
+                    onPointerMove={(e) => onGridPointerMove(e, e.currentTarget)}
+                    onPointerUp={onGridPointerUp}
+                    onPointerCancel={onGridPointerUp}
+                  >
+                    {renderDayColumn(date)}
+                  </div>
                 </div>
               );
             })}
@@ -428,7 +591,14 @@ export default function PlanPage({ categories, onBack }) {
             </div>
             <div className="text-[10px] text-text-tertiary hidden sm:inline">{dayKey(anchor)}</div>
           </div>
-          {renderDayColumn(anchor)}
+          <div
+            className="plan-grid"
+            onPointerMove={(e) => onGridPointerMove(e, e.currentTarget)}
+            onPointerUp={onGridPointerUp}
+            onPointerCancel={onGridPointerUp}
+          >
+            {renderDayColumn(anchor)}
+          </div>
         </div>
       )}
 
