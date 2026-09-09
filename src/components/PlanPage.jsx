@@ -52,15 +52,18 @@ const toMin = (t) => {
 const snap = (min, step = SNAP_MIN) => Math.round(min / step) * step;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-// Grid runs bottom = midnight (00:00) up to top = 23:00.
-const topPct = (min) => 100 - ((min - GRID_START_MIN) / GRID_TOTAL_MIN) * 100;
+// Hour strip runs top = 01:00 am down to bottom = 00:00, full 24h wrapped.
+const topPct = (min) => (((min - 60) % 1440 + 1440) % 1440) / GRID_TOTAL_MIN * 100;
 
-// "00:00" at the bottom, then 12h am/pm labels flowing upward.
+// "00:00" at the bottom, then 12h am/pm labels reading down from 01:00 am.
 const hourLabel = (h) => {
   if (h === 0 || h % 24 === 0) return "00:00";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${pad2(h12)}:00 ${h < 12 ? "am" : "pm"}`;
 };
+
+// Visible order of hour bands top-to-bottom: 01:00, 02:00, ..., 23:00, 00:00.
+const ringHours = Array.from({ length: 24 }, (_, i) => (i + 1) % 24);
 
 // Day keys in [winStart, winEnd] that a recurring row covers.
 function repeatInstances(row, winStart, winEnd) {
@@ -251,14 +254,15 @@ export default function PlanPage({ categories, onBack }) {
   // ── Drag + resize ────────────────────────────────────
   const gridMinFromClientY = (gridEl, clientY) => {
     const rect = gridEl.getBoundingClientRect();
-    return GRID_START_MIN + ((clientY - rect.top) / rect.height) * GRID_TOTAL_MIN;
+    const disp = ((clientY - rect.top) / rect.height) * GRID_TOTAL_MIN; // strip position (01:00 = 0)
+    return ((disp + 60) % 1440); // convert back to real clock minutes
   };
 
   const blockPos = (row, overrideMin) => {
     const a = overrideMin ? overrideMin.start : toMin(row.start);
     const b = (overrideMin ? overrideMin.end : toMin(row.end)) || a + 15;
-    // Flipped grid: the visual top edge of a block is its later (end) time.
-    const top = topPct(b);
+    // Top-down strip starting at 01:00 am: a block's top edge = its start time.
+    const top = topPct(a);
     // Box height == exactly the duration set; a tiny floor only keeps sub-5-min blocks grabbable.
     const height = Math.max(((b - a) / GRID_TOTAL_MIN) * 100, 0.35);
     return { top: `${top}%`, height: `${height}%` };
@@ -323,14 +327,13 @@ export default function PlanPage({ categories, onBack }) {
           onClick={() => openFormFor(key)}
           title="Click to add a task"
         />
-        {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => {
-          const h = HOUR_START + i;
-          const bottomP = (i / (HOUR_END - HOUR_START)) * 100;
+        {ringHours.map((h) => {
+          const bandH = 100 / 24;
           return (
             <div
               key={h}
               className="absolute left-0 right-0"
-              style={{ top: `${100 - bottomP - 100 / (HOUR_END - HOUR_START)}%`, height: `${100 / (HOUR_END - HOUR_START)}%`, borderTop: "1px solid var(--color-border-subtle)" }}
+              style={{ top: `${topPct(h * 60)}%`, height: `${bandH}%`, borderTop: "1px solid var(--color-border-subtle)" }}
             >
               <span className="absolute left-1.5 text-[9px] font-mono text-text-tertiary" style={{ bottom: "2px" }}>
                 {hourLabel(h)}
@@ -396,8 +399,8 @@ export default function PlanPage({ categories, onBack }) {
               className="absolute rounded-md px-1.5 py-0.5 flex flex-col cursor-grab active:cursor-grabbing"
               style={{
                 ...pos,
-                left: "2%",
-                width: "96%",
+                left: 58,
+                width: "calc(100% - 64px)",
                 background: row.type === "action" ? "rgba(109,245,227,0.16)" : "rgba(164,210,236,0.16)",
                 borderLeft: `3px solid ${color}`,
                 border: `1px solid ${color}44`,
