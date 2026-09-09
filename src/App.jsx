@@ -11,6 +11,7 @@ import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
+import PlanPage from "./components/PlanPage";
 import { userData } from "./data/goals";
 
 function useDashboard() {
@@ -42,6 +43,7 @@ export default function App() {
 function Dashboard() {
   const { categories, dashboard, progressLogs } = useDashboard();
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [view, setView] = useState("dashboard");
 
   const undo = useGoalsStore((s) => s.undo);
   const undoStack = useGoalsStore((s) => s.undoStack);
@@ -82,7 +84,11 @@ function Dashboard() {
         <div className="bg-orb orb-teal" />
         <div className="bg-sheen" />
       </div>
-      <Nav />
+      <Nav view={view} onSetView={setView} />
+      {view === "plan" ? (
+        <PlanPage categories={categories} onBack={() => setView("dashboard")} />
+      ) : (
+      <>
       <div className="page-container flex flex-col gap-4">
         <div className="hero-row grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <Header daysElapsed={userData.daysPassed} categories={categories} logs={progressLogs} />
@@ -165,6 +171,8 @@ function Dashboard() {
           updateResult(catId, idx, "current", checked ? result.target : 0);
         }}
       />
+      </>
+      )}
     </main>
   );
 }
