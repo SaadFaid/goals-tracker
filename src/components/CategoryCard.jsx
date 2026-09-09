@@ -757,6 +757,14 @@ function AddForm({ type, onAdd, onCancel }) {
         onCancel={onCancel}
         fields={[
           { key: "label", placeholder: "Action name" },
+          {
+            key: "actionType", type: "select", init: "count", value: "count",
+            options: [
+              { value: "count", label: "Count (tracked number)" },
+              { value: "amount", label: "Amount (with unit)" },
+              { value: "check", label: "Checkbox (yes/no)" },
+            ],
+          },
           { key: "weight", placeholder: "Weight % (0-100)", parse: (v) => parseInt(v, 10) },
           { key: "target", placeholder: "Target", parse: (v) => parseFloat(v) },
           {
@@ -784,7 +792,16 @@ function AddForm({ type, onAdd, onCancel }) {
             ],
           },
         ]}
-        onSubmit={(d) => onAdd({ label: d.label, weight: d.weight, target: d.target, unit: d.unit })}
+        onSubmit={(d) => {
+          const isCheck = d.actionType === "check";
+          onAdd({
+            label: d.label,
+            weight: d.weight,
+            target: isCheck ? 1 : d.target,
+            unit: isCheck ? "" : d.unit,
+            actionType: d.actionType || "count",
+          });
+        }}
       />
     );
   }
