@@ -5,7 +5,6 @@ import { useGoalsStore } from "../store/useGoalsStore";
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
 const PINK = "#DB6088"; // pink — actual/executed progress
-const LIGHTNING = "#FFEA5C"; // electric yellow — expected point
 
 function aggregateResultsPct(categories) {
   const all = (categories || []).filter((c) => !c.isRewards);
@@ -78,8 +77,8 @@ export default function ProgressChart({ logs, dashboard }) {
     ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`
     : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ") + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: from day 1 (0%) to today's results %.
-  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: flat line at resultsPct with points for each day.
+  const resultsPath = `M ${x(1)} ${y(resultsPct)} L ${x(today)} ${y(resultsPct)}`;
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -92,10 +91,6 @@ export default function ProgressChart({ logs, dashboard }) {
       : liveScore <= expectedToday - 3
       ? "BEHIND"
       : "ON TRACK";
-
-  // Midpoint marker on the executed line: value interpolated at the halfway day.
-  const midDay = (1 + today) / 2;
-  const midValue = Math.max(0, Math.min(100, (midDay / today) * liveScore));
 
   const handleMove = (e) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -183,35 +178,30 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* Real historical points (past logged days) — pink with turquoise border */}
           {points.map((p) => (
-            <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="3.5" fill={PINK} stroke={ACCENT} strokeWidth="1" />
+            <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
+          ))}
+
+          {/* Results points for each day */}
+          {points.map((p) => (
+            <circle key={`r-${p.dateKey}`} cx={x(p.day)} cy={y(resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
           {/* Results point at today */}
-          <circle cx={x(today)} cy={y(resultsPct)} r="3.5" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
-
-          {/* Midpoint marker on the executed line — pink with turquoise border */}
-          {today > 1 ? (
-            <circle cx={x(midDay)} cy={y(midValue)} r="4.5" fill={PINK} stroke={ACCENT} strokeWidth="2" />
-          ) : null}
+          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
 
           {/* Today's live point: pink with turquoise border */}
           {today >= 1 ? (
-            <circle cx={x(today)} cy={y(liveScore)} r="6" fill={PINK} stroke={ACCENT} strokeWidth="2" />
+            <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
           ) : null}
 
           {/* Goal dot markers on expected line at every day up to today */}
           {allDays.map((d) => (
             <circle
               key={d}
-              cx={x(d)} cy={y((d / totalDays) * 100)} r="2.5"
-              fill={ACCENT} stroke="#0E1817" strokeWidth="1"
+              cx={x(d)} cy={y((d / totalDays) * 100)} r="2"
+              fill={ACCENT} stroke="#0E1817" strokeWidth="0.75"
             />
           ))}
-
-          {/* Expected point on the execution score line at its middle */}
-          {today > 1 ? (
-            <circle cx={x(midDay)} cy={y(midValue)} r="6" fill={LIGHTNING} stroke="#0E1817" strokeWidth="2" />
-          ) : null}
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
