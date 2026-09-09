@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { userData } from "../data/goals";
-import { computeOverallPct } from "../lib/score";
+import { computeOverallPct, aggregateResultsPct } from "../lib/score";
 
 import { useCountUp } from "../lib/hooks";
 
@@ -19,15 +19,7 @@ export default function StatsBar({ cats }) {
           .length,
       0
     );
-    const resultsCurrent = actives.reduce(
-      (s, c) => s + (c.results || []).reduce((a, r) => a + (r.current || 0), 0),
-      0
-    );
-    const resultsTarget = actives.reduce(
-      (s, c) => s + (c.results || []).reduce((a, r) => a + (r.target || 0), 0),
-      0
-    );
-    const resultsPct = resultsTarget > 0 ? Math.round((resultsCurrent / resultsTarget) * 100) : 0;
+    const resultsPct = Math.round(aggregateResultsPct(cats));
 
     const score = Math.round(computeOverallPct(cats));
     // Money dashboard: sum every "$"-unit result across ALL categories so any
