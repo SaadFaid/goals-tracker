@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { userData } from "../data/goals";
 import { useGoalsStore } from "../store/useGoalsStore";
+import MonthEndAnalysis from "./MonthEndAnalysis";
 
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
@@ -27,6 +28,7 @@ function aggregateResultsPct(categories) {
 //  - Results: aggregate result completion line.
 export default function ProgressChart({ logs, dashboard }) {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   const w = 480;
   const hMobile = 180;
   const hDesktop = 220;
@@ -77,8 +79,12 @@ export default function ProgressChart({ logs, dashboard }) {
     ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`
     : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ") + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: flat line at resultsPct with points for each day.
-  const resultsPath = `M ${x(1)} ${y(resultsPct)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: ramps from 0% on day 1 to resultsPct on today.
+  const resultsPoints = points.map((p) => ({ day: p.day, value: (p.day / today) * resultsPct }));
+  const resultsAll = [...resultsPoints, { day: today, value: resultsPct }];
+  const resultsPath = resultsAll.length <= 1
+    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`
+    : `M ${x(1)} ${y(0)} ` + resultsAll.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ");
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -182,8 +188,8 @@ export default function ProgressChart({ logs, dashboard }) {
           ))}
 
           {/* Results points for each day */}
-          {points.map((p) => (
-            <circle key={`r-${p.dateKey}`} cx={x(p.day)} cy={y(resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+          {resultsAll.map((p, i) => (
+            <circle key={`r-${i}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
           {/* Results point at today */}
@@ -209,6 +215,13 @@ export default function ProgressChart({ logs, dashboard }) {
               {d}
             </text>
           ))}
+
+          {/* Month-end analysis star */}
+          <g onClick={() => setShowAnalysis(true)} className="cursor-pointer" style={{ pointerEvents: "all" }}>
+            <circle cx={x(totalDays)} cy={y(100)} r="8" fill="rgba(109,245,227,0.15)" stroke={ACCENT} strokeWidth="1.5" />
+            <text x={x(totalDays)} y={y(100) + 1} textAnchor="middle" fontSize="9" fill={ACCENT} fontWeight="700">★</text>
+            <text x={x(totalDays)} y={y(100) + 18} textAnchor="middle" fontSize="8" fill="#5A756E">analysis</text>
+          </g>
 
           {/* Tooltip */}
           {tooltip && (() => {
@@ -265,6 +278,9 @@ export default function ProgressChart({ logs, dashboard }) {
           )}
         </div>
       </div>
+      {showAnalysis && (
+        <MonthEndAnalysis cats={dashboard?.categories || []} onClose={() => setShowAnalysis(false)} />
+      )}
     </section>
   );
 }

@@ -602,6 +602,17 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
               item.label
             )}
           </span>
+          <span
+            className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 inline-flex items-center gap-0.5"
+            style={{ background: "rgba(255,161,77,0.15)", color: "#FFA14D" }}
+            title={editable ? "Click to edit weight" : undefined}
+          >
+            {editable ? (
+              <EditableNumber value={item.weight ?? 0} onChange={(v) => onFieldChange("weight", Math.round(v))} ariaLabel="Edit result weight" />
+            ) : (
+              item.weight ?? 0
+            )}%
+          </span>
           {isCheck ? (
             <span
               onClick={toggleCheck}
@@ -776,6 +787,8 @@ function AddForm({ type, onAdd, onCancel }) {
               { value: "hours", label: "Hours" },
               { value: "pages", label: "Pages" },
               { value: "km", label: "km" },
+              { value: "kg", label: "kg" },
+              { value: "lbs", label: "lbs" },
               { value: "miles", label: "Miles" },
               { value: "$", label: "$" },
               { value: "%", label: "%" },
@@ -793,13 +806,13 @@ function AddForm({ type, onAdd, onCancel }) {
           },
         ]}
         onSubmit={(d) => {
-          const isCheck = d.actionType === "check";
           onAdd({
             label: d.label,
             weight: d.weight,
-            target: isCheck ? 1 : d.target,
-            unit: isCheck ? "" : d.unit,
+            target: d.target,
+            unit: d.unit,
             actionType: d.actionType || "count",
+            resetType: d.resetType || "monthly",
           });
         }}
       />
@@ -812,6 +825,7 @@ function AddForm({ type, onAdd, onCancel }) {
         onCancel={onCancel}
         fields={[
           { key: "label", placeholder: "Result name" },
+          { key: "weight", placeholder: "Weight % (0-100)", parse: (v) => parseInt(v, 10) },
           { key: "target", placeholder: "Target", parse: (v) => parseFloat(v) },
           {
             key: "unit", type: "select", placeholder: "Unit", customOption: true,
@@ -822,6 +836,8 @@ function AddForm({ type, onAdd, onCancel }) {
               { value: "hours", label: "Hours" },
               { value: "pages", label: "Pages" },
               { value: "km", label: "km" },
+              { value: "kg", label: "kg" },
+              { value: "lbs", label: "lbs" },
               { value: "miles", label: "Miles" },
               { value: "$", label: "$" },
               { value: "%", label: "%" },
@@ -835,7 +851,16 @@ function AddForm({ type, onAdd, onCancel }) {
             ],
           },
         ]}
-        onSubmit={(d) => onAdd({ label: d.label, target: d.target, unit: d.unit, resultType: d.resultType || "count", incrementBy: 1 })}
+        onSubmit={(d) => {
+          onAdd({
+            label: d.label,
+            weight: d.weight,
+            target: d.target,
+            unit: d.unit,
+            resultType: d.resultType || "count",
+            incrementBy: 1,
+          });
+        }}
       />
     );
   }

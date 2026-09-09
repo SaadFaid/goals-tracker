@@ -17,10 +17,15 @@ export function resultPct(r) {
 
 export function categoryPct(cat) {
   const actions = (cat.actions || []).filter((a) => !a._deleted);
-  const totalWeight = actions.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const results = (cat.results || []).filter((r) => !r._deleted);
+  const totalWeight = actions.reduce((sum, a) => sum + (a.weight || 0), 0)
+    + results.reduce((sum, r) => sum + (r.weight || 0), 0);
   if (totalWeight === 0) return 0;
   const weightedSum = actions.reduce(
     (sum, a) => sum + actionPct(a) * (a.weight || 0),
+    0
+  ) + results.reduce(
+    (sum, r) => sum + resultPct(r) * (r.weight || 0),
     0
   );
   return weightedSum / totalWeight;

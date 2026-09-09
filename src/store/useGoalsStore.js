@@ -579,7 +579,7 @@ export const useGoalsStore = create(
       addResult: (catId, data) => {
         const cats = get().categories;
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.results.push({ id: uid(), label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", incrementBy: data.incrementBy ?? 1 });
+          cat.results.push({ id: uid(), label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
           return cat;
         });
         if (next === cats) return;

@@ -11,12 +11,26 @@ export function calculateActionPercent(action) {
   return Math.min((action.current / action.target) * 100, 100);
 }
 
+export function calculateResultPercent(result) {
+  if (!result.target || result.target <= 0) return 0;
+  if (result.invert) {
+    if (result.current <= result.target) return 100;
+    return Math.max(0, 100 - ((result.current - result.target) / result.target) * 100);
+  }
+  return (result.current / result.target) * 100;
+}
+
 export function calculateCategoryPercent(category) {
   const actions = category.actions || [];
-  const totalWeight = actions.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const results = category.results || [];
+  const totalWeight = actions.reduce((sum, a) => sum + (a.weight || 0), 0)
+    + results.reduce((sum, r) => sum + (r.weight || 0), 0);
   if (totalWeight === 0) return 0;
   const weightedSum = actions.reduce(
     (sum, a) => sum + calculateActionPercent(a) * (a.weight || 0),
+    0
+  ) + results.reduce(
+    (sum, r) => sum + calculateResultPercent(r) * (r.weight || 0),
     0
   );
   return weightedSum / totalWeight;
