@@ -270,12 +270,12 @@ export default function PlanPage({ categories, onBack }) {
 
   const onBlockPointerDown = (e, gridEl, row) => {
     if (e.button !== 0 || e.target.closest("button")) return;
-    const rect = gridEl.getBoundingClientRect();
-    const yInRect = e.clientY - rect.top;
-    const zone = Math.min(8, Math.max(5, rect.height * 0.12));
+    const bRect = e.currentTarget.getBoundingClientRect();
+    const yInRect = e.clientY - bRect.top;
+    const zone = Math.min(8, Math.max(5, bRect.height * 0.12));
     let mode = "move";
     if (yInRect < zone) mode = "resizeStart"; // top edge = start time (make it more before / later)
-    else if (yInRect > rect.height - zone) mode = "resizeEnd"; // bottom edge = end time (add/remove minutes)
+    else if (yInRect > bRect.height - zone) mode = "resizeEnd"; // bottom edge = end time (add/remove minutes)
     dragState.current = {
       id: row.id,
       grabMin: gridMinFromClientY(gridEl, e.clientY),
