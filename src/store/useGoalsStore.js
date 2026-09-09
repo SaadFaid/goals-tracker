@@ -270,12 +270,11 @@ export const useGoalsStore = create(
         }
         categories = ensureRewardTiers(categories);
         const dashboard = calculateDashboardState(categories, new Date(), get().monthOffset);
-        const guest = !get().user && get().isGuest;
         set({
           categories,
           dashboard,
           bootstrapped: true,
-          progressLogs: guest ? generateGuestLogs(categories) : get().progressLogs,
+          progressLogs: get().progressLogs.length > 0 ? get().progressLogs : generateGuestLogs(categories),
         });
       },
 
@@ -312,6 +311,7 @@ export const useGoalsStore = create(
           sessionStarted: true,
           error: null,
           lastSyncedAt: new Date().toISOString(),
+          progressLogs: generateGuestLogs(get().categories),
         });
         get().derive();
       },
@@ -553,12 +553,12 @@ export const useGoalsStore = create(
       addAction: (catId, data) => {
         const cats = get().categories;
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.actions.push({ id: uid(), label: data.label, weight: data.weight, current: 0, target: data.target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || "count" });
+          cat.actions.push({ id: uid(), label: data.label, weight: data.weight, current: 0, target: data.target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") });
           return cat;
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createAction(catId, { label: data.label, weight: data.weight, target: data.target, unit: data.unit, incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || "count" }),
+          apiCall: () => api.createAction(catId, { label: data.label, weight: data.weight, target: data.target, unit: data.unit, incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") }),
         });
       },
 

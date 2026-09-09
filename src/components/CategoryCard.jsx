@@ -1340,6 +1340,20 @@ export default memo(function CategoryCard({
               )}
             </span>
           )}
+          {editMode && (
+            <button
+              onClick={() => onUpdateCategory(category.id, { fullWidth: !category.fullWidth })}
+              title={category.fullWidth ? "Switch to half width" : "Switch to full width"}
+              className="text-[10px] px-1.5 py-0.5 rounded cursor-pointer transition-opacity"
+              style={{
+                background: category.fullWidth ? "rgba(109,245,227,0.2)" : "var(--color-navy-600)",
+                color: category.fullWidth ? "var(--color-accent)" : "var(--color-text-tertiary)",
+                border: "1px solid " + (category.fullWidth ? "rgba(109,245,227,0.3)" : "var(--color-border-subtle)")
+              }}
+            >
+              {category.fullWidth ? "↔ Full" : "↔ Half"}
+            </button>
+          )}
           {weightsOff ? (
             <span
               className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0"

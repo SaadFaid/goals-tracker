@@ -85,28 +85,29 @@ function Dashboard() {
 
         <section aria-label="Your categories" className="cats-grid grid gap-4 md:grid-cols-2">
           {categories.map((cat, i) => (
-            <CategoryCard
-              key={cat.id}
-              category={cat}
-              index={i}
-              onMove={moveCategory}
-              onActionUpdate={updateAction}
-              onActionIncrement={incrementAction}
-              onResultUpdate={updateResult}
-              onResultIncrement={incrementResult}
-              onToggle={toggleExpanded}
-              onAddAction={addAction}
-              onDeleteAction={deleteAction}
-              onAddResult={addResult}
-              onDeleteResult={deleteResult}
-              onUpdateCategory={updateCategory}
-              onDeleteCategory={deleteCategory}
-              onClaimReward={claimReward}
-              onUnclaimReward={unclaimReward}
-              onAddReward={addReward}
-              onUpdateReward={updateReward}
-              onDeleteReward={deleteReward}
-            />
+            <div key={cat.id} className={cat.fullWidth ? "col-span-2" : ""}>
+              <CategoryCard
+                category={cat}
+                index={i}
+                onMove={moveCategory}
+                onActionUpdate={updateAction}
+                onActionIncrement={incrementAction}
+                onResultUpdate={updateResult}
+                onResultIncrement={incrementResult}
+                onToggle={toggleExpanded}
+                onAddAction={addAction}
+                onDeleteAction={deleteAction}
+                onAddResult={addResult}
+                onDeleteResult={deleteResult}
+                onUpdateCategory={updateCategory}
+                onDeleteCategory={deleteCategory}
+                onClaimReward={claimReward}
+                onUnclaimReward={unclaimReward}
+                onAddReward={addReward}
+                onUpdateReward={updateReward}
+                onDeleteReward={deleteReward}
+              />
+            </div>
           ))}
         </section>
 
