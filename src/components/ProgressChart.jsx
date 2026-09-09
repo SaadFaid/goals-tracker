@@ -127,7 +127,9 @@ export default function ProgressChart({ logs, dashboard }) {
   return (
     <section className="card p-4" aria-label="Progress to goal" style={{
       background: "linear-gradient(135deg, var(--color-elevated), var(--color-surface))",
-      border: "1px solid var(--color-border-active)"
+      border: "1px solid var(--color-border-active)",
+      position: "relative",
+      overflow: "hidden"
     }}>
       <div className="flex items-center gap-5 mb-3 flex-wrap">
         <LegendItem color={PINK} label="Execution" />

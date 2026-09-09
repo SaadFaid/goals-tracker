@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGoalsStore } from "./store/useGoalsStore";
 import Nav from "./components/Nav";
 import Header from "./components/Header";
@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
+import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import { userData } from "./data/goals";
 
 function useDashboard() {
@@ -40,6 +41,7 @@ export default function App() {
 
 function Dashboard() {
   const { categories, dashboard, progressLogs } = useDashboard();
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const undo = useGoalsStore((s) => s.undo);
   const undoStack = useGoalsStore((s) => s.undoStack);
@@ -72,13 +74,31 @@ function Dashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-navy-900 text-muted">
+    <main className="min-h-screen bg-navy-900 text-muted overflow-hidden">
       <Nav />
       <div className="page-container flex flex-col gap-4">
         <div className="hero-row grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <Header daysElapsed={userData.daysPassed} categories={categories} logs={progressLogs} />
           <StatsBar cats={categories} />
         </div>
+
+        <button
+          onClick={() => setShowAnalysis(true)}
+          className="card w-full py-3 px-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+          style={{
+            background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
+            border: "1px solid var(--color-border-active)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-[18px]">🔍</span>
+            <span className="text-sm font-semibold text-white">Month Analysis</span>
+          </div>
+          <span className="text-xs text-text-tertiary">tap to review →</span>
+        </button>
+        {showAnalysis && (
+          <MonthEndAnalysis cats={categories || []} onClose={() => setShowAnalysis(false)} />
+        )}
 
         <ProgressBar cats={categories} />
         <ProgressChart logs={progressLogs} dashboard={dashboard} />

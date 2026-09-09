@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 @theme {
   /* ── Design Tokens · Color ───────────────────────────────
      Direction: "01 Turquoise" (EVA Unit-01 / evangelion.nvim).
