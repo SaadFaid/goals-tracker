@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlanStore } from "../store/usePlanStore";
 
-const HOUR_START = 6;   // first visible hour
-const HOUR_END = 23;    // last visible hour
+const HOUR_START = 0;   // first visible hour (full day)
+const HOUR_END = 24;    // last visible hour
 const HOUR_PX = 60;     // grid height per hour (px)
 const GRID_START_MIN = HOUR_START * 60;
 const GRID_END_MIN = HOUR_END * 60;
@@ -220,7 +220,7 @@ export default function PlanPage({ categories, onBack }) {
 
   const openFormFor = (date) => {
     const now = new Date();
-    const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 1);
+    const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 2);
     setForm({ ...form, taskKey: "", date, repeat: "today", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
     setEditingId(null);
     setFormOpen(true);
@@ -256,7 +256,7 @@ export default function PlanPage({ categories, onBack }) {
     if (e.button !== 0 || e.target.closest("button")) return;
     const rect = gridEl.getBoundingClientRect();
     const yInRect = e.clientY - rect.top;
-    const zone = Math.min(12, Math.max(6, rect.height * 0.18));
+    const zone = Math.min(8, Math.max(5, rect.height * 0.12));
     let mode = "move";
     if (yInRect < zone) mode = "resizeStart";
     else if (yInRect > rect.height - zone) mode = "resizeEnd";
