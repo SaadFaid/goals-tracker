@@ -67,21 +67,19 @@ export default function ProgressChart({ logs, dashboard }) {
   // Expected pace: reaches 100% on the last day.
   const expectedPath = `M ${x(1)} ${y((1 / totalDays) * 100)} L ${x(totalDays)} ${y(100)}`;
 
-  // Actual progress: line from last historical point to today's live score.
-  const lastHistorical = points.length > 0 ? points[points.length - 1] : null;
-  const actualPath = lastHistorical
-    ? `M ${x(lastHistorical.day)} ${y(lastHistorical.value)} L ${x(today)} ${y(liveScore)}`
-    : `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)}`;
+  // Actual progress: line from day 1 (0%) through all logged points to today.
+  const allPoints = [...points, { day: today, value: liveScore }];
+  const actualPath = allPoints.length <= 1
+    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)}`
+    : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ");
 
   // Area fill under the actual line.
-  const areaPath = lastHistorical
-    ? `M ${x(lastHistorical.day)} ${y(lastHistorical.value)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} L ${x(lastHistorical.day)} ${y(0)} Z`
-    : `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`;
+  const areaPath = allPoints.length <= 1
+    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`
+    : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ") + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: from last historical point to today's results %.
-  const resultsPath = lastHistorical
-    ? `M ${x(lastHistorical.day)} ${y(0)} L ${x(today)} ${y(resultsPct)}`
-    : `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
+  // Results line: from day 1 (0%) to today's results %.
+  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -96,9 +94,8 @@ export default function ProgressChart({ logs, dashboard }) {
       : "ON TRACK";
 
   // Midpoint marker on the executed line: value interpolated at the halfway day.
-  const lineStart = lastHistorical || { day: 1, value: 0 };
-  const midDay = (lineStart.day + today) / 2;
-  const midValue = Math.max(0, Math.min(100, lineStart.value + ((today - lineStart.day) > 0 ? ((liveScore - lineStart.value) * ((midDay - lineStart.day) / (today - lineStart.day))) : 0)));
+  const midDay = (1 + today) / 2;
+  const midValue = Math.max(0, Math.min(100, (midDay / today) * liveScore));
 
   const handleMove = (e) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -180,7 +177,7 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={resultsPath} stroke={RESULT} strokeWidth="1.5" fill="none" opacity="0.9" />
 
           {/* Actual/executed progress line: solid pink */}
-          {(lastHistorical || today > 1) ? (
+          {today > 1 ? (
             <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
