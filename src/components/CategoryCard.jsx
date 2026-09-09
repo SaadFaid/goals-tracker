@@ -383,16 +383,17 @@ function CheckCircle({ pct, done, onTap, onOpenMenu }) {
 }
 
 function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable }) {
+  const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(actionPct(item));
-  const done = item.current >= item.target;
+  const done = item.current >= safeTarget;
   const isCheck = item.actionType === "check";
   const [menu, setMenu] = useState(false);
 
   const bump = (amount) => { onIncrement(amount); setMenu(false); };
-  const markDone = () => { onIncrement(item.target - item.current); setMenu(false); };
+  const markDone = () => { onIncrement(safeTarget - item.current); setMenu(false); };
   const reset = () => { onIncrement(-item.current); setMenu(false); };
   const stepDown = () => { onIncrement(-(item.incrementBy ?? 1)); setMenu(false); };
-  const toggleCheck = () => { onIncrement(done ? -item.current : (item.target - item.current)); setMenu(false); };
+  const toggleCheck = () => { onIncrement(done ? -item.current : (safeTarget - item.current)); setMenu(false); };
 
   const pctLabel = pct >= 100 ? "done" : `${pct}%`;
 
@@ -579,16 +580,17 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
 }
 
 function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable }) {
+  const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(resultPct(item));
   const isBadge = !!item.isBadge;
   const isCheck = (item.resultType || (item.invert ? "check" : "count")) === "check";
-  const done = isBadge ? item.current >= item.target : pct >= 100;
+  const done = isBadge ? item.current >= safeTarget : pct >= 100;
   const [menu, setMenu] = useState(false);
 
   const bump = (amount) => { onIncrement(amount); setMenu(false); };
-  const markDone = () => { onIncrement(item.target - item.current); setMenu(false); };
+  const markDone = () => { onIncrement(safeTarget - item.current); setMenu(false); };
   const reset = () => { onIncrement(-item.current); setMenu(false); };
-  const toggleCheck = () => { onUpdate(done ? 0 : item.target); setMenu(false); };
+  const toggleCheck = () => { onUpdate(done ? 0 : safeTarget); setMenu(false); };
 
   return (
     <ConfirmableRow onDelete={onDelete} allowDelete={editable}>

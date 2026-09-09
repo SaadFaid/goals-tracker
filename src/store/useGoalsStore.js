@@ -473,7 +473,8 @@ export const useGoalsStore = create(
         const action = get().categories.find((c) => c.id === catId)?.actions?.[idx];
         if (!action) return;
         const step = amount ?? action.incrementBy ?? 1;
-        const nextVal = Math.max(0, Math.min(action.current + step, action.target));
+        const safeTarget = action.target > 0 ? action.target : 1;
+        const nextVal = Math.max(0, Math.min(action.current + step, safeTarget));
         const next = replaceCategory(get().categories, catId, (cat) => {
           const a = cat.actions[idx];
           if (a) a.current = nextVal;
@@ -536,9 +537,10 @@ export const useGoalsStore = create(
         const result = get().categories.find((c) => c.id === catId)?.results?.[idx];
         if (!result) return;
         const step = amount ?? result.incrementBy ?? 1;
+        const safeTarget = result && result.target > 0 ? result.target : 1;
         const nextVal = result.invert
           ? Math.max(0, result.current + step)
-          : Math.max(0, Math.min(result.current + step, result.target));
+          : Math.max(0, Math.min(result.current + step, safeTarget));
         const next = replaceCategory(get().categories, catId, (cat) => {
           const r = cat.results[idx];
           if (r) r.current = nextVal;
