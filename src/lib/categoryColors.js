@@ -4,17 +4,24 @@
 // to both, or the server will reject it.
 
 export const CATEGORY_COLORS = {
-  turquoise: { hex: "#6DF5E3", label: "Turquoise" },
+  turquoise: { hex: "#1E9E9E", label: "Turquoise" },
   white: { hex: "#ffffff", label: "White" },
   pink: { hex: "#FF4D8D", label: "Hot pink" },
   purple: { hex: "#B44CFF", label: "Electric violet" },
   blue: { hex: "#4D8DFF", label: "Vivid blue" },
-  orange: { hex: "#FF6B35", label: "Vivid orange" },
-  green: { hex: "#63E94F", label: "Neon green" },
-  red: { hex: "#FF3B47", label: "Vivid red" },
+  orange: { hex: "#FB8C00", label: "Orange" },
+  green: { hex: "#43A047", label: "Green" },
+  red: { hex: "#E53935", label: "Red" },
   grey: { hex: "#9AA7B5", label: "Grey" },
   black: { hex: "#000000", label: "Black" },
-  yellow: { hex: "#FFE14D", label: "Sunshine yellow" },
+  yellow: { hex: "#FDD835", label: "Yellow" },
+  indigo: { hex: "#3F51B5", label: "Indigo" },
+  violet: { hex: "#8E24AA", label: "Violet" },
+  gold: { hex: "#C9A227", label: "Gold" },
+  pinkwhite: { hex: "#F8BBD0", label: "Pink/White" },
+  silver: { hex: "#C0C0C0", label: "Silver" },
+  copper: { hex: "#B87333", label: "Copper" },
+  rosegold: { hex: "#B76E79", label: "Rose gold" },
 };
 
 export const CATEGORY_COLOR_KEYS = Object.keys(CATEGORY_COLORS);

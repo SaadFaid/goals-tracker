@@ -35,6 +35,7 @@ export function isWeight(value) {
 export const DOT_COLORS = [
   "turquoise", "white", "pink", "purple", "blue", "orange", "green",
   "red", "grey", "black", "yellow",
+  "indigo", "violet", "gold", "pinkwhite", "silver", "copper", "rosegold",
 ];
 
 export function isDotColor(value) {
