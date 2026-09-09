@@ -57,9 +57,9 @@ export default function ProgressChart({ logs, dashboard }) {
     .filter((p) => p.day >= 1 && p.day <= totalDays)
     .sort((a, b) => a.day - b.day);
 
-  // Today / live point: last logged day for the selected month.
+  // Today / live point: use the real quality score from dashboard, not synthetic logs.
   const today = points.length ? points[points.length - 1].day : 1;
-  const liveScore = points.length ? points[points.length - 1].value : 0;
+  const liveScore = dashboard?.stats?.qualityPercent ?? (points.length ? points[points.length - 1].value : 0);
 
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
