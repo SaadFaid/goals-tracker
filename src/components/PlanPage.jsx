@@ -379,10 +379,7 @@ export default function PlanPage({ categories, onBack }) {
               className="absolute left-0 right-0"
               style={{ top: `${topPct(h * 60)}%`, height: `${bandH}%`, borderTop: "1px solid var(--color-border-subtle)" }}
             >
-              <span
-                className="absolute left-1.5 text-[9px] font-mono text-text-tertiary"
-                style={h === 0 ? { bottom: "2px" } : { top: "2px" }}
-              >
+              <span className="absolute left-1.5 text-[9px] font-mono text-text-tertiary" style={{ top: "2px" }}>
                 {hourLabel(h)}
               </span>
             </div>
