@@ -580,7 +580,7 @@ export default function PlanPage({ categories, onBack }) {
   return (
     <div className="page-container py-4 flex flex-col gap-4">
       <div
-        className="flex flex-wrap items-center gap-2 sticky top-14 z-30 border-b border-border-subtle py-2"
+        className="flex flex-wrap items-center gap-2 sticky top-14 z-30 rounded-b-2xl shadow-[0_14px_30px_rgba(0,0,0,0.4)] py-2"
         style={{
           background: "linear-gradient(180deg, var(--color-sunken), var(--color-elevated))",
           backdropFilter: "blur(10px)",

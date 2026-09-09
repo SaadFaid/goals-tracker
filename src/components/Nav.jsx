@@ -12,7 +12,7 @@ export default function Nav({ view = "dashboard", onSetView }) {
   const signedIn = !!user && !isGuest;
 
   return (
-    <nav className="sticky top-0 z-20 site-nav">
+    <nav className="sticky top-0 z-20 site-nav rounded-b-2xl shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
       <div
         className="mx-auto max-w-[1100px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
