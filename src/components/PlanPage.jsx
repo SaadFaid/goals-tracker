@@ -579,14 +579,15 @@ export default function PlanPage({ categories, onBack }) {
 
   return (
     <div className="page-container py-4 flex flex-col gap-4">
-      <div
-        className="flex flex-wrap items-center gap-2 sticky top-14 z-30 rounded-b-2xl shadow-[0_14px_30px_rgba(0,0,0,0.4)] py-2"
-        style={{
-          background: "linear-gradient(180deg, var(--color-sunken), var(--color-elevated))",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
-      >
+      <div className="sticky top-[58px] z-30">
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-2xl border border-border-active py-2 px-3 shadow-[0_16px_32px_rgba(0,0,0,0.5)]"
+          style={{
+            background: "linear-gradient(180deg, var(--color-sunken), var(--color-elevated))",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
+        >
         <button onClick={onBack} className="nav-btn" style={controlBtn} title="Back to dashboard">
           ← Dashboard
         </button>
@@ -623,6 +624,7 @@ export default function PlanPage({ categories, onBack }) {
         >
           {formOpen ? "Cancel" : "+ Add task"}
         </button>
+        </div>
       </div>
 
       {formOpen && (
