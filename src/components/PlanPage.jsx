@@ -7,7 +7,7 @@ const HOUR_PX = 60;     // grid height per hour (px)
 const GRID_START_MIN = HOUR_START * 60;
 const GRID_END_MIN = HOUR_END * 60;
 const GRID_TOTAL_MIN = GRID_END_MIN - GRID_START_MIN;
-const SNAP_MIN = 15;
+const SNAP_MIN = 5; // fine-grained moves so times aren't locked to quarter hours
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -259,7 +259,8 @@ export default function PlanPage({ categories, onBack }) {
     const b = (overrideMin ? overrideMin.end : toMin(row.end)) || a + 15;
     // Flipped grid: the visual top edge of a block is its later (end) time.
     const top = topPct(b);
-    const height = Math.max(((b - a) / GRID_TOTAL_MIN) * 100, 2.4);
+    // Box height == exactly the duration set; a tiny floor only keeps sub-5-min blocks grabbable.
+    const height = Math.max(((b - a) / GRID_TOTAL_MIN) * 100, 0.35);
     return { top: `${top}%`, height: `${height}%` };
   };
 
@@ -269,8 +270,8 @@ export default function PlanPage({ categories, onBack }) {
     const yInRect = e.clientY - rect.top;
     const zone = Math.min(8, Math.max(5, rect.height * 0.12));
     let mode = "move";
-    if (yInRect < zone) mode = "resizeEnd"; // visual top = later time (end)
-    else if (yInRect > rect.height - zone) mode = "resizeStart"; // visual bottom = earlier time (start)
+    if (yInRect < zone) mode = "resizeStart"; // top edge = start time (make it more before / later)
+    else if (yInRect > rect.height - zone) mode = "resizeEnd"; // bottom edge = end time (add/remove minutes)
     dragState.current = {
       id: row.id,
       grabMin: gridMinFromClientY(gridEl, e.clientY),
@@ -403,7 +404,7 @@ export default function PlanPage({ categories, onBack }) {
                 borderLeftWidth: 3,
                 touchAction: "none",
               }}
-              title={`${row.label} (${row.repeat || "today"}) — drag to move, bottom edge to resize`}
+              title={`${row.label} (${row.repeat || "today"}) — drag middle to move, top edge = start time, bottom edge = end`}
               onPointerDown={(e) => onBlockPointerDown(e, e.currentTarget.closest(".plan-grid"), row)}
             >
               <div className="flex items-center gap-1 min-w-0">
