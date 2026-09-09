@@ -6,15 +6,15 @@
 export const CATEGORY_COLORS = {
   turquoise: { hex: "#6DF5E3", label: "Turquoise" },
   white: { hex: "#ffffff", label: "White" },
-  pink: { hex: "#DB6088", label: "Pink" },
-  purple: { hex: "#B388E0", label: "Purple" },
-  blue: { hex: "#6FA8FF", label: "Blue" },
-  orange: { hex: "#FFA14D", label: "Orange" },
-  green: { hex: "#87FF5F", label: "Green" },
-  red: { hex: "#FF5F6D", label: "Red" },
+  pink: { hex: "#FF4D8D", label: "Hot pink" },
+  purple: { hex: "#B44CFF", label: "Electric violet" },
+  blue: { hex: "#4D8DFF", label: "Vivid blue" },
+  orange: { hex: "#FF6B35", label: "Vivid orange" },
+  green: { hex: "#63E94F", label: "Neon green" },
+  red: { hex: "#FF3B47", label: "Vivid red" },
   grey: { hex: "#9AA7B5", label: "Grey" },
   black: { hex: "#000000", label: "Black" },
-  yellow: { hex: "#FFD94D", label: "Yellow" },
+  yellow: { hex: "#FFE14D", label: "Sunshine yellow" },
 };
 
 export const CATEGORY_COLOR_KEYS = Object.keys(CATEGORY_COLORS);

@@ -12,7 +12,13 @@ export const userData = {
 };
 
 const TURQUOISE = "#6DF5E3";
-const WHITE = "#ffffff";
+const BLUE = "#4D8DFF";
+const PURPLE = "#B44CFF";
+const GREEN = "#63E94F";
+const PINK = "#FF4D8D";
+const ORANGE = "#FF6B35";
+const YELLOW = "#FFE14D";
+const RED = "#FF3B47";
 
 // Mirrors server/src/seed/defaultCategories.js so guest mode shares the same
 // auto-generated themed reward tiers from the Finance $ target.
@@ -84,7 +90,7 @@ export const categories = [
   {
     id: "business",
     name: "Business & Career",
-    color: WHITE,
+    color: BLUE,
     actions: [
       { label: "Deep work sessions", weight: 40, current: 0, target: 20, unit: " sessions" },
       { label: "Talk to potential clients/employers", weight: 30, current: 0, target: 10, unit: "" },
@@ -98,7 +104,7 @@ export const categories = [
   {
     id: "faith",
     name: "Faith & Religion",
-    color: TURQUOISE,
+    color: PURPLE,
     actions: [
       { label: "Days with all prayers on time", weight: 40, current: 0, target: 28, unit: "" },
       { label: "Quran/scripture pages", weight: 30, current: 0, target: 60, unit: " pages" },
@@ -110,7 +116,7 @@ export const categories = [
   {
     id: "health",
     name: "Health & Fitness",
-    color: WHITE,
+    color: GREEN,
     actions: [
       { label: "Workout sessions", weight: 30, current: 0, target: 12, unit: " sessions" },
       { label: "Running total", weight: 30, current: 0, target: 50, unit: " km" },
@@ -124,7 +130,7 @@ export const categories = [
   {
     id: "learning",
     name: "Learning",
-    color: TURQUOISE,
+    color: PINK,
     actions: [
       { label: "Books finished", weight: 30, current: 0, target: 2, unit: "" },
       { label: "Learning hours (courses/tutorials)", weight: 30, current: 0, target: 40, unit: " hrs" },
@@ -137,7 +143,7 @@ export const categories = [
   {
     id: "social",
     name: "Social Media Presence",
-    color: WHITE,
+    color: ORANGE,
     actions: [
       { label: "Content pieces posted", weight: 40, current: 0, target: 15, unit: "" },
       { label: "Engagement sessions", weight: 30, current: 0, target: 20, unit: "" },
@@ -152,7 +158,7 @@ export const categories = [
   {
     id: "family",
     name: "Family & Social",
-    color: TURQUOISE,
+    color: YELLOW,
     actions: [
       { label: "Quality time with parents/family", weight: 40, current: 0, target: 10, unit: " times" },
       { label: "Calls/check-ins with loved ones", weight: 30, current: 0, target: 12, unit: " calls" },
@@ -164,7 +170,7 @@ export const categories = [
   {
     id: "discipline",
     name: "Discipline & Mind",
-    color: WHITE,
+    color: RED,
     actions: [
       { label: "Days waking up before 7am", weight: 15, current: 0, target: 20, unit: " days" },
       { label: "Mornings without phone first hour", weight: 15, current: 0, target: 18, unit: " days" },

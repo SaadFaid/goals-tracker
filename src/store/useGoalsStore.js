@@ -72,13 +72,47 @@ function replaceCategory(cats, catId, mutator) {
   return found ? next : cats;
 }
 
-// Client seed uses `color` hex (TURQUOISE/WHITE); normalize to `dotColor` token
-// and add fields components/schema expect. `isRewards` defaults to false.
+// Client seed uses `color` hex; normalize to `dotColor` token and add fields
+// components/schema expect. `isRewards` defaults to false.
 const HEX_TO_DOT = {
   "#6df5e3": "turquoise",
   "#2dd4bf": "turquoise",
   "#ffffff": "white",
+  "#4d8dff": "blue",
+  "#b44cff": "purple",
+  "#63e94f": "green",
+  "#ff4d8d": "pink",
+  "#ff6b35": "orange",
+  "#ffe14d": "yellow",
+  "#ff3b47": "red",
 };
+
+// Default cards get a lively color each; a card is only recolored while it is
+// still on the old plain turquoise/white defaults, so manual picks stay.
+const DEFAULT_CAT_COLORS = {
+  finance: "turquoise",
+  business: "blue",
+  faith: "purple",
+  health: "green",
+  learning: "pink",
+  social: "orange",
+  family: "yellow",
+  discipline: "red",
+  rewards: "turquoise",
+};
+
+function migrateDefaultColors(cats) {
+  let changed = false;
+  const next = cats.map((c) => {
+    const want = DEFAULT_CAT_COLORS[c.id];
+    if (!want) return c;
+    const isDefaultish = c.dotColor === "turquoise" || c.dotColor === "white";
+    if (!isDefaultish || want === c.dotColor) return c;
+    changed = true;
+    return { ...c, dotColor: want };
+  });
+  return changed ? next : cats;
+}
 
 // Normalize a category into the schema shape used everywhere.
 function seedClone() {
@@ -156,7 +190,10 @@ export const useGoalsStore = create(
       categories: seedClone(),
 
       derive() {
-        const dashboard = calculateDashboardState(get().categories, new Date(), get().monthOffset);
+        const cats = get().categories;
+        const migrated = migrateDefaultColors(cats);
+        if (migrated !== cats) set({ categories: migrated });
+        const dashboard = calculateDashboardState(migrated, new Date(), get().monthOffset);
         set({ dashboard, bootstrapped: true });
         return dashboard;
       },

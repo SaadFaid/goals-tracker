@@ -29,6 +29,19 @@ const BLOCK_COLORS = [
   "#C39BFF",
   "#7FD8FF",
   "#FF8A8A",
+  // more alive
+  "#FF4D8D",
+  "#B44CFF",
+  "#4D8DFF",
+  "#22E5D8",
+  "#63E94F",
+  "#FFE14D",
+  "#FF6B35",
+  "#FF3B47",
+  "#FF2E9A",
+  "#FFAA6B",
+  "#C9A7FF",
+  "#3D7BFF",
 ];
 
 const pad2 = (n) => String(n).padStart(2, "0");
