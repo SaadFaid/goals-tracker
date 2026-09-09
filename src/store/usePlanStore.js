@@ -22,6 +22,7 @@ export const usePlanStore = create(
           idx: slot.idx,
           label: slot.label,
           catName: slot.catName,
+          color: slot.color,
           date: slot.date,
           start: slot.start,
           end: slot.end,

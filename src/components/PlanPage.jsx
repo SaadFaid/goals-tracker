@@ -20,6 +20,16 @@ const REPEATS = [
 ];
 
 const TYPE_COLORS = { action: "#6DF5E3", result: "#A4D2EC" };
+const BLOCK_COLORS = [
+  "#6DF5E3",
+  "#A4D2EC",
+  "#F38BA8",
+  "#FFB86C",
+  "#A7F070",
+  "#C39BFF",
+  "#7FD8FF",
+  "#FF8A8A",
+];
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const hms = (min) => `${pad2(Math.floor(min / 60))}:${pad2(min % 60)}`;
@@ -159,7 +169,7 @@ export default function PlanPage({ categories, onBack }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today" });
+  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", color: "" });
   const [err, setErr] = useState("");
 
   const dragState = useRef(null);
@@ -224,6 +234,7 @@ export default function PlanPage({ categories, onBack }) {
       idx: opt.idx,
       label: opt.label,
       catName: opt.catName,
+      color: form.color || TYPE_COLORS[opt.type] || "var(--color-accent)",
       date: form.date,
       start: form.start || "09:00",
       end: form.end || "10:00",
@@ -239,7 +250,7 @@ export default function PlanPage({ categories, onBack }) {
   const openFormFor = (date) => {
     const now = new Date();
     const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 2);
-    setForm({ ...form, taskKey: "", date, repeat: "today", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
+    setForm({ ...form, taskKey: "", date, repeat: "today", color: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
     setEditingId(null);
     setFormOpen(true);
   };
@@ -251,6 +262,7 @@ export default function PlanPage({ categories, onBack }) {
       start: row.start,
       end: row.end,
       repeat: row.repeat || "today",
+      color: row.color || "",
     });
     setEditingId(row.id);
     setFormOpen(true);
@@ -396,7 +408,7 @@ export default function PlanPage({ categories, onBack }) {
         {dayRows.map((row) => {
           const override = draft && draft.id === row.id ? draft : null;
           const pos = blockPos(row, override);
-          const color = TYPE_COLORS[row.type] || "var(--color-accent)";
+          const color = row.color || TYPE_COLORS[row.type] || "var(--color-accent)";
           return (
             <div
               key={row.id + key}
@@ -405,7 +417,7 @@ export default function PlanPage({ categories, onBack }) {
                 ...pos,
                 left: 58,
                 width: "calc(100% - 64px)",
-                background: row.type === "action" ? "rgba(109,245,227,0.16)" : "rgba(164,210,236,0.16)",
+                background: `${color}22`,
                 borderLeft: `3px solid ${color}`,
                 border: `1px solid ${color}44`,
                 borderLeftWidth: 3,
@@ -574,6 +586,31 @@ export default function PlanPage({ categories, onBack }) {
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-[11px] text-text-tertiary">
+              Color
+              <span className="flex items-center gap-1.5">
+                {BLOCK_COLORS.map((c) => {
+                  const active = form.color === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm({ ...form, color: active ? "" : c })}
+                      aria-label={`Color ${c}`}
+                      className="rounded-full"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        background: c,
+                        cursor: "pointer",
+                        border: active ? "2px solid #ffffff" : "2px solid rgba(255,255,255,0.25)",
+                        boxShadow: active ? `0 0 8px ${c}` : "none",
+                      }}
+                    />
+                  );
+                })}
+              </span>
             </label>
           </div>
           {err && <div className="text-xs text-danger">{err}</div>}
