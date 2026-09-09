@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { categories as seedCategories, generateRewardTiers } from "../data/goals";
-import { calculateDashboardState } from "../lib/score";
+import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
 import { api } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
 
@@ -396,10 +396,32 @@ export const useGoalsStore = create(
             lastSyncedAt: new Date().toISOString(),
           });
           get().captureSnapshot();
+          get().recordDailyLog(nextCategories, dashboard);
         };
         get().pushUndo();
         act();
         return nextCategories;
+      },
+
+      // Record today's real execution + results scores into the daily log so
+      // the chart shows true day-by-day stats (each day frozen at what it was).
+      recordDailyLog: (categories, dashboard) => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const d = now.getDate();
+        const resultsScore = Math.round(aggregateResultsPct(categories || get().categories) * 10) / 10;
+        const qualityScore = dashboard?.stats?.qualityPercent ?? get().dashboard?.stats?.qualityPercent ?? 0;
+        const expectedScore = Math.round(((d / 30) * 100) * 10) / 10;
+        const logs = (get().progressLogs || []).filter(
+          (l) => !(l.year === y && l.month === m && l.dayOfMonth === d)
+        );
+        set({
+          progressLogs: [
+            ...logs,
+            { year: y, month: m, dayOfMonth: d, qualityScore, expectedScore, resultsScore },
+          ],
+        });
       },
 
       // ── Optimistic + queue mutation ─────────────────────

@@ -1,4 +1,4 @@
-import { calculateDashboardState } from "./score";
+import { calculateDashboardState, aggregateResultsPct } from "./score";
 import { userData } from "../data/goals";
 
 /**
@@ -35,15 +35,21 @@ export function generateGuestLogs(categories) {
   const dash = calculateDashboardState(categories, now, 0);
   const cumulative = dash?.chartData?.cumulative || [];
   const qualityTarget = Math.max(50, dash?.stats?.qualityPercent ?? 55);
+  const resTarget = aggregateResultsPct(categories);
   for (let d = 1; d <= daysPassed; d++) {
     const found = cumulative.find((c) => c.day === d);
     const value = found ? found.value : Math.round((d / daysPassed) * qualityTarget);
+    // Day-by-day results: damped approach toward the current results %, with a
+    // small wave so it reads as real daily movement, not a straight line.
+    const wave = Math.sin((d / daysPassed) * Math.PI) * 3;
+    const res = Math.round(Math.max(0, Math.min(100, (d / daysPassed) * 0.8 * resTarget + wave)) * 10) / 10;
     logs.push({
       dayOfMonth: d,
       month: now.getMonth() + 1,
       year: now.getFullYear(),
       qualityScore: Math.round(value * 10) / 10,
       expectedScore: Math.round((d / userData.totalDays) * 100 * 10) / 10,
+      resultsScore: res,
     });
   }
 

@@ -15,6 +15,24 @@ export function resultPct(r) {
   return Math.min((r.current / r.target) * 100, 100);
 }
 
+// Overall results completion across categories, weighted like categoryPct.
+export function aggregateResultsPct(categories) {
+  const all = (categories || []).filter((c) => !c.isRewards);
+  let totalWeight = 0;
+  let weightedSum = 0;
+  for (const cat of all) {
+    for (const r of cat.results || []) {
+      if (r.target > 0) {
+        const w = r.weight || 0;
+        totalWeight += w;
+        const pct = Math.min((r.current / r.target) * 100, 100);
+        weightedSum += pct * w;
+      }
+    }
+  }
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
 export function categoryPct(cat) {
   const actions = (cat.actions || []).filter((a) => !a._deleted);
   const results = (cat.results || []).filter((r) => !r._deleted);

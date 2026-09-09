@@ -1,27 +1,11 @@
 import { useRef, useState } from "react";
 import { userData } from "../data/goals";
 import { useGoalsStore } from "../store/useGoalsStore";
+import { aggregateResultsPct } from "../lib/score";
 
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
 const PINK = "#DB6088"; // pink — actual/executed progress
-
-function aggregateResultsPct(categories) {
-  const all = (categories || []).filter((c) => !c.isRewards);
-  let totalWeight = 0;
-  let weightedSum = 0;
-  for (const cat of all) {
-    for (const r of cat.results || []) {
-      if (r.target > 0) {
-        const w = r.weight || 0;
-        totalWeight += w;
-        const pct = Math.min((r.current / r.target) * 100, 100);
-        weightedSum += pct * w;
-      }
-    }
-  }
-  return totalWeight > 0 ? weightedSum / totalWeight : 0;
-}
 
 // Upward progress chart (0 → 100%):
 //  - Actual: daily quality score from ProgressLogs (ascending), live today point.
@@ -52,6 +36,7 @@ export default function ProgressChart({ logs, dashboard }) {
     .map((l) => ({
       day: l.dayOfMonth,
       value: l.qualityScore,
+      results: l.resultsScore,
       dateKey: `${l.year}-${l.month}-${l.dayOfMonth}`,
     }))
     .filter((p) => (Number(p.dateKey.split("-")[0]) === viewYear && Number(p.dateKey.split("-")[1]) === viewMonth))
@@ -82,10 +67,21 @@ export default function ProgressChart({ logs, dashboard }) {
   const actualPath = execPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
   const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: ramps from 0% on day 1 to current resultsPct at today, day by day.
+  // Results line: real day-by-day results stats, filling gaps with the previous
+  // day's value; today shows the live resultsPct so it tracks interactions.
+  const now = new Date();
+  const isLiveMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1;
+  const resByDay = new Map();
+  for (const p of points) {
+    if (typeof p.results === "number") resByDay.set(p.day, p.results);
+  }
+  if (isLiveMonth) resByDay.set(today, resultsPct);
+  let lastRes = 0;
   const resultsPoints = [];
   for (let d = 1; d <= today; d++) {
-    resultsPoints.push({ day: d, value: (d / today) * resultsPct });
+    const v = resByDay.has(d) ? resByDay.get(d) : lastRes;
+    resultsPoints.push({ day: d, value: v });
+    lastRes = v;
   }
   const resultsPath = resultsPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
 
