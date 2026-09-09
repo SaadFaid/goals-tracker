@@ -74,7 +74,8 @@ function Dashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-navy-900 text-muted overflow-hidden">
+    <main className="min-h-screen text-muted overflow-hidden relative isolate">
+      <div aria-hidden className="bg-anim" />
       <Nav />
       <div className="page-container flex flex-col gap-4">
         <div className="hero-row grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
