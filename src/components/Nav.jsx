@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { userData } from "../data/goals";
 
@@ -12,36 +11,8 @@ export default function Nav({ view = "dashboard", onSetView }) {
 
   const signedIn = !!user && !isGuest;
 
-  // Show when at the top, or whenever the user scrolls up (even a little).
-  // Hide while scrolling down.
-  const [visible, setVisible] = useState(true);
-  const lastY = useRef(0);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY;
-      const dir = y - lastY.current;
-      if (y <= 4) {
-        setVisible(true);
-      } else if (dir > 2) {
-        setVisible(false);
-      } else if (dir < -2) {
-        setVisible(true);
-      }
-      lastY.current = y;
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
-    <nav
-      className="sticky top-0 z-20 site-nav"
-      style={{
-        transform: visible ? "translateY(0)" : "translateY(-110%)",
-        transition: "transform 220ms ease",
-      }}
-    >
+    <nav className="sticky top-0 z-20 site-nav">
       <div
         className="mx-auto max-w-[1100px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}

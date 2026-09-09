@@ -25,17 +25,6 @@ export default function App() {
   const sessionStarted = useGoalsStore((s) => s.sessionStarted);
   const bootstrapped = useGoalsStore((s) => s.bootstrapped);
 
-  useEffect(() => {
-    if (!bootstrapped || !sessionStarted) return;
-    const saved = Number(sessionStorage.getItem("august-goals-scroll") || 0);
-    if (saved > 0) {
-      sessionStorage.removeItem("august-goals-scroll");
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => window.scrollTo(0, saved));
-      });
-    }
-  }, [bootstrapped, sessionStarted]);
-
   if (!bootstrapped) {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
