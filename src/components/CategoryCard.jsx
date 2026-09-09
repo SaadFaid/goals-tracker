@@ -446,6 +446,7 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
             <>
               <span className="text-muted mono text-[11px]">
                 <EditableNumber value={item.current} onChange={onUpdate} ariaLabel="Edit action count" />
+                {item.actionType !== "count" ? item.unit : ""}
                 {" / "}
                 {editable ? (
                   <>
