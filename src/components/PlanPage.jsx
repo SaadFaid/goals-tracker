@@ -52,6 +52,16 @@ const toMin = (t) => {
 const snap = (min, step = SNAP_MIN) => Math.round(min / step) * step;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// Grid runs bottom = midnight (00:00) up to top = 23:00.
+const topPct = (min) => 100 - ((min - GRID_START_MIN) / GRID_TOTAL_MIN) * 100;
+
+// "00:00" at the bottom, then 12h am/pm labels flowing upward.
+const hourLabel = (h) => {
+  if (h === 0 || h % 24 === 0) return "00:00";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${pad2(h12)}:00 ${h < 12 ? "am" : "pm"}`;
+};
+
 // Day keys in [winStart, winEnd] that a recurring row covers.
 function repeatInstances(row, winStart, winEnd) {
   const w0 = winStart.getTime();
@@ -247,7 +257,8 @@ export default function PlanPage({ categories, onBack }) {
   const blockPos = (row, overrideMin) => {
     const a = overrideMin ? overrideMin.start : toMin(row.start);
     const b = (overrideMin ? overrideMin.end : toMin(row.end)) || a + 15;
-    const top = ((a - GRID_START_MIN) / GRID_TOTAL_MIN) * 100;
+    // Flipped grid: the visual top edge of a block is its later (end) time.
+    const top = topPct(b);
     const height = Math.max(((b - a) / GRID_TOTAL_MIN) * 100, 2.4);
     return { top: `${top}%`, height: `${height}%` };
   };
@@ -258,8 +269,8 @@ export default function PlanPage({ categories, onBack }) {
     const yInRect = e.clientY - rect.top;
     const zone = Math.min(8, Math.max(5, rect.height * 0.12));
     let mode = "move";
-    if (yInRect < zone) mode = "resizeStart";
-    else if (yInRect > rect.height - zone) mode = "resizeEnd";
+    if (yInRect < zone) mode = "resizeEnd"; // visual top = later time (end)
+    else if (yInRect > rect.height - zone) mode = "resizeStart"; // visual bottom = earlier time (start)
     dragState.current = {
       id: row.id,
       grabMin: gridMinFromClientY(gridEl, e.clientY),
@@ -313,13 +324,16 @@ export default function PlanPage({ categories, onBack }) {
         />
         {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => {
           const h = HOUR_START + i;
+          const bottomP = (i / (HOUR_END - HOUR_START)) * 100;
           return (
             <div
               key={h}
               className="absolute left-0 right-0"
-              style={{ top: `${(i / (HOUR_END - HOUR_START)) * 100}%`, height: `${100 / (HOUR_END - HOUR_START)}%`, borderTop: "1px solid var(--color-border-subtle)" }}
+              style={{ top: `${100 - bottomP - 100 / (HOUR_END - HOUR_START)}%`, height: `${100 / (HOUR_END - HOUR_START)}%`, borderTop: "1px solid var(--color-border-subtle)" }}
             >
-              <span className="absolute -top-2 left-1 text-[9px] font-mono text-text-tertiary">{h}:00</span>
+              <span className="absolute left-1.5 text-[9px] font-mono text-text-tertiary" style={{ bottom: "2px" }}>
+                {hourLabel(h)}
+              </span>
             </div>
           );
         })}
@@ -331,7 +345,7 @@ export default function PlanPage({ categories, onBack }) {
           return (
             <div
               className="absolute pointer-events-none"
-              style={{ left: 30, right: 0, top: `${((nowMin - GRID_START_MIN) / GRID_TOTAL_MIN) * 100}%` }}
+              style={{ left: 58, right: 0, top: `${topPct(nowMin)}%` }}
             >
               <div
                 style={{
