@@ -195,7 +195,7 @@ export default function PlanPage({ categories, onBack }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", color: "" });
+  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", color: "", note: "" });
   const [err, setErr] = useState("");
 
   const dragState = useRef(null);
@@ -261,6 +261,7 @@ export default function PlanPage({ categories, onBack }) {
       label: opt.label,
       catName: opt.catName,
       color: form.color || TYPE_COLORS[opt.type] || "var(--color-accent)",
+      note: form.note || "",
       date: form.date,
       start: form.start || "09:00",
       end: form.end || "10:00",
@@ -276,7 +277,7 @@ export default function PlanPage({ categories, onBack }) {
   const openFormFor = (date) => {
     const now = new Date();
     const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 2);
-    setForm({ ...form, taskKey: "", date, repeat: "today", color: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
+    setForm({ ...form, taskKey: "", date, repeat: "today", color: "", note: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
     setEditingId(null);
     setFormOpen(true);
   };
@@ -289,6 +290,7 @@ export default function PlanPage({ categories, onBack }) {
       end: row.end,
       repeat: row.repeat || "today",
       color: row.color || "",
+      note: row.note || "",
     });
     setEditingId(row.id);
     setFormOpen(true);
@@ -434,6 +436,9 @@ export default function PlanPage({ categories, onBack }) {
         {dayRows.map((row) => {
           const override = draft && draft.id === row.id ? draft : null;
           const pos = blockPos(row, override);
+          const a = override ? override.start : toMin(row.start);
+          const b = (override ? override.end : toMin(row.end)) || a + 15;
+          const bigBox = b - a >= 34; // ~1 line fits (block px height == duration in minutes)
           const color = row.color || TYPE_COLORS[row.type] || "var(--color-accent)";
           return (
             <div
@@ -453,7 +458,14 @@ export default function PlanPage({ categories, onBack }) {
               onPointerDown={(e) => onBlockPointerDown(e, e.currentTarget.closest(".plan-grid"), row)}
             >
               <div className="flex items-center gap-1 min-w-0">
-                <span className="text-[10px] font-semibold text-white truncate">{row.label}</span>
+                <span className="text-[10px] font-semibold text-white truncate">
+                  {bigBox ? row.label : (
+                    <span className="font-normal text-white/65">
+                      {row.note ? <span className="italic">{row.note}&nbsp;·&nbsp;</span> : null}
+                    </span>
+                  )}
+                  {bigBox ? null : row.label}
+                </span>
                 <span className="shrink-0 text-[9px] mono text-white/70">{row.start}–{row.end}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-0.5">
                   <button
@@ -472,6 +484,11 @@ export default function PlanPage({ categories, onBack }) {
                   </button>
                 </span>
               </div>
+              {bigBox && row.note && (
+                <div className="leading-tight min-w-0">
+                  <span className="text-[9px] italic text-white/60 block truncate" title={row.note}>{row.note}</span>
+                </div>
+              )}
               <div className="absolute bottom-0 left-1 right-1 h-[5px] cursor-ns-resize rounded-b-md opacity-60 hover:opacity-100" style={{ background: `${color}55` }} />
               <div className="absolute top-0 left-1 right-1 h-[5px] cursor-ns-resize rounded-t-md opacity-60 hover:opacity-100" style={{ background: `${color}55` }} />
             </div>
@@ -639,6 +656,17 @@ export default function PlanPage({ categories, onBack }) {
               </span>
             </label>
           </div>
+          <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
+            Note (comment on the task)
+            <input
+              type="text"
+              value={form.note || ""}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              placeholder="Optional comment…"
+              className={selectCls}
+              maxLength={80}
+            />
+          </label>
           {err && <div className="text-xs text-danger">{err}</div>}
           <div className="flex gap-2">
             <button onClick={submit} className="nav-btn nav-btn-primary" style={{ background: "var(--color-accent)", color: "#101010" }}>

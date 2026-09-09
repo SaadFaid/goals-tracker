@@ -23,6 +23,7 @@ export const usePlanStore = create(
           label: slot.label,
           catName: slot.catName,
           color: slot.color,
+          note: slot.note,
           date: slot.date,
           start: slot.start,
           end: slot.end,
