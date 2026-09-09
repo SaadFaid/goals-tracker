@@ -462,12 +462,10 @@ export default function PlanPage({ categories, onBack }) {
             >
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[10px] font-semibold text-white truncate">
-                  {bigBox ? row.label : (
-                    <span className="font-normal text-white/65">
-                      {row.note ? <span className="italic">{row.note}&nbsp;·&nbsp;</span> : null}
-                    </span>
+                  {row.label}
+                  {!bigBox && row.note && (
+                    <span className="font-normal italic text-white/65">&nbsp;·&nbsp;{row.note}</span>
                   )}
-                  {bigBox ? null : row.label}
                 </span>
                 <span className="shrink-0 text-[9px] mono text-white/70">{row.start}–{row.end}</span>
                 <span className="ml-auto shrink-0 flex items-center gap-0.5">
