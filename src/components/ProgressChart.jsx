@@ -9,17 +9,19 @@ const PINK = "#DB6088"; // pink — actual/executed progress
 
 function aggregateResultsPct(categories) {
   const all = (categories || []).filter((c) => !c.isRewards);
-  let current = 0;
-  let target = 0;
+  let totalWeight = 0;
+  let weightedSum = 0;
   for (const cat of all) {
     for (const r of cat.results || []) {
       if (r.target > 0) {
-        current += Math.min(r.current, r.target);
-        target += r.target;
+        const w = r.weight || 0;
+        totalWeight += w;
+        const pct = Math.min((r.current / r.target) * 100, 100);
+        weightedSum += pct * w;
       }
     }
   }
-  return target > 0 ? (current / target) * 100 : 0;
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
 }
 
 // Upward progress chart (0 → 100%):
@@ -79,12 +81,8 @@ export default function ProgressChart({ logs, dashboard }) {
     ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(liveScore)} L ${x(today)} ${y(0)} Z`
     : `M ${x(1)} ${y(0)} ` + allPoints.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ") + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: ramps from 0% on day 1 to resultsPct on today.
-  const resultsPoints = points.map((p) => ({ day: p.day, value: (p.day / today) * resultsPct }));
-  const resultsAll = [...resultsPoints, { day: today, value: resultsPct }];
-  const resultsPath = resultsAll.length <= 1
-    ? `M ${x(1)} ${y(0)} L ${x(today)} ${y(resultsPct)}`
-    : `M ${x(1)} ${y(0)} ` + resultsAll.map((p) => `L ${x(p.day)} ${y(p.value)}`).join(" ");
+  // Results line: starts at 0% on day 1, jumps to current resultsPct today.
+  const resultsPath = `M ${x(1)} ${y(0)} L ${x(today)} ${y(0)} L ${x(today)} ${y(resultsPct)}`;
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
@@ -116,7 +114,7 @@ export default function ProgressChart({ logs, dashboard }) {
           expected,
           actual,
           hasLog: hoverDay === today || !!logForDay(hoverDay),
-          results: resultsPct,
+          results: hoverDay >= today ? resultsPct : 0,
         };
       })()
     : null;
@@ -187,9 +185,9 @@ export default function ProgressChart({ logs, dashboard }) {
             <circle key={p.dateKey} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
           ))}
 
-          {/* Results points for each day */}
-          {resultsAll.map((p, i) => (
-            <circle key={`r-${i}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+          {/* Results dots: 0% for each day until today, then jump to resultsPct */}
+          {allDays.map((d) => (
+            <circle key={`r-${d}`} cx={x(d)} cy={y(d < today ? 0 : resultsPct)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
           ))}
 
           {/* Results point at today */}

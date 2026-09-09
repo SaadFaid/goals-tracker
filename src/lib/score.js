@@ -12,7 +12,7 @@ export function resultPct(r) {
     if (r.current <= r.target) return 100;
     return Math.max(0, 100 - ((r.current - r.target) / r.target) * 100);
   }
-  return (r.current / r.target) * 100;
+  return Math.min((r.current / r.target) * 100, 100);
 }
 
 export function categoryPct(cat) {

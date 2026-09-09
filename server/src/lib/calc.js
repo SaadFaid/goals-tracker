@@ -17,7 +17,7 @@ export function calculateResultPercent(result) {
     if (result.current <= result.target) return 100;
     return Math.max(0, 100 - ((result.current - result.target) / result.target) * 100);
   }
-  return (result.current / result.target) * 100;
+  return Math.min((result.current / result.target) * 100, 100);
 }
 
 export function calculateCategoryPercent(category) {
