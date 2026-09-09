@@ -125,11 +125,15 @@ function repeatInstances(row, winStart, winEnd) {
   }
 
   if (row.repeat === "weekly") {
-    const wd = (Number(row.repeatDay) | 0) % 7; // 0=Mon … 6=Sun (default Mon)
+    const days = Array.isArray(row.repeatDay)
+      ? row.repeatDay.map(Number)
+      : [Number(row.repeatDay) | 0]; // old single-day rows
     for (let d = mondayOf(rowDay); d.getTime() <= w1; d = addDays(d, 7)) {
-      const t = addDays(d, wd);
-      const tt = t.getTime();
-      if (tt >= w0 && tt <= w1) out.push(dayKey(t));
+      for (const wd of days) {
+        const t = addDays(d, ((wd % 7) + 7) % 7);
+        const tt = t.getTime();
+        if (tt >= w0 && tt <= w1) out.push(dayKey(t));
+      }
     }
     return out;
   }
@@ -206,7 +210,7 @@ export default function PlanPage({ categories, onBack }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", repeatDay: 1, color: "", note: "" });
+  const [form, setForm] = useState({ taskKey: "", date: dayKey(new Date()), start: "09:00", end: "10:00", repeat: "today", repeatDay: [], color: "", note: "" });
   const [err, setErr] = useState("");
 
   const dragState = useRef(null);
@@ -262,6 +266,8 @@ export default function PlanPage({ categories, onBack }) {
     const a = toMin(form.start);
     const b = toMin(form.end);
     if (b <= a) return setErr("End time must be after start time.");
+    if (form.repeat === "weekly" && (form.repeatDay || []).length === 0)
+      return setErr("Pick at least one day for the weekly repeat.");
     const opt = options.find((o) => o.key === form.taskKey);
     if (!opt) return setErr("That task no longer exists.");
 
@@ -277,7 +283,7 @@ export default function PlanPage({ categories, onBack }) {
       start: form.start || "09:00",
       end: form.end || "10:00",
       repeat: form.repeat || "today",
-      repeatDay: Number(form.repeatDay) || 1,
+      repeatDay: Array.isArray(form.repeatDay) ? form.repeatDay : [Number(form.repeatDay) || 1],
     };
     if (editingId) updateSlot(editingId, payload);
     else addSlot(payload);
@@ -289,7 +295,9 @@ export default function PlanPage({ categories, onBack }) {
   const openFormFor = (date) => {
     const now = new Date();
     const startH = clamp(now.getHours(), HOUR_START, HOUR_END - 2);
-    setForm({ ...form, taskKey: "", date, repeat: "today", repeatDay: 1, color: "", note: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
+    const d = parseDay(date);
+    const wd = d.getDay() === 0 ? 6 : d.getDay() - 1; // 0=Mon … 6=Sun
+    setForm({ ...form, taskKey: "", date, repeat: "today", repeatDay: [wd], color: "", note: "", start: `${pad2(startH)}:00`, end: `${pad2(startH + 1)}:00` });
     setEditingId(null);
     setFormOpen(true);
   };
@@ -301,7 +309,7 @@ export default function PlanPage({ categories, onBack }) {
       start: row.start,
       end: row.end,
       repeat: row.repeat || "today",
-      repeatDay: row.repeatDay ?? 1,
+      repeatDay: Array.isArray(row.repeatDay) ? row.repeatDay : [Number(row.repeatDay) || 1],
       color: row.color || "",
       note: row.note || "",
     });
@@ -643,12 +651,35 @@ export default function PlanPage({ categories, onBack }) {
             </label>
             {form.repeat === "weekly" && (
               <label className="flex flex-col gap-1 text-[11px] text-text-tertiary">
-                On which day (weekly)
-                <select value={String(form.repeatDay)} onChange={(e) => setForm({ ...form, repeatDay: Number(e.target.value) })} className={selectCls}>
-                  {WEEKDAYS.map((d, i) => (
-                    <option key={d} value={i}>{d}</option>
-                  ))}
-                </select>
+                On which day(s) — weekly (pick 1 or more)
+                <span className="flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map((d, i) => {
+                    const on = (form.repeatDay || []).includes(i);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            repeatDay: on ? form.repeatDay.filter((x) => x !== i) : [...form.repeatDay, i],
+                          })
+                        }
+                        aria-pressed={on}
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold"
+                        style={{
+                          background: on ? "var(--color-accent)" : "rgba(255,255,255,0.08)",
+                          color: on ? "#101010" : "var(--color-text)",
+                        }}
+                      >
+                        {d}
+                      </button>
+                    );
+                  })}
+                </span>
+                {(form.repeatDay || []).length === 0 && (
+                  <span className="text-[10px] text-text-tertiary">Pick at least one day.</span>
+                )}
               </label>
             )}
             <label className="flex flex-col gap-1.5 text-[11px] text-text-tertiary">
