@@ -1,6 +1,7 @@
 import { useGoalsStore } from "../store/useGoalsStore";
 import { userData } from "../data/goals";
 import { IconCheck, IconPencil } from "./Icons";
+import MonthPicker from "./MonthPicker";
 
 export default function Nav({ view = "dashboard", onSetView }) {
   const user = useGoalsStore((s) => s.user);
@@ -43,6 +44,7 @@ export default function Nav({ view = "dashboard", onSetView }) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <MonthPicker />
           <button
             onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
             className="nav-btn"

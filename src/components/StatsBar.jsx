@@ -44,7 +44,7 @@ export default function StatsBar({ cats }) {
         pct: score,
         sub: `${hitCount} / ${totalActions} actions hit · your score`,
         tint: "accent",
-        icon: <IconBolt size={15} />,
+        icon: <IconBolt size={14} />,
       },
       {
         label: "Results",
@@ -54,7 +54,7 @@ export default function StatsBar({ cats }) {
         pct: resultsPct,
         sub: "tracked · scored",
         tint: "neutral",
-        icon: <IconChart size={15} />,
+        icon: <IconChart size={14} />,
       },
       {
         label: "Money",
@@ -64,7 +64,7 @@ export default function StatsBar({ cats }) {
         pct: moneyPct,
         sub: `target $${moneyTarget}`,
         tint: "accent",
-        icon: <span className="font-black leading-none" style={{ fontSize: 15 }}>$</span>,
+        icon: <span className="font-black leading-none" style={{ fontSize: 14 }}>$</span>,
       },
       {
         label: "Day",
@@ -74,7 +74,7 @@ export default function StatsBar({ cats }) {
         pct: daysPct,
         sub: `of ${userData.totalDays} in ${userData.month}`,
         tint: "neutral",
-        icon: <IconCalendar size={15} />,
+        icon: <IconCalendar size={14} />,
       },
     ];
   }, [cats]);
@@ -100,8 +100,8 @@ export default function StatsBar({ cats }) {
               <ProgressRing pct={s.pct} tint={s.tint}>
                 <CountUpNumber {...s} />
               </ProgressRing>
-              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[9px]">{s.label}</div>
-              <div className="text-[9px] text-text-tertiary mt-0.5">{s.sub}</div>
+              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[8px]">{s.label}</div>
+              <div className="text-[8px] text-text-tertiary mt-0.5">{s.sub}</div>
             </div>
           </div>
         ))}
@@ -111,8 +111,8 @@ export default function StatsBar({ cats }) {
 }
 
 function ProgressRing({ pct, tint, children }) {
-  const size = 62;
-  const stroke = 5;
+  const size = 58;
+  const stroke = 4;
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
   const [animated, setAnimated] = useState(0);
@@ -156,7 +156,7 @@ function CountUpNumber({ value, suffix, prefix, tint }) {
   const rendered = Number.isFinite(animated) ? Math.round(animated) : value;
   const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
   const text = `${prefix}${rendered}${suffix}`;
-  const fontSize = text.length > 5 ? 13 : 16;
+  const fontSize = text.length > 5 ? 11 : 14;
   return (
     <div className="stat-num" style={{ color, fontWeight: 600, fontSize }}>
       {text}

@@ -92,7 +92,7 @@ function Dashboard() {
       <>
       <div className="page-container flex flex-col gap-4">
         <div className="hero-row grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <Header daysElapsed={userData.daysPassed} categories={categories} logs={progressLogs} />
+          <Header daysElapsed={userData.daysPassed} categories={categories} />
           <StatsBar cats={categories} />
         </div>
 

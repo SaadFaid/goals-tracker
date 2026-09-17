@@ -211,12 +211,19 @@ export default function ProgressChart({ logs, dashboard }) {
             <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
-          {/* Execution dots: only on days progress was actually made */}
-          {points
-            .filter((p) => !(showLiveToday && p.day === today))
-            .map((p) => (
-              <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
-            ))}
+          {/* Execution dots: day-1 start point + days progress was actually made */}
+          {(() => {
+            const dotDays = new Map();
+            for (const p of points) {
+              if (showLiveToday && p.day === today) continue;
+              dotDays.set(p.day, p.value);
+            }
+            const day1Val = points.find((p) => p.day === 1)?.value ?? 0;
+            if (!dotDays.has(1)) dotDays.set(1, day1Val);
+            return [...dotDays].map(([day, val]) => (
+              <circle key={`e-${day}`} cx={x(day)} cy={y(val)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
+            ));
+          })()}
 
           {/* Results dots: only on days a result was actually logged */}
           {points
@@ -239,7 +246,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="12" fontWeight="600">
+            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="10" fontWeight="600">
               {d}
             </text>
           ))}
@@ -318,7 +325,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           }
         />
       )}
-      <span className="text-xs font-semibold text-muted tracking-wide">{label}</span>
+      <span className="text-[11px] font-semibold text-muted tracking-wide">{label}</span>
     </div>
   );
 }
