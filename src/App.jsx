@@ -10,6 +10,7 @@ import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
+import PrintReport from "./components/PrintReport";
 import PlanPage from "./components/PlanPage";
 
 function useDashboard() {
@@ -40,7 +41,11 @@ export default function App() {
 
 function Dashboard() {
   const { categories, dashboard, progressLogs } = useDashboard();
+  const user = useGoalsStore((s) => s.user);
+  const isGuest = useGoalsStore((s) => s.isGuest);
+  const selectedMonth = useGoalsStore((s) => s.selectedMonth);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
   const [view, setView] = useState("dashboard");
 
   const undo = useGoalsStore((s) => s.undo);
@@ -82,7 +87,23 @@ function Dashboard() {
         <div className="bg-orb orb-teal" />
         <div className="bg-sheen" />
       </div>
-      <Nav view={view} onSetView={setView} onOpenAnalysis={() => setShowAnalysis(true)} />
+      <Nav
+        view={view}
+        onSetView={setView}
+        onOpenAnalysis={() => setShowAnalysis(true)}
+        onPrint={() => setShowPrint(true)}
+      />
+      {showPrint && (
+        <PrintReport
+          cats={categories}
+          dashboard={dashboard}
+          logs={progressLogs}
+          selectedMonth={selectedMonth}
+          user={user}
+          isGuest={isGuest}
+          onClose={() => setShowPrint(false)}
+        />
+      )}
       {view === "plan" ? (
         <PlanPage categories={categories} onBack={() => setView("dashboard")} />
       ) : (
