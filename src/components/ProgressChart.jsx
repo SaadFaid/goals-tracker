@@ -14,10 +14,10 @@ const STATUS_COLORS = {
   "ON TRACK": "#87FF5F",
 };
 
-// Upward progress chart (0 → 100%):
-//  - Actual: daily quality score from ProgressLogs (ascending), live today point.
-//  - Should be: dashed pace line anchored at the last progress point, reaching 100% on the last day.
-//  - Results: aggregate result completion line.
+// upward progress chart (0 → 100%):
+//  - Execution: daily quality score, drawn only on days progress was made (ascending), live today point.
+//  - Should be: straight dashed pace line, 0% on day 1 → 100% on the last day.
+//  - Results: aggregate result completion line, drawn only on real results days.
 export default function ProgressChart({ logs, dashboard }) {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
   const w = 480;
@@ -65,48 +65,34 @@ export default function ProgressChart({ logs, dashboard }) {
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
 
-  // Should-be pace line is anchored to the last day progress was actually made:
-  // it starts at that real point and climbs to 100% on the last day, instead of
-  // always starting at 0% on day 1.
-  const anchorDay = Math.max(1, Math.min(totalDays, today));
-  const anchorVal = Math.max(0, Math.min(100, liveScore));
-  const expectedAt = (d) => {
-    if (totalDays <= 1) return anchorVal;
-    const span = Math.max(1, totalDays - anchorDay);
-    return Math.min(100, anchorVal + Math.max(0, d - anchorDay) * ((100 - anchorVal) / span));
-  };
-  const expectedPath = `M ${x(anchorDay)} ${y(anchorVal)} L ${x(totalDays)} ${y(100)}`;
+  // Should be: straight pace line from 0% on day 1 to 100% on the last day.
+  const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
+  const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: only real progress days get a point; gaps carry the last
-  // value forward, and the live point at today appears while the day is in progress.
+  // Execution line: drawn only on days progress was actually made (plus the live
+  // today point while the day is in progress) — no carry-forward across gaps, so
+  // the line ends at the last progress day, never dragging forward into empty days.
   const execByDay = new Map();
   for (const p of points) execByDay.set(p.day, p.value);
   if (showLiveToday) execByDay.set(today, liveScore);
-  let lastVal = 0;
-  const execPoints = [];
-  for (let d = 1; d <= today; d++) {
-    const v = execByDay.has(d) ? execByDay.get(d) : lastVal;
-    execPoints.push({ day: d, value: v });
-    lastVal = v;
-  }
-  const actualPath = execPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
-  const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
+  const execSteps = [...execByDay]
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, value]) => ({ day, value }));
+  const actualPath = execSteps.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
+  const areaPath = execSteps.length
+    ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
+    : "";
 
-  // Results line: real results days only, gaps carry the previous value forward;
-  // the live resultsPct is shown at today while the current day is in progress.
+  // Results line: same rule — real results days only, ends at the last one.
   const resByDay = new Map();
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
   }
   if (showLiveToday) resByDay.set(today, resultsPct);
-  let lastRes = 0;
-  const resultsPoints = [];
-  for (let d = 1; d <= today; d++) {
-    const v = resByDay.has(d) ? resByDay.get(d) : lastRes;
-    resultsPoints.push({ day: d, value: v });
-    lastRes = v;
-  }
-  const resultsPath = resultsPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
+  const resSteps = [...resByDay]
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, value]) => ({ day, value }));
+  const resultsPath = resSteps.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const gridLines = [25, 50, 75, 100];
@@ -217,14 +203,14 @@ export default function ProgressChart({ logs, dashboard }) {
           {/* Area fill under the actual/executed line */}
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
-          {/* Should be: dashed grey, starts at the last progress point, climbs to 100% */}
+          {/* Should be: dashed grey, straight 0% → 100% pace */}
           <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
           <path d={resultsPath} stroke={RESULT} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
-          {/* Actual/executed progress line: solid pink */}
-          {today > 1 ? (
+          {/* Execution progress line: solid pink, only through actual progress days */}
+          {execSteps.length > 1 ? (
             <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
