@@ -150,10 +150,10 @@ export default function ProgressBar() {
                 left: `calc(${Math.min(Math.max(monthStats.expected, 0), 100)}% - 5px)`,
                 width: 10,
                 height: 10,
-                background: "var(--color-accent-2)",
+                background: "var(--color-grey)",
                 borderRadius: "2px",
                 transform: "rotate(45deg)",
-                boxShadow: "0 0 5px var(--color-accent-2), 0 0 12px var(--color-accent-2-muted)",
+                boxShadow: "0 0 5px var(--color-grey), 0 0 12px var(--color-grey-dim)",
                 zIndex: 2,
               }}
             />
@@ -161,7 +161,7 @@ export default function ProgressBar() {
 
           <div className="relative z-10 flex items-center justify-between mt-4 text-xs">
             <span className="text-muted">Actual <strong className="mono text-heading">{Math.round(monthStats.actual)}%</strong></span>
-            <span className="text-muted">Expected <strong className="mono" style={{ color: "var(--color-accent-2)" }}>{Math.round(monthStats.expected)}%</strong></span>
+            <span className="text-muted">Expected <strong className="mono" style={{ color: "var(--color-grey)" }}>{Math.round(monthStats.expected)}%</strong></span>
             <span className="text-muted">Days <strong className="mono text-heading">{monthStats.daysCompleted}/{monthStats.daysTotal}</strong></span>
           </div>
         </>

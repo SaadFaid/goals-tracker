@@ -4,8 +4,9 @@ import { useGoalsStore } from "../store/useGoalsStore";
 import { aggregateResultsPct } from "../lib/score";
 import { IconBolt, IconFire, IconCheckCircle } from "./Icons";
 
-const ACCENT = "#6DF5E3"; // mint — expected pace
-const RESULT = "#2DD4BF"; // turquoise — results progress (consistent across dashboard)
+const ACCENT = "#6DF5E3"; // mint — today marker
+const EXPECTED = "#9CA3AF"; // grey — should-be pace line
+const RESULT = "#FFA14D"; // orange — results progress (consistent across dashboard)
 const PINK = "#DB6088"; // pink — actual/executed progress
 const STATUS_COLORS = {
   AHEAD: "#6DF5E3",
@@ -157,7 +158,7 @@ export default function ProgressChart({ logs, dashboard }) {
       </div>
       <div className="flex items-center gap-4 mb-3 flex-wrap">
         <LegendItem color={PINK} label="Execution" />
-        <LegendItem dashed stroke={ACCENT} label="Should be" />
+        <LegendItem dashed stroke={EXPECTED} label="Should be" />
         <LegendItem stroke={RESULT} label="Results" />
         <LegendItem dot color={ACCENT} label="Today" />
       </div>
@@ -209,7 +210,7 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
+          <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
           <path d={resultsPath} stroke={RESULT} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
@@ -263,7 +264,7 @@ export default function ProgressChart({ logs, dashboard }) {
           {tooltip && (() => {
             const d = hoverDay;
             const rows = [
-              { label: "Should be", value: `${tooltip.expected}%`, color: ACCENT },
+              { label: "Should be", value: `${tooltip.expected}%`, color: EXPECTED },
               { label: "Execution", value: tooltip.hasLog && tooltip.actual != null ? `${Math.round(tooltip.actual)}%` : "—", color: PINK },
               { label: "Results", value: `${tooltip.results}%`, color: RESULT },
             ];

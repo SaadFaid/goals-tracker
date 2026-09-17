@@ -5,7 +5,7 @@ import { aggregateResultsPct, computeOverallPct } from "../lib/score";
 const TRACK = "rgba(255, 255, 255, 0.10)";
 const EXECUTION = "#8FA8A3"; // grey — execution
 const MONEY = "var(--color-gold)"; // gold — money
-const RESULTS = "var(--color-turquoise)"; // turquoise — results
+const RESULTS = "#FFA14D"; // orange — results
 const EXPECTED = "#B4C2BD"; // small grey expected marker
 
 export default function StatsBar({ cats }) {
@@ -53,8 +53,8 @@ export default function StatsBar({ cats }) {
         key: "money",
         label: "Money",
         pct: moneyPct,
-        center: moneyHidden ? "***$" : `$${moneyCurrent}`,
-        sub: moneyHidden ? "of ***$" : `of $${moneyTarget}`,
+        center: moneyHidden ? "***" : `${moneyPct}%`,
+        sub: moneyHidden ? "$*** of $***" : `$${moneyCurrent} of $${moneyTarget}`,
         color: MONEY,
         maskable: true,
       },
@@ -65,6 +65,14 @@ export default function StatsBar({ cats }) {
         center: `${resultsPct}%`,
         sub: "tracked · scored",
         color: RESULTS,
+      },
+      {
+        key: "days",
+        label: "Days",
+        pct: expectedPct,
+        center: `${userData.daysPassed}/${userData.totalDays}`,
+        sub: "of the month",
+        color: EXECUTION,
       },
     ].map((s) => ({ ...s, expectedPct }));
   }, [cats, moneyHidden]);
@@ -138,7 +146,7 @@ function StatRing({ label, center, sub, pct, color, expectedPct, maskable, maske
           {/* Small grey point at the expected position */}
           <circle cx={ex} cy={ey} r="1.5" fill={EXPECTED} />
         </svg>
-        <div className="stat-num" style={{ color: "#FFFFFF", fontWeight: 700, fontSize: center.length > 5 ? 15 : 18 }}>
+        <div className="stat-num" style={{ color, fontWeight: 700, fontSize: center.length > 5 ? 11 : 13 }}>
           {center}
         </div>
       </div>

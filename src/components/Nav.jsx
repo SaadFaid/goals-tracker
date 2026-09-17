@@ -12,8 +12,18 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
 
   const signedIn = !!user && !isGuest;
 
+  // Shared pill style — calm glass when off, mint glow when on.
+  const pill = (active) => ({
+    border: active ? "1px solid var(--color-accent)" : "1px solid var(--color-border-active)",
+    color: active ? "var(--color-accent)" : "var(--color-text-secondary)",
+    background: active
+      ? "var(--color-accent-muted)"
+      : "linear-gradient(180deg, rgba(229,246,240,0.07), rgba(229,246,240,0.02))",
+    boxShadow: active ? "0 0 16px rgba(109,245,227,0.30)" : "0 1px 2px rgba(0,0,0,0.3)",
+  });
+
   return (
-    <nav className="sticky top-0 z-20 site-nav rounded-b-2xl shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
+    <nav className="sticky top-0 z-20 site-nav rounded-b-2xl">
       <div
         className="mx-auto max-w-[1100px] px-3 sm:px-5 h-11 flex items-center justify-between gap-3"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
@@ -34,6 +44,10 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
             </svg>
           </span>
           <span className="brand text-sm text-heading leading-none">Tchizu Goal Tracker</span>
+          <span className="relative flex w-2.5 h-2.5 shrink-0" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full rounded-full opacity-70" style={{ background: "var(--color-accent)", animation: "brandPulse 2.4s ease-in-out infinite" }} />
+            <span className="relative inline-flex rounded-full" style={{ width: 8, height: 8, margin: "auto", background: "var(--color-accent)" }} />
+          </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -45,6 +59,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
             style={{
               background: "var(--color-accent-muted)",
               border: "1px solid var(--color-border-active)",
+              boxShadow: "0 0 16px rgba(109,245,227,0.25)",
             }}
             title="Month analysis"
           >
@@ -56,12 +71,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
             className="nav-btn"
             aria-pressed={view === "plan"}
             title={view === "plan" ? "Back to dashboard" : "Plan your day on a calendar"}
-            style={{
-              border: view === "plan" ? "1px solid var(--color-accent)" : "1px solid var(--color-border-active)",
-              color: view === "plan" ? "var(--color-accent)" : "var(--color-text-secondary)",
-              background: view === "plan" ? "var(--color-accent-muted)" : "transparent",
-              boxShadow: view === "plan" ? "0 0 14px rgba(109,245,227,0.25)" : undefined,
-            }}
+            style={pill(view === "plan")}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -76,12 +86,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
             className="nav-btn"
             aria-pressed={editMode}
             title={editMode ? "Exit edit mode" : "Edit everything"}
-            style={{
-              border: editMode ? "1px solid var(--color-accent)" : "1px solid var(--color-border-active)",
-              color: editMode ? "var(--color-accent)" : "var(--color-text-secondary)",
-              background: editMode ? "var(--color-accent-muted)" : "transparent",
-              boxShadow: editMode ? "0 0 14px rgba(109,245,227,0.25)" : undefined,
-            }}
+            style={pill(editMode)}
           >
             {editMode ? (
               <span className="inline-flex items-center gap-1.5"><IconCheck size={13} /> Done</span>
@@ -101,10 +106,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
               <button
                 onClick={logout}
                 className="nav-btn"
-                style={{
-                  border: "1px solid var(--color-border-active)",
-                  color: "var(--color-text-secondary)",
-                }}
+                style={pill(false)}
               >
                 Sign out
               </button>
