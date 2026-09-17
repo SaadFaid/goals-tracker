@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { userData } from "../data/goals";
 import { aggregateResultsPct, computeOverallPct } from "../lib/score";
 
-const TRACK = "rgba(255, 255, 255, 0.10)";
+const TRACK = "rgba(229, 246, 240, 0.22)"; // bright ring base so the arc reads against it
 const EXECUTION = "#8FA8A3"; // grey — execution
 const MONEY = "var(--color-gold)"; // gold — money
 const RESULTS = "#FFA14D"; // orange — results
@@ -48,6 +48,7 @@ export default function StatsBar({ cats }) {
         center: `${score}%`,
         sub: `${hitCount} / ${totalActions} actions`,
         color: EXECUTION,
+        textColor: "var(--color-text-primary)",
       },
       {
         key: "money",
@@ -56,6 +57,7 @@ export default function StatsBar({ cats }) {
         center: `${moneyPct}%`,
         sub: moneyHidden ? "$*** of $***" : `$${moneyCurrent} of $${moneyTarget}`,
         color: MONEY,
+        textColor: "#F5D67A",
         maskable: true,
       },
       {
@@ -65,6 +67,7 @@ export default function StatsBar({ cats }) {
         center: `${resultsPct}%`,
         sub: "tracked · scored",
         color: RESULTS,
+        textColor: "#FFB870",
       },
       {
         key: "days",
@@ -73,6 +76,7 @@ export default function StatsBar({ cats }) {
         center: `${userData.daysPassed}/${userData.totalDays}`,
         sub: "of the month",
         color: EXECUTION,
+        textColor: "var(--color-text-primary)",
       },
     ].map((s) => ({ ...s, expectedPct }));
   }, [cats, moneyHidden]);
@@ -97,9 +101,9 @@ export default function StatsBar({ cats }) {
   );
 }
 
-function StatRing({ label, center, sub, pct, color, expectedPct, maskable, masked, onToggleMask }) {
+function StatRing({ label, center, sub, pct, color, textColor, expectedPct, maskable, masked, onToggleMask }) {
   const size = 96;
-  const stroke = 3;
+  const stroke = 5;
   const r = (size - stroke) / 2 - 1;
   const cx = size / 2;
   const cy = size / 2;
@@ -138,32 +142,35 @@ function StatRing({ label, center, sub, pct, color, expectedPct, maskable, maske
               strokeLinecap="round"
               strokeDasharray={C}
               strokeDashoffset={C * (1 - clamped / 100)}
-              style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
+              style={{
+                transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+                filter: `drop-shadow(0 0 5px ${color})`,
+              }}
             />
           </g>
           {/* Start marker at 12 o'clock */}
-          <circle cx={cx} cy={cy - r} r="1.5" fill={color} />
+          <circle cx={cx} cy={cy - r} r="2.2" fill={color} />
           {/* Small grey point at the expected position */}
-          <circle cx={ex} cy={ey} r="1.5" fill={EXPECTED} />
+          <circle cx={ex} cy={ey} r="2" fill={EXPECTED} />
         </svg>
-        <div className="stat-num" style={{ color, fontWeight: 700, fontSize: center.length > 5 ? 11 : 13 }}>
+        <div className="stat-num" style={{ color: textColor || color, fontWeight: 800, fontSize: center.length > 5 ? 14 : 17 }}>
           {center}
         </div>
       </div>
       <div
-        className="mt-2 text-[9px] font-bold uppercase tracking-[0.14em]"
-        style={{ color: "var(--color-text-secondary)" }}
+        className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em]"
+        style={{ color: "var(--color-text-primary)" }}
       >
         {label}
       </div>
-      <div className="flex items-center gap-1 text-[9px]" style={{ color: "var(--color-text-tertiary)" }}>
+      <div className="flex items-center gap-1 text-[10px]" style={{ color: "var(--color-text-secondary)" }}>
         <span>{sub}</span>
         {maskable && (
           <button
             type="button"
             onClick={onToggleMask}
             className="cursor-pointer transition-colors"
-            style={{ color: "var(--color-text-tertiary)" }}
+            style={{ color: "var(--color-text-secondary)" }}
             title={masked ? "Show amount" : "Hide amount"}
             aria-label={masked ? "Show amount" : "Hide amount"}
           >
