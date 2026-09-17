@@ -194,15 +194,15 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="9" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.13" />
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="4" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="6" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.13" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="2" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
-          <path d={resultsPath} stroke={RESULT} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+          <path d={resultsPath} stroke={RESULT} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
           {/* Actual/executed progress line: solid pink */}
           {today > 1 ? (
-            <path d={actualPath} stroke={PINK} strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
           {/* Execution dots at each day */}

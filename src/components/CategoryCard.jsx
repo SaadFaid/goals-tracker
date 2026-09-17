@@ -1451,21 +1451,22 @@ export default memo(function CategoryCard({
       {!category.isRewards && (
         <div className="px-4 pb-3" aria-label={`${pct} percent done, expected ${Math.round(expectedPace)} percent`}>
           <div
-            className="w-full h-1.5 rounded-full relative"
-            style={{ background: "var(--color-navy-500)" }}
+            className="w-full relative"
+            style={{ height: 2, background: "var(--color-navy-500)" }}
           >
             <div
-              className="absolute top-0 left-0 h-full rounded-full"
-              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, background: headerColor, opacity: 0.85 }}
+              className="absolute top-0 left-0"
+              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, height: 2, background: headerColor }}
             />
             <div
-              className="absolute top-1/2 -translate-y-1/2 rounded-sm"
+              className="absolute rounded-sm"
               style={{
                 left: `${Math.max(0, Math.min(expectedPace, 100))}%`,
-                width: 3,
-                height: 14,
+                width: 2,
+                height: 16,
                 background: "var(--color-text-primary)",
                 transform: "translate(-50%, -50%)",
+                top: "50%",
                 boxShadow: "0 0 8px rgba(0,0,0,0.55)",
               }}
               title={`Where you should be today: ${Math.round(expectedPace)}%`}
