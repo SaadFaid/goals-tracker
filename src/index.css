@@ -205,8 +205,8 @@ html, body {
   /* ── Typography Scale ──────────────────────────────────── */
   .display {
     font-family: var(--font-display);
-    font-size: 34px;
-    line-height: 1.04;
+    font-size: 24px;
+    line-height: 1.1;
     font-weight: 700;
     letter-spacing: -0.02em;
   }
@@ -214,7 +214,7 @@ html, body {
   .h3 { font-size: 17px; line-height: 1.3; font-weight: 600; font-family: var(--font-display); }
   .stat-num {
     font-family: var(--font-display);
-    font-size: 30px;
+    font-size: 24px;
     line-height: 1.0;
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -386,9 +386,9 @@ html, body {
 /* ── Full-screen site layout ─────────────────────────────── */
 .page-container {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 28px 20px 48px;
+  padding: 16px 16px 40px;
 }
 @media (min-width: 640px) { .page-container { padding-left: 24px; padding-right: 24px; } }
 
@@ -404,10 +404,10 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  height: 34px;
-  padding: 0 14px;
+  height: 28px;
+  padding: 0 12px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   background: transparent;

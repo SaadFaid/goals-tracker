@@ -49,8 +49,16 @@ export default function ProgressChart({ logs, dashboard }) {
     .filter((p) => p.day >= 1 && p.day <= totalDays)
     .sort((a, b) => a.day - b.day);
 
-  // Today / live point: use the real quality score from dashboard, not synthetic logs.
-  const today = points.length ? points[points.length - 1].day : 1;
+  // Live "today" point: use the real quality score from dashboard, not synthetic logs.
+  // At 00:00 the new day has no progress yet, so the live point is hidden.
+  const now = new Date();
+  const isLiveMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1;
+  const atMidnight = now.getHours() === 0 && now.getMinutes() === 0;
+  const showLiveToday = isLiveMonth && !atMidnight;
+  // The chart runs to the last day progress was actually made; a live point
+  // extends it to today only while the current day is still in progress.
+  const lastLoggedDay = points.length ? points[points.length - 1].day : null;
+  const today = showLiveToday ? now.getDate() : lastLoggedDay ?? 1;
   const liveScore = dashboard?.stats?.qualityPercent ?? (points.length ? points[points.length - 1].value : 0);
 
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
@@ -60,10 +68,11 @@ export default function ProgressChart({ logs, dashboard }) {
   const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: continuous day-by-day, filling gaps with previous day's value.
+  // Execution line: only real progress days get a point; gaps carry the last
+  // value forward, and the live point at today appears while the day is in progress.
   const execByDay = new Map();
   for (const p of points) execByDay.set(p.day, p.value);
-  execByDay.set(today, liveScore);
+  if (showLiveToday) execByDay.set(today, liveScore);
   let lastVal = 0;
   const execPoints = [];
   for (let d = 1; d <= today; d++) {
@@ -74,15 +83,13 @@ export default function ProgressChart({ logs, dashboard }) {
   const actualPath = execPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
   const areaPath = actualPath + ` L ${x(today)} ${y(0)} Z`;
 
-  // Results line: real day-by-day results stats, filling gaps with the previous
-  // day's value; today shows the live resultsPct so it tracks interactions.
-  const now = new Date();
-  const isLiveMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1;
+  // Results line: real results days only, gaps carry the previous value forward;
+  // the live resultsPct is shown at today while the current day is in progress.
   const resByDay = new Map();
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
   }
-  if (isLiveMonth) resByDay.set(today, resultsPct);
+  if (showLiveToday) resByDay.set(today, resultsPct);
   let lastRes = 0;
   const resultsPoints = [];
   for (let d = 1; d <= today; d++) {
@@ -204,26 +211,31 @@ export default function ProgressChart({ logs, dashboard }) {
             <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
-          {/* Execution dots at each day */}
-          {execPoints.map((p) => (
-            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
-          ))}
+          {/* Execution dots: only on days progress was actually made */}
+          {points
+            .filter((p) => !(showLiveToday && p.day === today))
+            .map((p) => (
+              <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
+            ))}
 
-          {/* Results dots: ramp from 0% on day 1 to resultsPct at today */}
-          {resultsPoints.map((p) => (
-            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
-          ))}
+          {/* Results dots: only on days a result was actually logged */}
+          {points
+            .filter((p) => typeof p.results === "number" && !(showLiveToday && p.day === today))
+            .map((p) => (
+              <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
+            ))}
 
-          {/* Today's live execution point: pink with turquoise border */}
-          {today >= 1 ? (
-            <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
+          {/* Today's live points: only while the current day is in progress */}
+          {showLiveToday ? (
+            <>
+              {/* Execution: pink with turquoise border */}
+              <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1" />
+              {/* Expected: centered on the should-be line */}
+              <circle cx={x(today)} cy={y(expectedToday)} r="3.5" fill={ACCENT} stroke="#0E1817" strokeWidth="1" />
+              {/* Results */}
+              <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
+            </>
           ) : null}
-
-          {/* Today's expected point: centered on the should-be line */}
-          <circle cx={x(today)} cy={y(expectedToday)} r="3.5" fill={ACCENT} stroke="#0E1817" strokeWidth="1" />
-
-          {/* Today's results point */}
-          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
 
           {/* X-axis ticks */}
           {ticks.map((d) => (

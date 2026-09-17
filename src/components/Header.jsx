@@ -87,7 +87,7 @@ export default function Header({ daysElapsed, categories, logs }) {
   };
 
   return (
-    <header className="card card-lift flex flex-col justify-center gap-3 p-6" style={{
+    <header className="card card-lift flex flex-col justify-center gap-2 p-4" style={{
       background: "linear-gradient(135deg, var(--color-elevated), var(--color-surface))",
       position: "relative",
       overflow: "hidden"
@@ -109,7 +109,7 @@ export default function Header({ daysElapsed, categories, logs }) {
           <h1 className="display text-heading">
             Tchizu Goal Tracker
           </h1>
-          <p className="body text-muted mt-1.5">
+          <p className="text-xs text-muted mt-1.5">
             {daysElapsedSafe} of {userData.totalDays} days in. Tap any number on any card to update it — your score recalculates instantly.
           </p>
           
@@ -154,7 +154,7 @@ export default function Header({ daysElapsed, categories, logs }) {
             }}
             title="Choose your month"
           >
-            <span className="text-sm font-bold text-heading tracking-wide">
+            <span className="text-xs font-bold text-heading tracking-wide">
               {viewedMonthName} {viewedYear}
             </span>
             <span className="text-[11px] font-semibold text-accent px-2 py-0.5 rounded-full" style={{ background: "rgba(109,245,227,0.12)" }}>

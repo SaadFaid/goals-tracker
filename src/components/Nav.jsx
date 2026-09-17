@@ -15,12 +15,12 @@ export default function Nav({ view = "dashboard", onSetView }) {
   return (
     <nav className="sticky top-0 z-20 site-nav rounded-b-2xl shadow-[0_12px_28px_rgba(0,0,0,0.4)]">
       <div
-        className="mx-auto max-w-[1100px] px-4 sm:px-6 h-14 flex items-center justify-between gap-4"
+        className="mx-auto max-w-[1100px] px-3 sm:px-5 h-11 flex items-center justify-between gap-3"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <span
-            className="grid place-items-center w-7 h-7 rounded-lg shrink-0"
+            className="grid place-items-center w-6 h-6 rounded-lg shrink-0"
             style={{
               background: "var(--color-accent-muted)",
               color: "var(--color-accent)",
@@ -28,14 +28,14 @@ export default function Nav({ view = "dashboard", onSetView }) {
             }}
             aria-hidden="true"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </span>
-          <span className="brand text-heading leading-none">Tchizu Goal Tracker</span>
+          <span className="brand text-sm text-heading leading-none">Tchizu Goal Tracker</span>
           <span
-            className="caption text-text-tertiary hidden sm:inline"
+            className="caption text-[9px] text-text-tertiary hidden sm:inline"
             style={{ color: "var(--color-text-tertiary)" }}
           >
             {userData.month} {userData.year} · {userData.totalDays} days
