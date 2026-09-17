@@ -55,8 +55,9 @@ export default function ProgressChart({ logs, dashboard }) {
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
 
-  // Expected pace: reaches 100% on the last day.
-  const expectedPath = `M ${x(1)} ${y((1 / totalDays) * 100)} L ${x(totalDays)} ${y(100)}`;
+  // Expected pace: starts at 0% on day 1, reaches 100% on the last day.
+  const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
+  const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
   // Execution line: continuous day-by-day, filling gaps with previous day's value.
   const execByDay = new Map();
@@ -94,7 +95,7 @@ export default function ProgressChart({ logs, dashboard }) {
   const allDays = Array.from({ length: today }, (_, i) => i + 1);
   const gridLines = [25, 50, 75, 100];
 
-  const expectedToday = (today / totalDays) * 100;
+  const expectedToday = expectedAt(today);
   const lastStatus =
     liveScore >= expectedToday + 3
       ? "AHEAD"
@@ -115,7 +116,7 @@ export default function ProgressChart({ logs, dashboard }) {
   const tooltip = hoverDay != null
     ? (() => {
         const actual = hoverDay === today ? liveScore : logForDay(hoverDay)?.value ?? null;
-        const expected = Math.round((hoverDay / totalDays) * 100);
+        const expected = Math.round(expectedAt(hoverDay));
         return {
           expected,
           actual,
@@ -193,7 +194,8 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="3.5" strokeDasharray="6 7" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="9" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.13" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="4" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
           <path d={resultsPath} stroke={RESULT} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
@@ -225,7 +227,7 @@ export default function ProgressChart({ logs, dashboard }) {
           {allDays.map((d) => (
             <circle
               key={d}
-              cx={x(d)} cy={y((d / totalDays) * 100)} r="3"
+              cx={x(d)} cy={y(expectedAt(d))} r="3"
               fill={ACCENT} stroke="#0E1817" strokeWidth="1"
             />
           ))}
@@ -306,7 +308,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           className="w-5 inline-block"
           style={
             dashed
-              ? { borderTop: `2.5px dashed ${stroke || "currentColor"}` }
+              ? { borderTop: `3px dashed ${stroke || "currentColor"}`, borderSpacing: "2px" }
               : { borderTop: `3px solid ${stroke || color}` }
           }
         />

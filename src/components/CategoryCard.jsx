@@ -1294,6 +1294,12 @@ export default memo(function CategoryCard({
   const pct = Math.round(categoryPct(category));
   const weightsSum = category.isRewards ? 100 : categoryWeightsSum(category);
   const weightsOff = !category.isRewards && (category.actions || []).length > 0 && weightsSum !== 100;
+  // Where today "should be" in the month: day-of-month pace as a 0-100 score.
+  const expectedPace = (() => {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return (now.getDate() / Math.max(daysInMonth, 1)) * 100;
+  })();
 
   const commitName = () => {
     setEditName(false);
@@ -1441,6 +1447,32 @@ export default memo(function CategoryCard({
           </button>
         </div>
       </div>
+
+      {!category.isRewards && (
+        <div className="px-4 pb-3" aria-label={`${pct} percent done, expected ${Math.round(expectedPace)} percent`}>
+          <div
+            className="w-full h-1.5 rounded-full relative"
+            style={{ background: "var(--color-navy-500)" }}
+          >
+            <div
+              className="absolute top-0 left-0 h-full rounded-full"
+              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, background: headerColor, opacity: 0.85 }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 rounded-sm"
+              style={{
+                left: `${Math.max(0, Math.min(expectedPace, 100))}%`,
+                width: 3,
+                height: 14,
+                background: "var(--color-text-primary)",
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 8px rgba(0,0,0,0.55)",
+              }}
+              title={`Where you should be today: ${Math.round(expectedPace)}%`}
+            />
+          </div>
+        </div>
+      )}
 
       {open ? (
         <div className="accordion-body px-4 pb-4 pt-0" style={{ 
