@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlanStore } from "../store/usePlanStore";
+import { IconPencil } from "./Icons";
 
 const HOUR_START = 0;   // first visible hour (full day)
 const HOUR_END = 24;    // last visible hour
@@ -494,7 +495,7 @@ export default function PlanPage({ categories, onBack }) {
                     className="text-white/50 hover:text-white/90 text-[10px] leading-none px-0.5 rounded hover:bg-white/10"
                     aria-label={`Edit ${row.label}`}
                   >
-                    ✎
+                    <IconPencil size={11} />
                   </button>
                   <button
                     onClick={() => removeSlot(row.id)}

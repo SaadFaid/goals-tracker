@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGoalsStore } from "../store/useGoalsStore";
+import { IconInbox } from "./Icons";
 
 const EXEC_PINK = "#DB6088";
 const MONTHS = [
@@ -166,7 +167,7 @@ export default function ProgressBar() {
         </>
       ) : (
         <div className="relative z-10 flex flex-col items-center justify-center text-center py-8">
-          <div className="text-3xl mb-2">📭</div>
+          <div className="mb-2" style={{ color: "var(--color-text-tertiary)" }}><IconInbox size={30} /></div>
           <div className="text-sm font-semibold text-heading">No data yet for {title}</div>
           <div className="text-xs text-text-tertiary mt-1">
             Actual –% · Expected –% · Days 0/{daysTotal}

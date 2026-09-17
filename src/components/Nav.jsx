@@ -1,5 +1,6 @@
 import { useGoalsStore } from "../store/useGoalsStore";
 import { userData } from "../data/goals";
+import { IconCheck, IconPencil } from "./Icons";
 
 export default function Nav({ view = "dashboard", onSetView }) {
   const user = useGoalsStore((s) => s.user);
@@ -74,7 +75,11 @@ export default function Nav({ view = "dashboard", onSetView }) {
               boxShadow: editMode ? "0 0 14px rgba(109,245,227,0.25)" : undefined,
             }}
           >
-            {editMode ? "✓ Done" : "✎ Edit"}
+            {editMode ? (
+              <span className="inline-flex items-center gap-1.5"><IconCheck size={13} /> Done</span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5"><IconPencil size={12} /> Edit</span>
+            )}
           </button>
           {signedIn ? (
             <>

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { userData } from "../data/goals";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { aggregateResultsPct } from "../lib/score";
+import { IconBolt, IconFire, IconCheckCircle } from "./Icons";
 
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
@@ -270,19 +271,19 @@ export default function ProgressChart({ logs, dashboard }) {
         {lastStatus === "AHEAD" && (
           <>
             You're ahead of schedule! Keep up the great work!{" "}
-            <span className="text-accent">🚀</span>
+            <IconBolt size={14} style={{ color: "var(--color-accent)", display: "inline", verticalAlign: "-2px" }} />
           </>
         )}
         {lastStatus === "BEHIND" && (
           <>
             <span style={{ color: "var(--color-danger)" }}>You're behind schedule. Every action counts - get back on track!</span>{" "}
-            <span style={{ color: "var(--color-danger)" }}>💪</span>
+            <IconFire size={14} style={{ color: "var(--color-danger)", display: "inline", verticalAlign: "-2px" }} />
           </>
         )}
         {lastStatus === "ON TRACK" && (
           <>
             You're right on track! Stay consistent to reach your goals.{" "}
-            <span className="text-accent">✅</span>
+            <IconCheckCircle size={14} style={{ color: "var(--color-accent)", display: "inline", verticalAlign: "-2px" }} />
           </>
         )}
       </div>

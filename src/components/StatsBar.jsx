@@ -3,6 +3,7 @@ import { userData } from "../data/goals";
 import { computeOverallPct, aggregateResultsPct } from "../lib/score";
 
 import { useCountUp } from "../lib/hooks";
+import { IconBolt, IconChart, IconMoney, IconCalendar } from "./Icons";
 
 export default function StatsBar({ cats }) {
   const stats = useMemo(() => {
@@ -43,7 +44,7 @@ export default function StatsBar({ cats }) {
         pct: score,
         sub: `${hitCount} / ${totalActions} actions hit · your score`,
         tint: "accent",
-        icon: "⚡",
+        icon: <IconBolt size={18} />,
       },
       {
         label: "Results",
@@ -53,7 +54,7 @@ export default function StatsBar({ cats }) {
         pct: resultsPct,
         sub: "tracked · scored",
         tint: "neutral",
-        icon: "📊",
+        icon: <IconChart size={18} />,
       },
       {
         label: "Money",
@@ -63,7 +64,7 @@ export default function StatsBar({ cats }) {
         pct: moneyPct,
         sub: `target $${moneyTarget}`,
         tint: "accent",
-        icon: "💰",
+        icon: <IconMoney size={18} />,
       },
       {
         label: "Day",
@@ -73,7 +74,7 @@ export default function StatsBar({ cats }) {
         pct: daysPct,
         sub: `of ${userData.totalDays} in ${userData.month}`,
         tint: "neutral",
-        icon: "📅",
+        icon: <IconCalendar size={18} />,
       },
     ];
   }, [cats]);
@@ -90,7 +91,12 @@ export default function StatsBar({ cats }) {
         {stats.map((s) => (
           <div key={s.label} className="py-4 px-1 text-center">
             <div className="flex flex-col items-center">
-              <div className="text-[18px] mb-1">{s.icon}</div>
+              <div
+                className="mb-1.5"
+                style={{ color: s.tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)", opacity: 0.85 }}
+              >
+                {s.icon}
+              </div>
               <ProgressRing pct={s.pct} tint={s.tint}>
                 <CountUpNumber {...s} />
               </ProgressRing>

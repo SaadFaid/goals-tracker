@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from "react";
 import { categoryPct, actionPct, resultPct, categoryWeightsSum, checkRewardUnlock, computeOverallPct } from "../lib/score";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { CATEGORY_COLORS, dotColorToHex } from "../lib/categoryColors";
+import { IconTrophy, IconLock, IconCheck, IconClose } from "./Icons";
 
 const ACCENT = "var(--color-accent)";
 
@@ -436,7 +437,7 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
                   : { background: "var(--color-navy-600)", color: "var(--color-text-tertiary)" }}
                 title="Tap to toggle"
               >
-                {done ? "done ✓" : "not done"}
+                {done ? "Done" : "Not done"}
               </span>
               {editable && menu && (
                 <TaskMenu item={item} onFieldChange={onFieldChange} done={done} onMarkDone={markDone} onReset={reset} />
@@ -514,7 +515,7 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
           className="bg-sunken text-heading text-[11px] rounded-md px-2 py-1 outline-none"
           style={{ border: "1px solid var(--color-border-subtle)" }}
         >
-          <option value="check" style={{ background: "var(--color-elevated)" }}>☑ Checkbox (yes/no)</option>
+          <option value="check" style={{ background: "var(--color-elevated)" }}>Checkbox (yes/no)</option>
           <option value="amount" style={{ background: "var(--color-elevated)" }}>Amount (unit)</option>
           <option value="count" style={{ background: "var(--color-elevated)" }}>Count (precision)</option>
         </select>
@@ -522,9 +523,9 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
       {item.actionType === "check" ? (
         <>
           <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>
-            {done ? "✓ Mark not done" : "✓ Mark done"}
+            {done ? "Mark not done" : "Mark done"}
           </button>
-          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>↺ Reset</button>
+          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>Reset</button>
         </>
       ) : (
         <>
@@ -536,9 +537,9 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
             </span>
           )}
           {!bump && (
-            <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>✓ Mark all done</button>
+            <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>Mark all done</button>
           )}
-          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>↺ Reset to 0</button>
+          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>Reset to 0</button>
           <span className="my-0.5" style={{ borderTop: "1px solid var(--color-border-subtle)" }} />
           {item.actionType === "count" && (
             <span className="flex items-center justify-between gap-2 px-1">
@@ -625,13 +626,13 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
                 : { background: "var(--color-navy-600)", color: "var(--color-text-tertiary)" }}
               title="Tap to toggle"
             >
-              {done ? "done ✓" : "not done"}
+              {done ? "Done" : "Not done"}
             </span>
           ) : (
             item.isBadge && done && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 inline-flex items-center gap-1"
                 style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}>
-                ✓ 100%
+                <IconCheck size={10} /> 100%
               </span>
             )
           )}
@@ -698,14 +699,14 @@ function ResultMenu({ item, onFieldChange, done, onMarkDone, onReset, bump, isCh
       onClick={(e) => e.stopPropagation()}
     >
       <button onClick={onToggleType} className="stepper-opt" style={{ color: "var(--color-accent)" }}>
-        {isCheck ? "☑ Switch to Count" : "☑ Switch to Checkbox"}
+        {isCheck ? "Switch to Count" : "Switch to Checkbox"}
       </button>
       {isCheck ? (
         <>
           {!done && (
-            <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>✓ Mark done</button>
+            <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>Mark done</button>
           )}
-          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>↺ Reset</button>
+          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>Reset</button>
         </>
       ) : (
         <>
@@ -716,8 +717,8 @@ function ResultMenu({ item, onFieldChange, done, onMarkDone, onReset, bump, isCh
               <button onClick={() => bump(item.incrementBy ?? 1)} className="stepper-btn">+</button>
             </span>
           )}
-          <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>✓ Mark all done</button>
-          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>↺ Reset to 0</button>
+          <button onClick={onMarkDone} className="stepper-opt" style={{ color: "var(--color-success)" }}>Mark all done</button>
+          <button onClick={onReset} className="stepper-opt" style={{ color: "var(--color-danger)" }}>Reset to 0</button>
           <span className="my-0.5" style={{ borderTop: "1px solid var(--color-border-subtle)" }} />
           <span className="flex items-center justify-between gap-2 px-1">
             <span className="text-text-tertiary">Step</span>
@@ -1202,7 +1203,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                               className="btn-lift text-[10px] font-semibold px-2 py-1 rounded-full"
                               style={{ background: "var(--color-sunken)", color: "var(--color-text-tertiary)", border: "1px solid var(--color-border-subtle)" }}
                             >
-                              ↺ redo
+                              Redo
                             </button>
                           )}
                           <button
@@ -1430,13 +1431,17 @@ export default memo(function CategoryCard({
                 className="px-1.5 py-0.5 rounded text-white text-[10px] font-semibold" style={{ background: "var(--color-danger)" }}>
                 Yes
               </button>
-              <button onClick={() => setConfirmDeleteCat(false)} className="text-muted px-1">✕</button>
+              <button onClick={() => setConfirmDeleteCat(false)} className="text-muted px-1" aria-label="Cancel"><IconClose size={12} /></button>
             </span>
           ) : null}
 
           {category.isRewards ? (
-            <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-              {category.rewards?.every((r) => r.claimed) ? "Unlocked 🎉" : "Locked 🔒"}
+            <span className="text-xs inline-flex items-center gap-1.5" style={{ color: "var(--color-text-tertiary)" }}>
+              {category.rewards?.every((r) => r.claimed) ? (
+                <><IconTrophy size={13} style={{ color: "var(--color-accent)" }} /> Unlocked</>
+              ) : (
+                <><IconLock size={13} /> Locked</>
+              )}
             </span>
           ) : (
             <span className="font-bold text-base mono" style={{ color: headerColor }}>{pct}%</span>

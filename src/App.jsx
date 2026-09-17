@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
+import { IconSearch } from "./components/Icons";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PlanPage from "./components/PlanPage";
 import { userData } from "./data/goals";
@@ -104,7 +105,7 @@ function Dashboard() {
           }}
         >
           <div className="flex items-center gap-2">
-            <span className="text-[18px]">🔍</span>
+            <span style={{ color: "var(--color-accent)" }}><IconSearch size={18} /></span>
             <span className="text-sm font-semibold text-white">Month Analysis</span>
           </div>
           <span className="text-xs text-text-tertiary">tap to review →</span>

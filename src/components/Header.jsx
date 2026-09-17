@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { userData } from "../data/goals";
 import { computeOverallPct, statusOf, statusColor } from "../lib/score";
 import { useGoalsStore } from "../store/useGoalsStore";
+import { IconTrophy, IconFire, IconThumb, IconRocket, IconClose } from "./Icons";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -118,16 +119,17 @@ export default function Header({ daysElapsed, categories, logs }) {
               <div className="w-full h-2 mb-2 bg-navy-500 rounded overflow-hidden">
                 <div className="h-full bg-accent" style={{ width: `${overallPct}%` }}></div>
               </div>
-              <p className="text-xs text-text-tertiary">
-                Goal progress: {overallPct}% 
-                {overallPct >= 100 ? 
-                  "(Goal achieved! 🎉)" : 
-                  overallPct >= 80 ? 
-                  "(Almost there! 💪)" : 
-                  overallPct >= 50 ? 
-                  "(Making progress! 👍)" : 
-                  "(Getting started! 🚀)"
-                }
+              <p className="text-xs text-text-tertiary flex items-center gap-1.5">
+                Goal progress: {overallPct}%
+                {overallPct >= 100 ? (
+                  <span className="inline-flex items-center gap-1 text-accent"><IconTrophy size={13} /> Goal achieved!</span>
+                ) : overallPct >= 80 ? (
+                  <span className="inline-flex items-center gap-1"><IconFire size={13} /> Almost there!</span>
+                ) : overallPct >= 50 ? (
+                  <span className="inline-flex items-center gap-1"><IconThumb size={13} /> Making progress!</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1"><IconRocket size={13} /> Getting started!</span>
+                )}
               </p>
             </>
           ) : (
@@ -192,7 +194,7 @@ export default function Header({ daysElapsed, categories, logs }) {
           >
             <div className="flex items-center justify-between mb-2">
               <span className="caption text-text-tertiary">Choose your month</span>
-              <button type="button" onClick={() => setOpen(false)} className="text-text-tertiary hover:text-heading text-xs" aria-label="Close">✕</button>
+              <button type="button" onClick={() => setOpen(false)} className="text-text-tertiary hover:text-heading" aria-label="Close"><IconClose size={13} /></button>
             </div>
             <div className="flex items-center justify-between mb-2">
               <span className="flex items-center gap-1">

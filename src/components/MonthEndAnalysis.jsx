@@ -1,11 +1,20 @@
 import { actionPct, resultPct } from "../lib/score";
+import { IconTrendUp, IconCheckCircle, IconGauge, IconTrendDown } from "./Icons";
 
-function Section({ title, emoji, color, items }) {
+const SECTION_ICONS = {
+  good: IconTrendUp,
+  doingWell: IconCheckCircle,
+  needsWork: IconGauge,
+  bad: IconTrendDown,
+};
+
+function Section({ title, status, color, items }) {
   if (!items.length) return null;
+  const Icon = SECTION_ICONS[status];
   return (
     <div className="mb-4">
       <div className="text-sm font-bold mb-2 flex items-center gap-2" style={{ color }}>
-        <span>{emoji}</span> {title}
+        {Icon ? <Icon size={14} /> : null} {title}
       </div>
       <ul className="space-y-1">
         {items.map((it, i) => (
@@ -70,10 +79,10 @@ export default function MonthEndAnalysis({ cats, onClose }) {
         )}
 
         <div className="max-h-72 overflow-y-auto scrollbar-thin">
-          <Section title="Killing it" emoji="🟢" color="#6DF5E3" items={good} />
-          <Section title="Doing well" emoji="🔵" color="#77B5E8" items={doingWell} />
-          <Section title="Needs work" emoji="🟠" color="#FFA14D" items={needsWork} />
-          <Section title="Slipping" emoji="🔴" color="#DB6088" items={bad} />
+          <Section title="Killing it" status="good" color="#6DF5E3" items={good} />
+          <Section title="Doing well" status="doingWell" color="#77B5E8" items={doingWell} />
+          <Section title="Needs work" status="needsWork" color="#FFA14D" items={needsWork} />
+          <Section title="Slipping" status="bad" color="#DB6088" items={bad} />
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { actionPct, resultPct } from "../lib/score";
+import { IconCheckCircle, IconClose } from "./Icons";
 
 const isKgResult = (item) =>
   item.resultType === "check" || item.invert || String(item.unit || "").toLowerCase().includes("kg");
@@ -84,14 +85,14 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
           >
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
               <h2 className="display text-heading text-lg">Check in</h2>
-              <button onClick={() => setOpen(false)} aria-label="Close check-in" className="text-text-tertiary cursor-pointer text-lg leading-none">✕</button>
+              <button onClick={() => setOpen(false)} aria-label="Close check-in" className="text-text-tertiary cursor-pointer"><IconClose size={14} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
               {rows.length === 0 ? (
                 <p className="text-text-tertiary text-sm text-center py-8">No actions or results yet. Add some to start.</p>
               ) : openCount === 0 ? (
-                <p className="text-text-tertiary text-sm text-center py-8">All caught up — everything is done. 🎉</p>
+                <p className="text-text-tertiary text-sm text-center py-8 inline-flex items-center justify-center gap-1.5 w-full">All caught up — everything is done. <IconCheckCircle size={14} style={{ color: "var(--color-accent)" }} /></p>
               ) : (
                 rows.filter(notDone).map((r) => (
                   <CheckInRow key={`${r.type}-${r.item.id}`} row={r} onIncrement={onIncrement} onDecrement={onDecrement} onResultToggle={onResultToggle} />
