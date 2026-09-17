@@ -193,7 +193,6 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="3" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.1" />
           <path d={expectedPath} stroke={ACCENT} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
