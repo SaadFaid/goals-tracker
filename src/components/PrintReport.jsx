@@ -4,6 +4,8 @@ import {
   resultPct,
   categoryPct,
   checkRewardUnlock,
+  computeOverallPct,
+  aggregateResultsPct,
 } from "../lib/score";
 import { dotColorToHex } from "../lib/categoryColors";
 import { IconPrint, IconClose } from "./Icons";
@@ -20,6 +22,18 @@ const PAPER = {
   line: "#D8E2DE",
   soft: "#F4F8F6",
   accent: "#0E7A6B",
+};
+
+const RING_EXEC = "#DB6088";
+const RING_MONEY = "#C9A227";
+const RING_RESULTS = "#D97A26";
+const RING_DAYS = "#8FA8A3";
+const RING_TRACK = "#E2EBE7";
+const RING_MARK = "#8FA8A3";
+
+const monthDays = (key) => {
+  const [y, m] = String(key || "").split("-").map(Number);
+  return y && m ? new Date(y, m, 0).getDate() : 30;
 };
 
 function fmt(n) {
@@ -102,6 +116,184 @@ function RewardLine({ reward, categories, qualityPercent }) {
   );
 }
 
+// Stat ring — same arc + start dot + expected marker as the dashboard StatsBar,
+// rendered in a paper palette for the printed sheet.
+function PaperRing({ label, center, sub, pct, color, textColor, expectedPct }) {
+  const size = 96;
+  const stroke = 7;
+  const r = (size - stroke) / 2 - 1;
+  const cx = size / 2;
+  const cy = size / 2;
+  const C = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const expAngle = (Math.max(0, Math.min(100, expectedPct)) / 100) * 2 * Math.PI - Math.PI / 2;
+  const ex = cx + r * Math.cos(expAngle);
+  const ey = cy + r * Math.sin(expAngle);
+  return (
+    <div className="pl-ring">
+      <div className="pl-ring-svg">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+          <g transform={`rotate(-90 ${cx} ${cy})`}>
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={RING_TRACK} strokeWidth={stroke} />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              stroke={color}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - clamped / 100)}
+            />
+          </g>
+          <circle cx={cx} cy={cy - r} r="2.6" fill={color} />
+          <circle cx={ex} cy={ey} r="2.3" fill={RING_MARK} />
+        </svg>
+        <span className="pl-ring-num" style={{ color: textColor }}>{center}</span>
+      </div>
+      <div className="pl-ring-label">{label}</div>
+      <div className="pl-ring-sub">{sub}</div>
+    </div>
+  );
+}
+
+function LegendSwatch({ color, label, dashed }) {
+  return (
+    <span className="pl-legend-item">
+      <span
+        className="pl-legend-line"
+        style={{
+          borderTopColor: color,
+          borderTopStyle: dashed ? "dashed" : "solid",
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
+// Progress chart — the same upwards lines as the dashboard ProgressChart
+// (expected dashed pace, execution pink, results orange), static for print.
+function PaperChart({ logs, dashboard, selectedMonth }) {
+  const w = 480;
+  const h = 200;
+  const pad = { top: 12, right: 14, bottom: 24, left: 32 };
+  const cw = w - pad.left - pad.right;
+  const ch = h - pad.top - pad.bottom;
+
+  const totalDays = monthDays(selectedMonth);
+  const metaDate = dashboard?.meta?.currentDate ? new Date(dashboard.meta.currentDate) : new Date();
+  const viewYear = Number(String(selectedMonth || "").split("-")[0]) || metaDate.getFullYear();
+  const viewMonth = Number(String(selectedMonth || "").split("-")[1]) || (metaDate.getMonth() + 1);
+
+  const points = (logs || [])
+    .map((l) => ({
+      day: l.dayOfMonth,
+      value: l.qualityScore,
+      results: l.resultsScore,
+      dateKey: `${l.year}-${l.month}-${l.dayOfMonth}`,
+    }))
+    .filter((p) => Number(p.dateKey.split("-")[0]) === viewYear && Number(p.dateKey.split("-")[1]) === viewMonth)
+    .filter((p) => p.day >= 1 && p.day <= totalDays)
+    .sort((a, b) => a.day - b.day);
+
+  const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
+  const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
+
+  const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
+
+  const execByDay = new Map();
+  for (const p of points) execByDay.set(p.day, p.value);
+  const execSteps = [...execByDay]
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, value]) => ({ day, value }));
+  const actualPath = `M ${x(1)} ${y(0)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("");
+  const areaPath = execSteps.length
+    ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
+    : "";
+
+  const resByDay = new Map();
+  for (const p of points) {
+    if (typeof p.results === "number") resByDay.set(p.day, p.results);
+  }
+  const resSteps = [...resByDay]
+    .sort((a, b) => a[0] - b[0])
+    .map(([day, value]) => ({ day, value }));
+  const resultsPath = resSteps.length
+    ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    : "";
+
+  const gridLines = [12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
+  const ticks = [5, 10, 15, 20, 25, 30];
+
+  const mainTicks = new Set([25, 50, 75, 100]);
+
+  return (
+    <div className="pl-chart">
+      <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Progress chart for the month">
+        {gridLines.map((pct) => (
+          <g key={pct}>
+            <line
+              x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
+              stroke={mainTicks.has(pct) ? "rgba(16, 22, 21, 0.14)" : "rgba(16, 22, 21, 0.06)"}
+              strokeWidth="1"
+              strokeDasharray={mainTicks.has(pct) ? "2 3" : "1 4"}
+            />
+            <text
+              x={pad.left - 6}
+              y={y(pct)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              fill={mainTicks.has(pct) ? "#5A756E" : "#9FB0AB"}
+              fontSize={mainTicks.has(pct) ? "8" : "6.5"}
+              fontWeight="600"
+            >
+              {pct}%
+            </text>
+          </g>
+        ))}
+
+        <path d={areaPath} fill="rgba(219,96,136,0.08)" />
+
+        <path
+          d={expectedPath}
+          stroke={RING_DAYS}
+          strokeWidth="1"
+          strokeDasharray="4 6"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.9"
+        />
+
+        {resSteps.length > 0 && (
+          <path d={resultsPath} stroke={RING_RESULTS} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+        )}
+
+        {execSteps.length > 0 && (
+          <path d={actualPath} stroke={RING_EXEC} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+
+        {execSteps.map((p) => (
+          <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2" fill={RING_EXEC} stroke="#fff" strokeWidth="1" />
+        ))}
+        {points
+          .filter((p) => typeof p.results === "number")
+          .map((p) => (
+            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="2" fill={RING_RESULTS} stroke="#fff" strokeWidth="1" />
+          ))}
+
+        {ticks.map((d) => (
+          <text key={d} x={x(d)} y={h - 6} textAnchor="middle" fill="#5A756E" fontSize="8" fontWeight="600">
+            {d}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function PrintReport({ cats, dashboard, logs, selectedMonth, user, isGuest, onClose }) {
   const [year, monthIdx] = String(selectedMonth || "").split("-").map(Number);
   const monthName = year && monthIdx ? MONTHS[monthIdx - 1] : MONTHS[new Date().getMonth()];
@@ -118,6 +310,90 @@ export default function PrintReport({ cats, dashboard, logs, selectedMonth, user
 
   const nonRewards = (cats || []).filter((c) => !c.isRewards && c.name?.toLowerCase() !== "rewards");
   const rewardsCat = (cats || []).find((c) => c.isRewards || c.name?.toLowerCase() === "rewards");
+
+  // Month stats mirroring the dashboard ProgressBar (live dashboard vs last saved log).
+  const now = new Date();
+  const liveKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const isLive = selectedMonth === liveKey;
+  const daysTotal = monthDays(selectedMonth);
+
+  let monthStats = null;
+  if (isLive) {
+    monthStats = {
+      actual: dashboard?.stats?.qualityPercent ?? 0,
+      expected: dashboard?.stats?.expectedPercent ?? 0,
+      daysCompleted: dashboard?.meta?.dayOfMonth ?? 0,
+      daysInMonth: dashboard?.meta?.daysInMonth ?? daysTotal,
+    };
+  } else if (monthLogs.length) {
+    const last = monthLogs[monthLogs.length - 1];
+    monthStats = {
+      actual: last.qualityScore,
+      expected: last.expectedScore,
+      daysCompleted: last.dayOfMonth,
+      daysInMonth: daysTotal,
+    };
+  }
+  const daysShown = monthStats?.daysInMonth ?? daysTotal;
+
+  const diff = monthStats ? Math.round(monthStats.actual) - Math.round(monthStats.expected) : null;
+  const status = !monthStats ? "empty" : diff >= 1 ? "AHEAD" : diff <= -1 ? "BEHIND" : "ON TRACK";
+  const STATUS_WORDS = { AHEAD: "Ahead", "ON TRACK": "On Track", BEHIND: "Behind", empty: "No data" };
+  const STATUS_COLORS = { AHEAD: PAPER.accent, "ON TRACK": "#1E7A33", BEHIND: "#B04A31", empty: "#7A8B86" };
+  const statusWord = STATUS_WORDS[status];
+  const delta = diff;
+  const deltaColor = !monthStats ? "#7A8B86" : delta >= 1 ? PAPER.accent : delta <= -1 ? "#B04A31" : "#5A756E";
+
+  // Rings mirroring the dashboard StatsBar.
+  const actives = (cats || []).filter((c) => !c.isRewards);
+  const totalActions = actives.reduce((s, c) => s + (c.actions || []).filter((a) => !a._deleted).length, 0);
+  const hitCount = actives.reduce(
+    (s, c) => s + (c.actions || []).filter((a) => !a._deleted && a.target > 0 && a.current >= a.target).length,
+    0
+  );
+  const score = Math.round(computeOverallPct(cats));
+  const resultsPct = Math.round(aggregateResultsPct(cats));
+  const moneyItems = (cats || []).flatMap((c) => c.results || []).filter((r) => r.unit === "$");
+  const moneyCurrent = moneyItems.reduce((s, r) => s + (r.current || 0), 0);
+  const moneyTarget = moneyItems.reduce((s, r) => s + (r.target || 0), 0) || 1000;
+  const moneyPct = moneyTarget > 0 ? Math.min(Math.round((moneyCurrent / moneyTarget) * 100), 100) : 0;
+  const expectedPct = monthStats ? Math.round(monthStats.expected) : 0;
+
+  const rings = [
+    {
+      label: "Execution",
+      pct: score,
+      center: `${score}%`,
+      sub: `${hitCount} / ${totalActions} actions`,
+      color: RING_EXEC,
+      textColor: "#C7507A",
+    },
+    {
+      label: "Money",
+      pct: moneyPct,
+      center: `${moneyPct}%`,
+      sub: `$${moneyCurrent} of $${moneyTarget}`,
+      color: RING_MONEY,
+      textColor: "#A8821A",
+    },
+    {
+      label: "Results",
+      pct: resultsPct,
+      center: `${resultsPct}%`,
+      sub: "tracked · scored",
+      color: RING_RESULTS,
+      textColor: "#B96A23",
+    },
+    {
+      label: "Days",
+      pct: expectedPct,
+      center: monthStats ? `${monthStats.daysCompleted}/${daysShown}` : `0/${daysShown}`,
+      sub: "of the month",
+      color: RING_DAYS,
+      textColor: "#5A756E",
+    },
+  ];
+  const title = monthName + " " + displayYear;
 
   return createPortal(
     <div className="print-overlay">
@@ -147,6 +423,67 @@ export default function PrintReport({ cats, dashboard, logs, selectedMonth, user
             <div className="pl-score-cap">overall · day {daysFraction}</div>
           </div>
         </header>
+
+        {/* Dashboard-style top: stat rings + score rail + progress chart */}
+        <div className="pl-summary">
+          <div className="pl-rings-row">
+            {rings.map((ring) => (
+              <PaperRing key={ring.label} {...ring} expectedPct={expectedPct} />
+            ))}
+          </div>
+
+          <div className="pl-metrics">
+            <div className="pl-rail-card">
+              <div className="pl-rail-head">
+                <span className="pl-block-title">Execution score</span>
+                <span className="pl-rail-chip">{title} · Day {monthStats ? monthStats.daysCompleted : 0}/{daysShown}</span>
+              </div>
+              <div className="pl-readout" style={{ color: deltaColor }}>
+                {diff === null ? "—" : diff === 0 ? "±0" : diff > 0 ? `+${diff}` : diff}
+                <span style={{ fontSize: 22, fontWeight: 600, marginLeft: 3 }}>%</span>
+              </div>
+              <div className="pl-status" style={{ color: STATUS_COLORS[status] }}>{statusWord}</div>
+              <div className="pl-rail">
+                <div
+                  className="pl-rail-fill"
+                  style={{
+                    width: `${Math.min(monthStats?.actual ?? 0, 100)}%`,
+                    background: RING_EXEC,
+                  }}
+                />
+                {monthStats && (
+                  <span
+                    aria-hidden="true"
+                    title={`Expected pace ${Math.round(monthStats.expected)}%`}
+                    className="pl-rail-mark"
+                    style={{
+                      left: `calc(${Math.min(Math.max(monthStats.expected, 0), 100)}% - 5px)`,
+                      background: RING_DAYS,
+                    }}
+                  />
+                )}
+              </div>
+              <div className="pl-rail-foot">
+                <span>Actual <b>{monthStats ? Math.round(monthStats.actual) : "–"}%</b></span>
+                <span>Expected <b>{monthStats ? Math.round(monthStats.expected) : "–"}%</b></span>
+                <span>Days <b>{monthStats ? `${monthStats.daysCompleted}/${daysShown}` : `0/${daysShown}`}</b></span>
+              </div>
+            </div>
+
+            <div className="pl-chart-card">
+              <div className="pl-rail-head">
+                <span className="pl-block-title">Progress</span>
+                <span className="pl-rail-chip">daily execution vs pace</span>
+              </div>
+              <PaperChart logs={logs} dashboard={dashboard} selectedMonth={selectedMonth} />
+              <div className="pl-legend">
+                <LegendSwatch color={RING_EXEC} label="Execution" />
+                <LegendSwatch color={RING_DAYS} label="Should be" dashed />
+                <LegendSwatch color={RING_RESULTS} label="Results" />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {nonRewards.length === 0 && (!rewardsCat || !rewardsCat.rewards?.length) ? (
           <div className="pl-empty">Nothing set up yet for {monthName} {displayYear}.</div>

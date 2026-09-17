@@ -96,7 +96,8 @@ export default function ProgressChart({ logs, dashboard }) {
     : "";
 
   const ticks = [5, 10, 15, 20, 25, 30];
-  const gridLines = [25, 50, 75, 100];
+  const gridLines = [12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
+  const mainTicks = new Set([25, 50, 75, 100]);
 
   const expectedToday = expectedAt(today);
   const lastStatus =
@@ -180,20 +181,22 @@ export default function ProgressChart({ logs, dashboard }) {
           onMouseMove={handleMove}
           onMouseLeave={() => setHoverDay(null)}
         >
-          {/* Horizontal gridlines, dashed faint */}
+          {/* Horizontal gridlines: finer steps so % labels sit closer */}
           {gridLines.map((pct) => (
             <g key={pct}>
               <line
                 x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
-                stroke="rgba(229,246,240,0.07)" strokeWidth="1" strokeDasharray="2 3"
+                stroke={mainTicks.has(pct) ? "rgba(229,246,240,0.14)" : "rgba(229,246,240,0.05)"}
+                strokeWidth="1"
+                strokeDasharray={mainTicks.has(pct) ? "2 3" : "1 5"}
               />
               <text
                 x={pad.left - 6}
                 y={y(pct)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                fill="#5A756E"
-                fontSize="7"
+                fill={mainTicks.has(pct) ? "#5A756E" : "#3E5650"}
+                fontSize={mainTicks.has(pct) ? "7" : "6"}
                 fontWeight="600"
               >
                 {pct}%
