@@ -83,7 +83,7 @@ export default function StatsBar({ cats }) {
 
   return (
     <div
-      className="card card-lift flex items-center justify-center gap-6 sm:gap-14 px-4 py-5"
+      className="card card-lift flex flex-wrap items-center justify-center gap-6 sm:gap-12 px-4 py-6"
       style={{
         background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
         border: "1px solid var(--color-border-active)",
@@ -102,8 +102,8 @@ export default function StatsBar({ cats }) {
 }
 
 function StatRing({ label, center, sub, pct, color, textColor, expectedPct, maskable, masked, onToggleMask }) {
-  const size = 96;
-  const stroke = 5;
+  const size = 124;
+  const stroke = 6;
   const r = (size - stroke) / 2 - 1;
   const cx = size / 2;
   const cy = size / 2;
@@ -128,7 +128,7 @@ function StatRing({ label, center, sub, pct, color, textColor, expectedPct, mask
           height={size}
           viewBox={`0 0 ${size} ${size}`}
           aria-hidden="true"
-          style={{ position: "absolute", inset: 0 }}
+          style={{ position: "absolute", inset: 0, overflow: "visible" }}
         >
           <g transform={`rotate(-90 ${cx} ${cy})`}>
             <circle cx={cx} cy={cy} r={r} fill="none" stroke={TRACK} strokeWidth={stroke} />
@@ -144,26 +144,26 @@ function StatRing({ label, center, sub, pct, color, textColor, expectedPct, mask
               strokeDashoffset={C * (1 - clamped / 100)}
               style={{
                 transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
-                filter: `drop-shadow(0 0 5px ${color})`,
+                filter: `drop-shadow(0 0 3px ${color}) drop-shadow(0 0 9px ${color})`,
               }}
             />
           </g>
           {/* Start marker at 12 o'clock */}
-          <circle cx={cx} cy={cy - r} r="2.2" fill={color} />
+          <circle cx={cx} cy={cy - r} r="2.8" fill={color} />
           {/* Small grey point at the expected position */}
-          <circle cx={ex} cy={ey} r="2" fill={EXPECTED} />
+          <circle cx={ex} cy={ey} r="2.4" fill={EXPECTED} />
         </svg>
-        <div className="stat-num" style={{ color: textColor || color, fontWeight: 800, fontSize: center.length > 5 ? 14 : 17 }}>
+        <div className="stat-num" style={{ color: textColor || color, fontWeight: 800, fontSize: center.length > 5 ? 17 : 20 }}>
           {center}
         </div>
       </div>
       <div
-        className="mt-2 text-[10px] font-bold uppercase tracking-[0.14em]"
+        className="mt-3 text-[11px] font-bold uppercase tracking-[0.14em]"
         style={{ color: "var(--color-text-primary)" }}
       >
         {label}
       </div>
-      <div className="flex items-center gap-1 text-[10px]" style={{ color: "var(--color-text-secondary)" }}>
+      <div className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-text-secondary)" }}>
         <span>{sub}</span>
         {maskable && (
           <button
