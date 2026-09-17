@@ -449,6 +449,17 @@ html, body {
   background: linear-gradient(180deg, transparent, var(--color-border-active), transparent);
 }
 
+/* Floating control card — pinned while scrolling, glass over content */
+.controls-card {
+  background: linear-gradient(180deg, rgba(20, 40, 37, 0.96), rgba(11, 22, 21, 0.92));
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid var(--color-border-active);
+  box-shadow:
+    inset 0 1px 0 rgba(229, 246, 240, 0.07),
+    0 14px 32px rgba(0, 0, 0, 0.5);
+}
+
 /* ── Action check-circle + stepper ───────────────────────── */
 .check-circle { transition: transform 0.12s ease, filter 0.12s ease; }
 .check-circle:hover { transform: scale(1.08); filter: drop-shadow(0 0 5px var(--color-accent-muted)); }
