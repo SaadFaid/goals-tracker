@@ -21,8 +21,8 @@ const STATUS_COLORS = {
 export default function ProgressChart({ logs, dashboard }) {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
   const w = 480;
-  const hMobile = 180;
-  const hDesktop = 220;
+  const hMobile = 120;
+  const hDesktop = 140;
   const pad = { top: 14, right: 14, bottom: 26, left: 34 };
   const cw = w - pad.left - pad.right;
   const ch = hDesktop - pad.top - pad.bottom;
@@ -96,8 +96,7 @@ export default function ProgressChart({ logs, dashboard }) {
     : "";
 
   const ticks = [5, 10, 15, 20, 25, 30];
-  const gridLines = [12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
-  const mainTicks = new Set([25, 50, 75, 100]);
+  const gridLines = [25, 50, 75, 100];
 
   const expectedToday = expectedAt(today);
   const lastStatus =
@@ -181,22 +180,20 @@ export default function ProgressChart({ logs, dashboard }) {
           onMouseMove={handleMove}
           onMouseLeave={() => setHoverDay(null)}
         >
-          {/* Horizontal gridlines: finer steps so % labels sit closer */}
+          {/* Horizontal gridlines, dashed faint */}
           {gridLines.map((pct) => (
             <g key={pct}>
               <line
                 x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
-                stroke={mainTicks.has(pct) ? "rgba(229,246,240,0.14)" : "rgba(229,246,240,0.05)"}
-                strokeWidth="1"
-                strokeDasharray={mainTicks.has(pct) ? "2 3" : "1 5"}
+                stroke="rgba(229,246,240,0.07)" strokeWidth="1" strokeDasharray="2 3"
               />
               <text
                 x={pad.left - 6}
                 y={y(pct)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                fill={mainTicks.has(pct) ? "#5A756E" : "#3E5650"}
-                fontSize={mainTicks.has(pct) ? "7" : "6"}
+                fill="#5A756E"
+                fontSize="5"
                 fontWeight="600"
               >
                 {pct}%
@@ -253,7 +250,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="7" fontWeight="600">
+            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="5" fontWeight="600">
               {d}
             </text>
           ))}

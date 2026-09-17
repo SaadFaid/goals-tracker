@@ -177,7 +177,7 @@ function LegendSwatch({ color, label, dashed }) {
 // (expected dashed pace, execution pink, results orange), static for print.
 function PaperChart({ logs, dashboard, selectedMonth }) {
   const w = 480;
-  const h = 200;
+  const h = 140;
   const pad = { top: 12, right: 14, bottom: 24, left: 32 };
   const cw = w - pad.left - pad.right;
   const ch = h - pad.top - pad.bottom;
@@ -224,10 +224,8 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
     ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
     : "";
 
-  const gridLines = [12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
+  const gridLines = [25, 50, 75, 100];
   const ticks = [5, 10, 15, 20, 25, 30];
-
-  const mainTicks = new Set([25, 50, 75, 100]);
 
   return (
     <div className="pl-chart">
@@ -236,17 +234,17 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
           <g key={pct}>
             <line
               x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
-              stroke={mainTicks.has(pct) ? "rgba(16, 22, 21, 0.14)" : "rgba(16, 22, 21, 0.06)"}
+              stroke="rgba(16, 22, 21, 0.10)"
               strokeWidth="1"
-              strokeDasharray={mainTicks.has(pct) ? "2 3" : "1 4"}
+              strokeDasharray="2 3"
             />
             <text
               x={pad.left - 6}
               y={y(pct)}
               textAnchor="end"
               dominantBaseline="middle"
-              fill={mainTicks.has(pct) ? "#5A756E" : "#9FB0AB"}
-              fontSize={mainTicks.has(pct) ? "8" : "6.5"}
+              fill="#5A756E"
+              fontSize="8"
               fontWeight="600"
             >
               {pct}%
