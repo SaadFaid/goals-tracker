@@ -218,6 +218,9 @@ export default function ProgressChart({ logs, dashboard }) {
             <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
           ) : null}
 
+          {/* Today's expected point: centered on the should-be line */}
+          <circle cx={x(today)} cy={y(expectedToday)} r="3.5" fill={ACCENT} stroke="#0E1817" strokeWidth="1" />
+
           {/* Today's results point */}
           <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
 
@@ -262,26 +265,26 @@ export default function ProgressChart({ logs, dashboard }) {
         </svg>
 
         {/* Add a motivational message based on status */}
-        <div className="absolute bottom-4 left-4 right-4 text-center text-sm text-text-tertiary pointer-events-none">
-          {lastStatus === "AHEAD" && (
-            <>
-              You're ahead of schedule! Keep up the great work!{" "}
-              <span className="text-accent">🚀</span>
-            </>
-          )}
-          {lastStatus === "BEHIND" && (
-            <>
-              <span style={{ color: "var(--color-danger)" }}>You're behind schedule. Every action counts - get back on track!</span>{" "}
-              <span style={{ color: "var(--color-danger)" }}>💪</span>
-            </>
-          )}
-          {lastStatus === "ON TRACK" && (
-            <>
-              You're right on track! Stay consistent to reach your goals.{" "}
-              <span className="text-accent">✅</span>
-            </>
-          )}
-        </div>
+      </div>
+      <div className="mt-3 text-center text-sm text-text-tertiary">
+        {lastStatus === "AHEAD" && (
+          <>
+            You're ahead of schedule! Keep up the great work!{" "}
+            <span className="text-accent">🚀</span>
+          </>
+        )}
+        {lastStatus === "BEHIND" && (
+          <>
+            <span style={{ color: "var(--color-danger)" }}>You're behind schedule. Every action counts - get back on track!</span>{" "}
+            <span style={{ color: "var(--color-danger)" }}>💪</span>
+          </>
+        )}
+        {lastStatus === "ON TRACK" && (
+          <>
+            You're right on track! Stay consistent to reach your goals.{" "}
+            <span className="text-accent">✅</span>
+          </>
+        )}
       </div>
     </section>
   );
