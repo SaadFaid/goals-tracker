@@ -6,6 +6,11 @@ import { aggregateResultsPct } from "../lib/score";
 const ACCENT = "#6DF5E3"; // mint — expected pace
 const RESULT = "#FFA14D"; // orange — results progress
 const PINK = "#DB6088"; // pink — actual/executed progress
+const STATUS_COLORS = {
+  AHEAD: "#6DF5E3",
+  BEHIND: "#DB6088",
+  "ON TRACK": "#87FF5F",
+};
 
 // Upward progress chart (0 → 100%):
 //  - Actual: daily quality score from ProgressLogs (ascending), live today point.
@@ -127,7 +132,22 @@ export default function ProgressChart({ logs, dashboard }) {
       position: "relative",
       overflow: "hidden"
     }}>
-      <div className="flex items-center gap-5 mb-3 flex-wrap">
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-bold text-heading tracking-wide leading-tight">
+            Progress
+          </h2>
+          <p className="text-[11px] text-text-tertiary mt-0.5">Daily execution vs pace</p>
+        </div>
+        <span
+          className="text-[11px] font-bold px-3 py-1 rounded-full inline-flex items-center gap-1.5"
+          style={{ background: `${STATUS_COLORS[lastStatus]}22`, color: STATUS_COLORS[lastStatus] }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_COLORS[lastStatus] }} />
+          {lastStatus.replace("_", " ")}
+        </span>
+      </div>
+      <div className="flex items-center gap-4 mb-3 flex-wrap">
         <LegendItem color={PINK} label="Execution" />
         <LegendItem dashed stroke={ACCENT} label="Should be" />
         <LegendItem stroke={RESULT} label="Results" />
@@ -163,56 +183,56 @@ export default function ProgressChart({ logs, dashboard }) {
                 x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
                 stroke="rgba(229,246,240,0.07)" strokeWidth="1" strokeDasharray="2 3"
               />
-              <text x={pad.left} y={y(pct) - 3} fill="#5A756E" fontSize="9">
+              <text x={pad.left} y={y(pct) - 3} fill="#5A756E" fontSize="10" fontWeight="600">
                 {pct}%
               </text>
             </g>
           ))}
 
           {/* Area fill under the actual/executed line */}
-          <path d={areaPath} fill="rgba(219,96,136,0.08)" />
+          <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="2.5" strokeDasharray="4 4" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="3.5" strokeDasharray="6 7" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
           {/* Results line */}
-          <path d={resultsPath} stroke={RESULT} strokeWidth="1.5" fill="none" opacity="0.9" />
+          <path d={resultsPath} stroke={RESULT} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
           {/* Actual/executed progress line: solid pink */}
           {today > 1 ? (
-            <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={actualPath} stroke={PINK} strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
           {/* Execution dots at each day */}
           {execPoints.map((p) => (
-            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke={ACCENT} strokeWidth="0.75" />
+            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="3.5" fill={PINK} stroke="#0E1817" strokeWidth="1.25" />
           ))}
 
           {/* Results dots: ramp from 0% on day 1 to resultsPct at today */}
           {resultsPoints.map((p) => (
-            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="0.75" />
+            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="3.5" fill={RESULT} stroke="#0E1817" strokeWidth="1.25" />
           ))}
 
           {/* Today's live execution point: pink with turquoise border */}
           {today >= 1 ? (
-            <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
+            <circle cx={x(today)} cy={y(liveScore)} r="6" fill={PINK} stroke={ACCENT} strokeWidth="2.5" />
           ) : null}
 
           {/* Today's results point */}
-          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
+          <circle cx={x(today)} cy={y(resultsPct)} r="4.5" fill={RESULT} stroke="#0E1817" strokeWidth="1.5" />
 
           {/* Goal dot markers on expected line at every day up to today */}
           {allDays.map((d) => (
             <circle
               key={d}
-              cx={x(d)} cy={y((d / totalDays) * 100)} r="2"
-              fill={ACCENT} stroke="#0E1817" strokeWidth="0.75"
+              cx={x(d)} cy={y((d / totalDays) * 100)} r="3"
+              fill={ACCENT} stroke="#0E1817" strokeWidth="1"
             />
           ))}
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="11">
+            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="12" fontWeight="600">
               {d}
             </text>
           ))}
@@ -278,20 +298,20 @@ export default function ProgressChart({ logs, dashboard }) {
 
 function LegendItem({ color, label, stroke, dot, dashed }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       {dot ? (
-        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+        <span className="w-3 h-3 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}55` }} />
       ) : (
         <span
-          className="w-4 inline-block"
+          className="w-5 inline-block"
           style={
             dashed
-              ? { borderTop: `1.5px dashed ${stroke || "currentColor"}` }
-              : { borderTop: `2px solid ${stroke || color}` }
+              ? { borderTop: `2.5px dashed ${stroke || "currentColor"}` }
+              : { borderTop: `3px solid ${stroke || color}` }
           }
         />
       )}
-      <span className="text-[11px] text-muted">{label}</span>
+      <span className="text-xs font-semibold text-muted tracking-wide">{label}</span>
     </div>
   );
 }
