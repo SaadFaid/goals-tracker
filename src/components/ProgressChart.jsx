@@ -22,7 +22,7 @@ export default function ProgressChart({ logs, dashboard }) {
   const w = 480;
   const hMobile = 180;
   const hDesktop = 220;
-  const pad = { top: 12, right: 12, bottom: 26, left: 12 };
+  const pad = { top: 14, right: 14, bottom: 26, left: 34 };
   const cw = w - pad.left - pad.right;
   const ch = hDesktop - pad.top - pad.bottom;
 
@@ -191,7 +191,15 @@ export default function ProgressChart({ logs, dashboard }) {
                 x1={pad.left} y1={y(pct)} x2={w - pad.right} y2={y(pct)}
                 stroke="rgba(229,246,240,0.07)" strokeWidth="1" strokeDasharray="2 3"
               />
-              <text x={pad.left} y={y(pct) - 3} fill="#5A756E" fontSize="10" fontWeight="600">
+              <text
+                x={pad.left - 6}
+                y={y(pct)}
+                textAnchor="end"
+                dominantBaseline="middle"
+                fill="#5A756E"
+                fontSize="8"
+                fontWeight="600"
+              >
                 {pct}%
               </text>
             </g>
@@ -246,7 +254,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="10" fontWeight="600">
+            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="8" fontWeight="600">
               {d}
             </text>
           ))}
