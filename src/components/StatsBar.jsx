@@ -3,7 +3,8 @@ import { userData } from "../data/goals";
 import { aggregateResultsPct, computeOverallPct } from "../lib/score";
 
 const TRACK = "rgba(229, 246, 240, 0.22)"; // bright ring base so the arc reads against it
-const EXECUTION = "#8FA8A3"; // grey — execution
+const EXECUTION = "#DB6088"; // pink — execution (matches dashboard chart)
+const DAYS = "#8FA8A3"; // grey — days
 const MONEY = "var(--color-gold)"; // gold — money
 const RESULTS = "#FFA14D"; // orange — results
 const EXPECTED = "#B4C2BD"; // small grey expected marker
@@ -48,7 +49,7 @@ export default function StatsBar({ cats }) {
         center: `${score}%`,
         sub: `${hitCount} / ${totalActions} actions`,
         color: EXECUTION,
-        textColor: "var(--color-text-primary)",
+        textColor: "#F0829F",
       },
       {
         key: "money",
@@ -75,7 +76,7 @@ export default function StatsBar({ cats }) {
         pct: expectedPct,
         center: `${userData.daysPassed}/${userData.totalDays}`,
         sub: "of the month",
-        color: EXECUTION,
+        color: DAYS,
         textColor: "var(--color-text-primary)",
       },
     ].map((s) => ({ ...s, expectedPct }));
