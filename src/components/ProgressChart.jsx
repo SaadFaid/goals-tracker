@@ -92,7 +92,6 @@ export default function ProgressChart({ logs, dashboard }) {
   const resultsPath = resultsPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
 
   const ticks = [5, 10, 15, 20, 25, 30];
-  const allDays = Array.from({ length: today }, (_, i) => i + 1);
   const gridLines = [25, 50, 75, 100];
 
   const expectedToday = expectedAt(today);
@@ -222,15 +221,6 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* Today's results point */}
           <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
-
-          {/* Goal dot markers on expected line at every day up to today */}
-          {allDays.map((d) => (
-            <circle
-              key={d}
-              cx={x(d)} cy={y(expectedAt(d))} r="2"
-              fill={ACCENT} stroke="#0E1817" strokeWidth="0.75"
-            />
-          ))}
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
