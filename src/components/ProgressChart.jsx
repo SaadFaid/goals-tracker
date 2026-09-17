@@ -142,10 +142,10 @@ export default function ProgressChart({ logs, dashboard }) {
     }}>
       <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
         <div>
-          <h2 className="text-sm font-bold text-heading tracking-wide leading-tight">
+          <h2 className="text-xs font-bold text-heading tracking-wide leading-tight">
             Progress
           </h2>
-          <p className="text-[11px] text-text-tertiary mt-0.5">Daily execution vs pace</p>
+          <p className="text-[10px] text-text-tertiary mt-0.5">Daily execution vs pace</p>
         </div>
         <span
           className="text-[11px] font-bold px-3 py-1 rounded-full inline-flex items-center gap-1.5"
@@ -229,7 +229,7 @@ export default function ProgressChart({ logs, dashboard }) {
             const day1Val = points.find((p) => p.day === 1)?.value ?? 0;
             if (!dotDays.has(1)) dotDays.set(1, day1Val);
             return [...dotDays].map(([day, val]) => (
-              <circle key={`e-${day}`} cx={x(day)} cy={y(val)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
+              <circle key={`e-${day}`} cx={x(day)} cy={y(val)} r="1.8" fill={PINK} stroke="#0E1817" strokeWidth="1" />
             ));
           })()}
 
@@ -237,18 +237,18 @@ export default function ProgressChart({ logs, dashboard }) {
           {points
             .filter((p) => typeof p.results === "number" && !(showLiveToday && p.day === today))
             .map((p) => (
-              <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
+              <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="1.8" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
             ))}
 
           {/* Today's live points: only while the current day is in progress */}
           {showLiveToday ? (
             <>
               {/* Execution: pink with turquoise border */}
-              <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1" />
+              <circle cx={x(today)} cy={y(liveScore)} r="3" fill={PINK} stroke={ACCENT} strokeWidth="1" />
               {/* Expected: centered on the should-be line */}
-              <circle cx={x(today)} cy={y(expectedToday)} r="3.5" fill={ACCENT} stroke="#0E1817" strokeWidth="1" />
+              <circle cx={x(today)} cy={y(expectedToday)} r="2.4" fill={ACCENT} stroke="#0E1817" strokeWidth="1" />
               {/* Results */}
-              <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
+              <circle cx={x(today)} cy={y(resultsPct)} r="2.2" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
             </>
           ) : null}
 
@@ -322,7 +322,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
   return (
     <div className="flex items-center gap-2">
       {dot ? (
-        <span className="w-3 h-3 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}55` }} />
+        <span className="w-2 h-2 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}55` }} />
       ) : (
         <span
           className="w-5 inline-block"
@@ -333,7 +333,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           }
         />
       )}
-      <span className="text-[11px] font-semibold text-muted tracking-wide">{label}</span>
+      <span className="text-[10px] font-semibold text-muted tracking-wide">{label}</span>
     </div>
   );
 }

@@ -10,7 +10,6 @@ import Footer from "./components/Footer";
 import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
-import { IconSearch } from "./components/Icons";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PlanPage from "./components/PlanPage";
 import { userData } from "./data/goals";
@@ -85,7 +84,7 @@ function Dashboard() {
         <div className="bg-orb orb-teal" />
         <div className="bg-sheen" />
       </div>
-      <Nav view={view} onSetView={setView} />
+      <Nav view={view} onSetView={setView} onOpenAnalysis={() => setShowAnalysis(true)} />
       {view === "plan" ? (
         <PlanPage categories={categories} onBack={() => setView("dashboard")} />
       ) : (
@@ -96,26 +95,12 @@ function Dashboard() {
           <StatsBar cats={categories} />
         </div>
 
-        <button
-          onClick={() => setShowAnalysis(true)}
-          className="card w-full py-3 px-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
-          style={{
-            background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
-            border: "1px solid var(--color-border-active)",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <span style={{ color: "var(--color-accent)" }}><IconSearch size={18} /></span>
-            <span className="text-sm font-semibold text-white">Month Analysis</span>
-          </div>
-          <span className="text-xs text-text-tertiary">tap to review →</span>
-        </button>
+        <ProgressBar cats={categories} />
+        <ProgressChart logs={progressLogs} dashboard={dashboard} />
+
         {showAnalysis && (
           <MonthEndAnalysis cats={categories || []} onClose={() => setShowAnalysis(false)} />
         )}
-
-        <ProgressBar cats={categories} />
-        <ProgressChart logs={progressLogs} dashboard={dashboard} />
 
         <section aria-label="Your categories" className="cats-grid grid gap-4 md:grid-cols-2">
           {categories.map((cat, i) => (

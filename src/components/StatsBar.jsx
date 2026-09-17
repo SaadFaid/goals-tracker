@@ -100,8 +100,8 @@ export default function StatsBar({ cats }) {
               <ProgressRing pct={s.pct} tint={s.tint}>
                 <CountUpNumber {...s} />
               </ProgressRing>
-              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[8px]">{s.label}</div>
-              <div className="text-[8px] text-text-tertiary mt-0.5">{s.sub}</div>
+              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[7px]">{s.label}</div>
+              <div className="text-[7px] text-text-tertiary mt-0.5">{s.sub}</div>
             </div>
           </div>
         ))}
@@ -111,7 +111,7 @@ export default function StatsBar({ cats }) {
 }
 
 function ProgressRing({ pct, tint, children }) {
-  const size = 58;
+  const size = 52;
   const stroke = 4;
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
@@ -156,7 +156,7 @@ function CountUpNumber({ value, suffix, prefix, tint }) {
   const rendered = Number.isFinite(animated) ? Math.round(animated) : value;
   const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
   const text = `${prefix}${rendered}${suffix}`;
-  const fontSize = text.length > 5 ? 11 : 14;
+  const fontSize = text.length > 5 ? 10 : 12;
   return (
     <div className="stat-num" style={{ color, fontWeight: 600, fontSize }}>
       {text}

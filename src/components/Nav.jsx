@@ -1,9 +1,8 @@
 import { useGoalsStore } from "../store/useGoalsStore";
-import { userData } from "../data/goals";
-import { IconCheck, IconPencil } from "./Icons";
+import { IconCheck, IconPencil, IconChart } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
-export default function Nav({ view = "dashboard", onSetView }) {
+export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis }) {
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const logout = useGoalsStore((s) => s.logout);
@@ -35,16 +34,23 @@ export default function Nav({ view = "dashboard", onSetView }) {
             </svg>
           </span>
           <span className="brand text-sm text-heading leading-none">Tchizu Goal Tracker</span>
-          <span
-            className="caption text-[9px] text-text-tertiary hidden sm:inline"
-            style={{ color: "var(--color-text-tertiary)" }}
-          >
-            {userData.month} {userData.year} · {userData.totalDays} days
-          </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <MonthPicker />
+          <button
+            type="button"
+            onClick={() => onOpenAnalysis?.()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-all btn-lift text-xs font-bold text-heading"
+            style={{
+              background: "var(--color-accent-muted)",
+              border: "1px solid var(--color-border-active)",
+            }}
+            title="Month analysis"
+          >
+            <span style={{ color: "var(--color-accent)" }}><IconChart size={12} /></span>
+            Analysis
+          </button>
           <button
             onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
             className="nav-btn"
