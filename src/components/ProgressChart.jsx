@@ -16,7 +16,7 @@ const STATUS_COLORS = {
 
 // Upward progress chart (0 → 100%):
 //  - Actual: daily quality score from ProgressLogs (ascending), live today point.
-//  - Expected: dashed pace line that reaches 100% on the last day.
+//  - Should be: dashed pace line anchored at the last progress point, reaching 100% on the last day.
 //  - Results: aggregate result completion line.
 export default function ProgressChart({ logs, dashboard }) {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
@@ -65,9 +65,17 @@ export default function ProgressChart({ logs, dashboard }) {
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
 
-  // Expected pace: starts at 0% on day 1, reaches 100% on the last day.
-  const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
-  const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
+  // Should-be pace line is anchored to the last day progress was actually made:
+  // it starts at that real point and climbs to 100% on the last day, instead of
+  // always starting at 0% on day 1.
+  const anchorDay = Math.max(1, Math.min(totalDays, today));
+  const anchorVal = Math.max(0, Math.min(100, liveScore));
+  const expectedAt = (d) => {
+    if (totalDays <= 1) return anchorVal;
+    const span = Math.max(1, totalDays - anchorDay);
+    return Math.min(100, anchorVal + Math.max(0, d - anchorDay) * ((100 - anchorVal) / span));
+  };
+  const expectedPath = `M ${x(anchorDay)} ${y(anchorVal)} L ${x(totalDays)} ${y(100)}`;
 
   // Execution line: only real progress days get a point; gaps carry the last
   // value forward, and the live point at today appears while the day is in progress.
@@ -198,7 +206,7 @@ export default function ProgressChart({ logs, dashboard }) {
                 textAnchor="end"
                 dominantBaseline="middle"
                 fill="#5A756E"
-                fontSize="8"
+                fontSize="7"
                 fontWeight="600"
               >
                 {pct}%
@@ -209,7 +217,7 @@ export default function ProgressChart({ logs, dashboard }) {
           {/* Area fill under the actual/executed line */}
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
-          {/* Expected pace: dashed mint ascending to 100% */}
+          {/* Should be: dashed grey, starts at the last progress point, climbs to 100% */}
           <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
@@ -255,7 +263,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="8" fontWeight="600">
+            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="7" fontWeight="600">
               {d}
             </text>
           ))}
@@ -334,7 +342,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           }
         />
       )}
-      <span className="text-[10px] font-semibold tracking-wide" style={{ color: "var(--color-label-blue)" }}>{label}</span>
+      <span className="text-[10px] font-semibold tracking-wide" style={{ color: "var(--color-text-secondary)" }}>{label}</span>
     </div>
   );
 }

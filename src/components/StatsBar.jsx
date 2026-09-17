@@ -53,7 +53,7 @@ export default function StatsBar({ cats }) {
         key: "money",
         label: "Money",
         pct: moneyPct,
-        center: moneyHidden ? "***" : `${moneyPct}%`,
+        center: `${moneyPct}%`,
         sub: moneyHidden ? "$*** of $***" : `$${moneyCurrent} of $${moneyTarget}`,
         color: MONEY,
         maskable: true,
