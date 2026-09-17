@@ -178,9 +178,10 @@ function LegendSwatch({ color, label, dashed }) {
 function PaperChart({ logs, dashboard, selectedMonth }) {
   const w = 480;
   const h = 140;
-  const pad = { top: 12, right: 14, bottom: 24, left: 32 };
+  const pad = { top: 12, right: 14, bottom: 16, left: 32 };
   const cw = w - pad.left - pad.right;
   const ch = h - pad.top - pad.bottom;
+  const xLabelY = pad.top + ch + 10;
 
   const totalDays = monthDays(selectedMonth);
   const metaDate = dashboard?.meta?.currentDate ? new Date(dashboard.meta.currentDate) : new Date();
@@ -283,7 +284,7 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
           ))}
 
         {ticks.map((d) => (
-          <text key={d} x={x(d)} y={h - 6} textAnchor="middle" fill="#5A756E" fontSize="8" fontWeight="600">
+          <text key={d} x={x(d)} y={xLabelY} textAnchor="middle" fill="#5A756E" fontSize="8" fontWeight="600">
             {d}
           </text>
         ))}

@@ -23,9 +23,11 @@ export default function ProgressChart({ logs, dashboard }) {
   const w = 480;
   const hMobile = 120;
   const hDesktop = 140;
-  const pad = { top: 14, right: 14, bottom: 26, left: 34 };
+  const pad = { top: 14, right: 14, bottom: 18, left: 34 };
   const cw = w - pad.left - pad.right;
   const ch = hDesktop - pad.top - pad.bottom;
+  const plotBottom = pad.top + ch;
+  const xLabelY = plotBottom + 11;
 
   const [hoverDay, setHoverDay] = useState(null);
   const svgRef = useRef(null);
@@ -250,7 +252,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
           {/* X-axis ticks */}
           {ticks.map((d) => (
-            <text key={d} x={x(d)} y={hDesktop - 4} textAnchor="middle" fill="#5A756E" fontSize="5" fontWeight="600">
+            <text key={d} x={x(d)} y={xLabelY} textAnchor="middle" fill="#5A756E" fontSize="5" fontWeight="600">
               {d}
             </text>
           ))}
@@ -290,7 +292,7 @@ export default function ProgressChart({ logs, dashboard }) {
 
         {/* Add a motivational message based on status */}
       </div>
-      <div className="mt-3 text-center text-sm text-text-tertiary">
+      <div className="mt-1 text-center text-sm text-text-tertiary">
         {lastStatus === "AHEAD" && (
           <>
             You're ahead of schedule! Keep up the great work!{" "}
