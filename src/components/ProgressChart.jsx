@@ -69,21 +69,20 @@ export default function ProgressChart({ logs, dashboard }) {
   const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: drawn only on days progress was actually made (plus the live
-  // today point while the day is in progress) — no carry-forward across gaps, so
-  // the line ends at the last progress day, never dragging forward into empty days.
+  // Execution line: starts at 0% on day 1 and connects each day progress was
+  // actually made, ending at the last progress day (no carry-forward into gaps).
   const execByDay = new Map();
   for (const p of points) execByDay.set(p.day, p.value);
   if (showLiveToday) execByDay.set(today, liveScore);
   const execSteps = [...execByDay]
     .sort((a, b) => a[0] - b[0])
     .map(([day, value]) => ({ day, value }));
-  const actualPath = execSteps.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
+  const actualPath = `M ${x(1)} ${y(0)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("");
   const areaPath = execSteps.length
     ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
     : "";
 
-  // Results line: same rule — real results days only, ends at the last one.
+  // Results line: same rule — starts at 0% on day 1, only real results days.
   const resByDay = new Map();
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
@@ -92,7 +91,9 @@ export default function ProgressChart({ logs, dashboard }) {
   const resSteps = [...resByDay]
     .sort((a, b) => a[0] - b[0])
     .map(([day, value]) => ({ day, value }));
-  const resultsPath = resSteps.map((p, i) => `${i === 0 ? "M" : "L"} ${x(p.day)} ${y(p.value)}`).join(" ");
+  const resultsPath = resSteps.length
+    ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    : "";
 
   const ticks = [5, 10, 15, 20, 25, 30];
   const gridLines = [25, 50, 75, 100];
@@ -209,8 +210,8 @@ export default function ProgressChart({ logs, dashboard }) {
           {/* Results line */}
           <path d={resultsPath} stroke={RESULT} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
-          {/* Execution progress line: solid pink, only through actual progress days */}
-          {execSteps.length > 1 ? (
+          {/* Execution progress line: solid pink, from 0% day 1 through progress days */}
+          {execSteps.length > 0 ? (
             <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
