@@ -1,14 +1,17 @@
-import { calculateDashboardState, aggregateResultsPct } from "./score";
-import { userData } from "../data/goals";
-
 /**
- * Guest mode has no server-side ProgressLogs, so we synthesize a realistic
- * year-long per-day history so the date-popup history shows a whole year.
- * Each entry mirrors the ProgressLog shape:
+ * Guest mode has no server-side ProgressLogs, so we synthesize a deterministic
+ * year-long history for the PAST months so the date-popup history shows a
+ * whole year. Each entry mirrors the ProgressLog shape:
  *   { dayOfMonth, month, year, qualityScore, expectedScore }
+ *
+ * The CURRENT month is deliberately NOT assembled here. Past days must stay
+ * frozen at their real value: each recorded day is saved to localStorage and
+ * only TODAY's entry is written (live) by the store. Fabricating a ramp from
+ * today's overall score made every past day "move" whenever today's score
+ * changed — that is why yesterday drifted off its true number.
  */
 
-// Deterministic pseudo-random so the demo doesn't change every render.
+// Deterministic pseudo-random so the demo doesn't change between runs.
 function seeded(seed) {
   let x = seed >>> 0;
   return () => {
@@ -26,32 +29,9 @@ function baseQuality(delta) {
   return 80 - delta * 2.4; // ~78% a month ago -> ~54% a year ago
 }
 
-export function generateGuestLogs(categories) {
+export function generateGuestLogs() {
   const now = new Date();
-  const daysPassed = Math.max(1, Math.min(userData.daysPassed, userData.totalDays));
   const logs = [];
-
-  // Current month: derive daily quality from the dashboard's cumulative series.
-  const dash = calculateDashboardState(categories, now, 0);
-  const cumulative = dash?.chartData?.cumulative || [];
-  const qualityTarget = Math.max(50, dash?.stats?.qualityPercent ?? 55);
-  const resTarget = aggregateResultsPct(categories);
-  for (let d = 1; d <= daysPassed; d++) {
-    const found = cumulative.find((c) => c.day === d);
-    const value = found ? found.value : Math.round((d / daysPassed) * qualityTarget);
-    // Day-by-day results: damped approach toward the current results %, with a
-    // small wave so it reads as real daily movement, not a straight line.
-    const wave = Math.sin((d / daysPassed) * Math.PI) * 3;
-    const res = Math.round(Math.max(0, Math.min(100, (d / daysPassed) * 0.8 * resTarget + wave)) * 10) / 10;
-    logs.push({
-      dayOfMonth: d,
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-      qualityScore: Math.round(value * 10) / 10,
-      expectedScore: Math.round((d / userData.totalDays) * 100 * 10) / 10,
-      resultsScore: res,
-    });
-  }
 
   // 11 past months (older -> newer), year-round demo history.
   for (let delta = 1; delta <= 11; delta++) {

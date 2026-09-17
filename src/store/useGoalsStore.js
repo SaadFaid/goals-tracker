@@ -306,18 +306,23 @@ export const useGoalsStore = create(
           set({ categories, viewingHistory: false, liveCategories: null });
         }
         categories = ensureRewardTiers(categories);
+        // Only seed the synthetic past-month history when nothing has ever been
+        // recorded. Recorded days stay frozen — never regenerated after this.
+        if ((get().progressLogs || []).length === 0) {
+          set({ progressLogs: generateGuestLogs() });
+        }
         const dashboard = calculateDashboardState(categories, new Date(), get().monthOffset);
-        set({
-          categories,
-          dashboard,
-          bootstrapped: true,
-          progressLogs: get().progressLogs.length > 0 ? get().progressLogs : generateGuestLogs(categories),
-        });
+        set({ categories, dashboard, bootstrapped: true });
+        get().ensureDailyLog(categories, dashboard);
       },
 
       startGuest: () => {
-        set({ user: null, isGuest: true, sessionStarted: true, progressLogs: generateGuestLogs(get().categories) });
+        if ((get().progressLogs || []).length === 0) {
+          set({ progressLogs: generateGuestLogs() });
+        }
+        set({ user: null, isGuest: true, sessionStarted: true });
         get().derive();
+        get().ensureDailyLog();
         get().captureSnapshot();
       },
 
@@ -342,15 +347,18 @@ export const useGoalsStore = create(
       },
 
       applyLocalProfile: (email, { name = "User" } = {}) => {
+        if ((get().progressLogs || []).length === 0) {
+          set({ progressLogs: generateGuestLogs() });
+        }
         set({
           user: { email, name },
           isGuest: false,
           sessionStarted: true,
           error: null,
           lastSyncedAt: new Date().toISOString(),
-          progressLogs: generateGuestLogs(get().categories),
         });
         get().derive();
+        get().ensureDailyLog();
       },
 
       register: async (credentials) => {
@@ -417,7 +425,7 @@ export const useGoalsStore = create(
         set({ categories: ensureRewardTiers(deepClone(dashboard.categories)), lastSyncedAt: new Date().toISOString() });
         const d = calculateDashboardState(get().categories, new Date(), get().monthOffset);
         set({ dashboard: d, bootstrapped: true });
-        get().loadProgress();
+        get().ensureDailyLog(get().categories, d);
       },
 
       // ── Generic persist+sync after a local mutation ────
@@ -449,10 +457,35 @@ export const useGoalsStore = create(
         const d = now.getDate();
         const resultsScore = Math.round(aggregateResultsPct(categories || get().categories) * 10) / 10;
         const qualityScore = dashboard?.stats?.qualityPercent ?? get().dashboard?.stats?.qualityPercent ?? 0;
-        const expectedScore = Math.round(((d / 30) * 100) * 10) / 10;
+        const daysInMonth = dashboard?.meta?.daysInMonth
+          ?? get().dashboard?.meta?.daysInMonth
+          ?? 30;
+        const expectedScore = Math.round(((d / daysInMonth) * 100) * 10) / 10;
         const logs = (get().progressLogs || []).filter(
           (l) => !(l.year === y && l.month === m && l.dayOfMonth === d)
         );
+        set({
+          progressLogs: [
+            ...logs,
+            { year: y, month: m, dayOfMonth: d, qualityScore, expectedScore, resultsScore },
+          ],
+        });
+      },
+
+      // Make sure today is represented in the daily log. It only EVER inserts
+      // or refreshes TODAY's entry — every older day is left untouched, so a
+      // day's score freezes at whatever it was before 00:00.
+      ensureDailyLog: (categories = get().categories, dashboard = get().dashboard) => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const d = now.getDate();
+        const logs = get().progressLogs || [];
+        if (logs.some((l) => l.year === y && l.month === m && l.dayOfMonth === d)) return;
+        const resultsScore = Math.round(aggregateResultsPct(categories) * 10) / 10;
+        const qualityScore = dashboard?.stats?.qualityPercent ?? 0;
+        const daysInMonth = dashboard?.meta?.daysInMonth ?? 30;
+        const expectedScore = Math.round(((d / daysInMonth) * 100) * 10) / 10;
         set({
           progressLogs: [
             ...logs,
@@ -900,6 +933,7 @@ export const useGoalsStore = create(
         name: GUEST_KEY,
         partialize: (s) => ({
           categories: s.categories,
+          progressLogs: s.progressLogs,
           user: s.user,
           isGuest: s.isGuest,
           sessionStarted: s.sessionStarted,
