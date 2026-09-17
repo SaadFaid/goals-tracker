@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGoalsStore } from "./store/useGoalsStore";
 import Nav from "./components/Nav";
-import Header from "./components/Header";
 import StatsBar from "./components/StatsBar";
 import ProgressBar from "./components/ProgressBar";
 import ProgressChart from "./components/ProgressChart";
@@ -12,7 +11,6 @@ import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PlanPage from "./components/PlanPage";
-import { userData } from "./data/goals";
 
 function useDashboard() {
   const categories = useGoalsStore((s) => s.categories);
@@ -90,10 +88,7 @@ function Dashboard() {
       ) : (
       <>
       <div className="page-container flex flex-col gap-4">
-        <div className="hero-row grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-          <Header daysElapsed={userData.daysPassed} categories={categories} />
-          <StatsBar cats={categories} />
-        </div>
+        <StatsBar cats={categories} />
 
         <ProgressBar cats={categories} />
         <ProgressChart logs={progressLogs} dashboard={dashboard} />

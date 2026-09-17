@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { userData } from "../data/goals";
-import { computeOverallPct, aggregateResultsPct } from "../lib/score";
-
+import { aggregateResultsPct, computeOverallPct } from "../lib/score";
 import { useCountUp } from "../lib/hooks";
-import { IconBolt, IconChart, IconCalendar } from "./Icons";
+
+const TRACK = "rgba(255, 255, 255, 0.10)";
+const EXECUTION = "#8FA8A3"; // grey  — execution
+const MONEY = "var(--color-gold)"; // gold   — money
+const RESULTS = "var(--color-turquoise)"; // turquoise — results
 
 export default function StatsBar({ cats }) {
   const stats = useMemo(() => {
@@ -20,9 +22,10 @@ export default function StatsBar({ cats }) {
           .length,
       0
     );
-    const resultsPct = Math.round(aggregateResultsPct(cats));
 
     const score = Math.round(computeOverallPct(cats));
+    const resultsPct = Math.round(aggregateResultsPct(cats));
+
     // Money dashboard: sum every "$"-unit result across ALL categories so any
     // money added anywhere reflects in the Money stat.
     const moneyItems = (cats || [])
@@ -32,133 +35,120 @@ export default function StatsBar({ cats }) {
     const moneyTarget = moneyItems.reduce((s, r) => s + (r.target || 0), 0) || 1000;
     const moneyPct = moneyTarget > 0 ? Math.min(Math.round((moneyCurrent / moneyTarget) * 100), 100) : 0;
 
-    const dayOfMonth = userData.daysPassed;
-    const daysPct = Math.round((dayOfMonth / userData.totalDays) * 100);
-
     return [
       {
+        key: "execution",
         label: "Execution",
         value: score,
         suffix: "%",
-        prefix: "",
         pct: score,
-        sub: `${hitCount} / ${totalActions} actions hit · your score`,
-        tint: "accent",
-        icon: <IconBolt size={14} />,
+        sub: `${hitCount} / ${totalActions} actions`,
+        color: EXECUTION,
       },
       {
+        key: "money",
+        label: "Money",
+        value: moneyCurrent,
+        prefix: "$",
+        pct: moneyPct,
+        sub: `of $${moneyTarget}`,
+        color: MONEY,
+      },
+      {
+        key: "results",
         label: "Results",
         value: resultsPct,
         suffix: "%",
-        prefix: "",
         pct: resultsPct,
         sub: "tracked · scored",
-        tint: "neutral",
-        icon: <IconChart size={14} />,
-      },
-      {
-        label: "Money",
-        value: moneyCurrent,
-        suffix: "",
-        prefix: "$",
-        pct: moneyPct,
-        sub: `target $${moneyTarget}`,
-        tint: "accent",
-        icon: <span className="font-black leading-none" style={{ fontSize: 14 }}>$</span>,
-      },
-      {
-        label: "Day",
-        value: dayOfMonth,
-        suffix: "",
-        prefix: "",
-        pct: daysPct,
-        sub: `of ${userData.totalDays} in ${userData.month}`,
-        tint: "neutral",
-        icon: <IconCalendar size={14} />,
+        color: RESULTS,
       },
     ];
   }, [cats]);
 
   return (
-    <>
-      <div
-        className="card card-lift grid grid-cols-2 gap-y-4 md:grid-cols-4 overflow-hidden"
-        style={{
-          background: "linear-gradient(90deg, var(--color-elevated), var(--color-surface))",
-          border: "1px solid var(--color-border-active)",
-        }}
-      >
-        {stats.map((s) => (
-          <div key={s.label} className="py-3 px-1 text-center">
-            <div className="flex flex-col items-center">
-              <div
-                className="mb-1.5"
-                style={{ color: s.tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)", opacity: 0.85 }}
-              >
-                {s.icon}
-              </div>
-              <ProgressRing pct={s.pct} tint={s.tint}>
-                <CountUpNumber {...s} />
-              </ProgressRing>
-              <div className="caption text-text-tertiary mt-1.5 !normal-case !text-[7px]">{s.label}</div>
-              <div className="text-[7px] text-text-tertiary mt-0.5">{s.sub}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function ProgressRing({ pct, tint, children }) {
-  const size = 52;
-  const stroke = 4;
-  const r = (size - stroke) / 2;
-  const C = 2 * Math.PI * r;
-  const [animated, setAnimated] = useState(0);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setAnimated(pct));
-    return () => cancelAnimationFrame(id);
-  }, [pct]);
-  const clamped = Math.max(0, Math.min(100, animated));
-  const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
-
-  return (
-    <div className="relative grid place-items-center" style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        aria-hidden="true"
-        style={{ transform: "rotate(-90deg)", position: "absolute", inset: 0 }}
-      >
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border-active)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={C}
-          strokeDashoffset={C * (1 - clamped / 100)}
-          style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
-        />
-      </svg>
-      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+    <div
+      className="card card-lift flex items-center justify-center gap-4 sm:gap-12 px-4 py-5"
+      style={{
+        background: "var(--color-panel-navy)",
+        border: "1px solid var(--color-border-active)",
+      }}
+    >
+      {stats.map((s) => (
+        <StatRing key={s.key} {...s} />
+      ))}
     </div>
   );
 }
 
-function CountUpNumber({ value, suffix, prefix, tint }) {
+function StatRing({ label, value, prefix = "", suffix = "", pct, sub, color }) {
+  const size = 84;
+  const stroke = 9;
+  const r = (size - stroke) / 2 - 1;
+  const cx = size / 2;
+  const cy = size / 2;
+  const C = 2 * Math.PI * r;
+  const [animated, setAnimated] = useState(0);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimated(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
+
+  const clamped = Math.max(0, Math.min(100, animated));
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative grid place-items-center" style={{ width: size, height: size }}>
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0 }}
+        >
+          <g transform={`rotate(-90 ${cx} ${cy})`}>
+            {/* Full-circle track, same stroke width as the arc */}
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={TRACK} strokeWidth={stroke} />
+            {/* Colored arc, rounded caps */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              stroke={color}
+              strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - clamped / 100)}
+              style={{ transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)" }}
+            />
+          </g>
+          {/* Single start marker at 12 o'clock */}
+          <circle cx={cx} cy={cy - r} r="1.5" fill={color} />
+        </svg>
+        <CountUpNumber value={value} prefix={prefix} suffix={suffix} />
+      </div>
+      <div
+        className="mt-2 text-[9px] font-bold uppercase tracking-[0.14em]"
+        style={{ color: "var(--color-label-blue)" }}
+      >
+        {label}
+      </div>
+      <div className="text-[9px]" style={{ color: "var(--color-text-tertiary)" }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+function CountUpNumber({ value, prefix = "", suffix = "" }) {
   const animated = useCountUp(value, 300);
   const rendered = Number.isFinite(animated) ? Math.round(animated) : value;
-  const color = tint === "accent" ? "var(--color-accent)" : "var(--color-text-primary)";
   const text = `${prefix}${rendered}${suffix}`;
-  const fontSize = text.length > 5 ? 10 : 12;
+  const fontSize = text.length > 5 ? 15 : 18;
   return (
-    <div className="stat-num" style={{ color, fontWeight: 600, fontSize }}>
+    <div className="stat-num" style={{ color: "#FFFFFF", fontWeight: 700, fontSize }}>
       {text}
     </div>
   );

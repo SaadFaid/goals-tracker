@@ -32,6 +32,11 @@ html, body {
   --color-accent-2: #A4D2EC;            /* periwinkle cool support (baseline, data) */
   --color-accent-2-muted: rgba(164, 210, 236, 0.14);
 
+  --color-gold: #E8B44B;                /* MONEY ring arc + start dot */
+  --color-turquoise: #2DD4BF;           /* RESULTS — kept consistent everywhere */
+  --color-label-blue: #6C9CFF;          /* category labels (Execution/Money/Results) */
+  --color-panel-navy: #0A0E27;          /* stat-ring widget backdrop */
+
   /* Semantic (computed output only — never decorative) */
   --color-success: #87FF5F;             /* AHEAD, unlocked, complete */
   --color-danger: #DB6088;              /* BEHIND, locked, error */
@@ -62,7 +67,7 @@ html, body {
   --color-navy-400: #1E3B34;
   --color-coral: var(--color-accent);
   --color-teal: var(--color-accent-2);
-  --color-gold: var(--color-accent);
+  --color-gold: #E8B44B;
   --color-banana: var(--color-sunken);
   --color-border: var(--color-border-subtle);
 }

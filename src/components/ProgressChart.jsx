@@ -5,7 +5,7 @@ import { aggregateResultsPct } from "../lib/score";
 import { IconBolt, IconFire, IconCheckCircle } from "./Icons";
 
 const ACCENT = "#6DF5E3"; // mint — expected pace
-const RESULT = "#FFA14D"; // orange — results progress
+const RESULT = "#2DD4BF"; // turquoise — results progress (consistent across dashboard)
 const PINK = "#DB6088"; // pink — actual/executed progress
 const STATUS_COLORS = {
   AHEAD: "#6DF5E3",
@@ -333,7 +333,7 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           }
         />
       )}
-      <span className="text-[10px] font-semibold text-muted tracking-wide">{label}</span>
+      <span className="text-[10px] font-semibold tracking-wide" style={{ color: "var(--color-label-blue)" }}>{label}</span>
     </div>
   );
 }
