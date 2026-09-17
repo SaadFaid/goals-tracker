@@ -58,7 +58,7 @@ function DragBar({ value, color, label, onChangeFraction }) {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <div className="absolute top-1/2 left-0 h-1 rounded-full"
+      <div className="absolute top-1/2 left-0 h-0.5 rounded-full"
         style={{ width: `${pct}%`, background: color, transform: "translateY(-50%)", opacity: 0.9 }} />
       {/* Draggable point on the line */}
       <div
@@ -1452,11 +1452,11 @@ export default memo(function CategoryCard({
         <div className="px-4 pb-3" aria-label={`${pct} percent done, expected ${Math.round(expectedPace)} percent`}>
           <div
             className="w-full relative"
-            style={{ height: 2, background: "var(--color-navy-500)" }}
+            style={{ height: 1, background: "var(--color-navy-500)" }}
           >
             <div
               className="absolute top-0 left-0"
-              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, height: 2, background: headerColor }}
+              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, height: 1, background: headerColor }}
             />
             <div
               className="absolute rounded-full"
@@ -1473,8 +1473,8 @@ export default memo(function CategoryCard({
               className="absolute rounded-sm"
               style={{
                 left: `${Math.max(0, Math.min(expectedPace, 100))}%`,
-                width: 2,
-                height: 12,
+                width: 1,
+                height: 8,
                 background: "var(--color-text-primary)",
                 transform: "translate(-50%, -50%)",
                 top: "50%",
