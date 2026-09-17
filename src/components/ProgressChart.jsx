@@ -194,41 +194,41 @@ export default function ProgressChart({ logs, dashboard }) {
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
           {/* Expected pace: dashed mint ascending to 100% */}
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="6" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.13" />
-          <path d={expectedPath} stroke={ACCENT} strokeWidth="2" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="3" strokeDasharray="3 9" fill="none" strokeLinecap="round" opacity="0.1" />
+          <path d={expectedPath} stroke={ACCENT} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
           {/* Results line */}
-          <path d={resultsPath} stroke={RESULT} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+          <path d={resultsPath} stroke={RESULT} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
           {/* Actual/executed progress line: solid pink */}
           {today > 1 ? (
-            <path d={actualPath} stroke={PINK} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
           {/* Execution dots at each day */}
           {execPoints.map((p) => (
-            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="3.5" fill={PINK} stroke="#0E1817" strokeWidth="1.25" />
+            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={PINK} stroke="#0E1817" strokeWidth="1" />
           ))}
 
           {/* Results dots: ramp from 0% on day 1 to resultsPct at today */}
           {resultsPoints.map((p) => (
-            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="3.5" fill={RESULT} stroke="#0E1817" strokeWidth="1.25" />
+            <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2.5" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
           ))}
 
           {/* Today's live execution point: pink with turquoise border */}
           {today >= 1 ? (
-            <circle cx={x(today)} cy={y(liveScore)} r="6" fill={PINK} stroke={ACCENT} strokeWidth="2.5" />
+            <circle cx={x(today)} cy={y(liveScore)} r="4" fill={PINK} stroke={ACCENT} strokeWidth="1.5" />
           ) : null}
 
           {/* Today's results point */}
-          <circle cx={x(today)} cy={y(resultsPct)} r="4.5" fill={RESULT} stroke="#0E1817" strokeWidth="1.5" />
+          <circle cx={x(today)} cy={y(resultsPct)} r="3" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
 
           {/* Goal dot markers on expected line at every day up to today */}
           {allDays.map((d) => (
             <circle
               key={d}
-              cx={x(d)} cy={y(expectedAt(d))} r="3"
-              fill={ACCENT} stroke="#0E1817" strokeWidth="1"
+              cx={x(d)} cy={y(expectedAt(d))} r="2"
+              fill={ACCENT} stroke="#0E1817" strokeWidth="0.75"
             />
           ))}
 
@@ -258,7 +258,7 @@ export default function ProgressChart({ logs, dashboard }) {
                 </text>
                 {rows.map((r, i) => (
                   <g key={r.label}>
-                    <line x1={tx - 54} x2={tx - 42} y1={ty + 25 + i * rowH} y2={ty + 25 + i * rowH} stroke={r.color} strokeWidth="3" strokeLinecap="round" />
+                    <line x1={tx - 54} x2={tx - 42} y1={ty + 25 + i * rowH} y2={ty + 25 + i * rowH} stroke={r.color} strokeWidth="1" strokeLinecap="round" />
                     <text x={tx - 36} y={ty + 28 + i * rowH} textAnchor="start" fill="#8FA8A3" fontSize="9">
                       {r.label}
                     </text>
@@ -308,8 +308,8 @@ function LegendItem({ color, label, stroke, dot, dashed }) {
           className="w-5 inline-block"
           style={
             dashed
-              ? { borderTop: `3px dashed ${stroke || "currentColor"}`, borderSpacing: "2px" }
-              : { borderTop: `3px solid ${stroke || color}` }
+              ? { borderTop: `1px dashed ${stroke || "currentColor"}`, borderSpacing: "2px" }
+              : { borderTop: `1px solid ${stroke || color}` }
           }
         />
       )}

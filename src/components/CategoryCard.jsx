@@ -1452,18 +1452,29 @@ export default memo(function CategoryCard({
         <div className="px-4 pb-3" aria-label={`${pct} percent done, expected ${Math.round(expectedPace)} percent`}>
           <div
             className="w-full relative"
-            style={{ height: 2, background: "var(--color-navy-500)" }}
+            style={{ height: 1, background: "var(--color-navy-500)" }}
           >
             <div
               className="absolute top-0 left-0"
-              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, height: 2, background: headerColor }}
+              style={{ width: `${Math.max(0, Math.min(pct, 100))}%`, height: 1, background: headerColor }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                left: `${Math.max(0, Math.min(pct, 100))}%`,
+                top: "50%",
+                width: 5,
+                height: 5,
+                transform: "translate(-50%, -50%)",
+                background: headerColor,
+              }}
             />
             <div
               className="absolute rounded-sm"
               style={{
                 left: `${Math.max(0, Math.min(expectedPace, 100))}%`,
-                width: 2,
-                height: 16,
+                width: 1,
+                height: 12,
                 background: "var(--color-text-primary)",
                 transform: "translate(-50%, -50%)",
                 top: "50%",
