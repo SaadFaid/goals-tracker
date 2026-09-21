@@ -47,6 +47,19 @@ function monthKeyOf(d = new Date()) {
 function localMonthKey() {
   return monthKeyOf();
 }
+// Device's local calendar-date key ("YYYY-M-D"). Purely local — never UTC.
+function localDayKey(date = new Date()) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+// Device's local midnight as a naive (zone-less) ISO, so re-parsing with
+// `new Date(...)` always stays on the same LOCAL day even if the device
+// clock/timezone changes by an hour.
+function localMidnightISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}T00:00:00`;
+}
 function dateOfMonthKey(key) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, (m || 1) - 1, 1);
@@ -579,10 +592,13 @@ export const useGoalsStore = create(
       },
 
       // Reset daily actions whose window has rolled over (client-side, on load).
+      // "Today" always means the DEVICE's local calendar day, so the roll-over
+      // happens at device midnight 00:00 — never early (e.g. a UTC flip or a
+      // device clock shifted by an hour).
       checkDailyResets: () => {
         const today = new Date();
-        const todayKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-        const sameDay = (d) => d && `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` === todayKey;
+        const todayKey = localDayKey(today);
+        const sameDay = (d) => d && localDayKey(d) === todayKey;
         const resets = [];
         const anyDaily = get().categories.some(
           (c) => !c.isRewards && (c.actions || []).some((a) => a.resetType === "daily")
@@ -595,7 +611,7 @@ export const useGoalsStore = create(
             const last = a.lastResetAt ? new Date(a.lastResetAt) : null;
             if (last && sameDay(last)) return a;
             resets.push({ id: a.id, server: !String(a.id || "").startsWith("tmp-") });
-            return { ...a, current: 0, lastResetAt: today.toISOString() };
+            return { ...a, current: 0, lastResetAt: localMidnightISO(today) };
           });
           return { ...cat, actions };
         });
@@ -603,7 +619,7 @@ export const useGoalsStore = create(
         get().commit(next);
         for (const r of resets) {
           if (!r.server) continue;
-          get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, lastResetAt: today.toISOString() }) });
+          get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, lastResetAt: localMidnightISO(today) }) });
         }
       },
 
