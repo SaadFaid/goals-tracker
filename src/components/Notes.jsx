@@ -24,12 +24,10 @@ export default function Notes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
   const [draft, setDraft] = useState("");
-  const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const inputRef = useRef(null);
   const dragId = useRef(null);
   const justDragged = useRef(false);
-  const paperRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
@@ -38,15 +36,6 @@ export default function Notes() {
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
-
-  useEffect(() => {
-    if (!menuId) return;
-    const close = (e) => {
-      if (!paperRef.current?.contains(e.target)) setMenuId(null);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [menuId]);
 
   const addNote = () => {
     const text = draft.trim();
@@ -61,7 +50,6 @@ export default function Notes() {
 
   const removeNote = (id) => {
     setNotes((prev) => prev.filter((n) => n.id !== id));
-    if (menuId === id) setMenuId(null);
     if (editingId === id) setEditingId(null);
   };
 
@@ -97,7 +85,7 @@ export default function Notes() {
   };
 
   const onRowDragEnd = () => {
-    // suppress the click-to-menu right after a drop
+    // suppress a stray click right after a drop
     justDragged.current = true;
     setTimeout(() => {
       justDragged.current = false;
@@ -166,7 +154,7 @@ export default function Notes() {
             </div>
 
             {/* The paper — ruled lines every ROW_H px, one per task line */}
-            <div ref={paperRef} className="flex-1 overflow-y-auto px-6 pt-2 pb-2" style={{ ...lineBg, backgroundColor: "#FFFDF5" }}>
+            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-2" style={{ ...lineBg, backgroundColor: "#FFFDF5" }}>
               {notes.length === 0 ? (
                 <p className="text-sm" style={{ color: "#A1998A", height: ROW_H, lineHeight: `${ROW_H - 3}px`, paddingBottom: 2 }}>
                   Add a task below — a new line appears on the paper.
@@ -188,12 +176,8 @@ export default function Notes() {
                       onDragOver={(e) => onRowDragOver(e, n.id)}
                       onDragEnd={onRowDragEnd}
                       onDrop={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (justDragged.current) return;
-                        setMenuId(menuId === n.id ? null : n.id);
-                      }}
-                      className="flex items-end gap-2.5 group cursor-grab active:cursor-grabbing select-none"
-                      style={{ position: "relative", height: ROW_H }}
+                      className="flex items-end gap-2 group cursor-grab active:cursor-grabbing select-none"
+                      style={{ height: ROW_H }}
                     >
                       <span
                         className="grid place-items-center shrink-0"
@@ -222,64 +206,46 @@ export default function Notes() {
                           color: n.done ? "#ABA08C" : "#33291B",
                           textDecoration: n.done ? "line-through" : undefined,
                           textDecorationColor: "#ABA08C",
-                          cursor: "pointer",
                           paddingBottom: 2,
+                        }}
+                        onClick={(e) => {
+                          if (justDragged.current) return;
+                          e.stopPropagation();
+                          toggleNote(n.id);
                         }}
                       >
                         {n.text}
                       </span>
-                      <span
-                        className="shrink-0 text-[#C9BCA4] group-hover:text-[#A1998A]"
-                        style={{ marginBottom: 6 }}
-                        aria-hidden="true"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                          <circle cx="5" cy="12" r="1.8" />
-                          <circle cx="12" cy="12" r="1.8" />
-                          <circle cx="19" cy="12" r="1.8" />
-                        </svg>
-                      </span>
 
-                      {menuId === n.id && (
-                        <div
-                          className="absolute right-5 bottom-full mb-1 flex items-center gap-1.5"
-                          style={{
-                            background: "#FFF",
-                            border: "1px solid #E2D9C2",
-                            borderRadius: 8,
-                            boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
-                            padding: "3px 4px",
-                            zIndex: 5,
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={() => {
-                              setMenuId(null);
-                              setEditingId(n.id);
-                            }}
-                            title="Edit"
-                            aria-label="Edit"
-                            className="grid place-items-center w-7 h-7 rounded-md cursor-pointer hover:bg-[#EDF6F3]"
-                            style={{ color: "#0E7A6B" }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => removeNote(n.id)}
-                            title="Delete"
-                            aria-label="Delete"
-                            className="grid place-items-center w-7 h-7 rounded-md cursor-pointer hover:bg-[#FBEFF3]"
-                            style={{ color: "#DB6088" }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+                      {/* Edit + delete — fixed on the rule line, right side */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingId(n.id);
+                        }}
+                        title="Edit"
+                        aria-label="Edit"
+                        className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-40 group-hover:opacity-100 hover:opacity-100"
+                        style={{ marginBottom: 4, color: "#0E7A6B" }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeNote(n.id);
+                        }}
+                        title="Delete"
+                        aria-label="Delete"
+                        className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-40 group-hover:opacity-100 hover:opacity-100"
+                        style={{ marginBottom: 4, color: "#DB6088" }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
+                        </svg>
+                      </button>
                     </div>
                   )
                 )
