@@ -142,7 +142,7 @@ export default function Notes() {
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.30), rgba(11,22,21,0.26))",
+                background: "linear-gradient(180deg, rgba(32,85,74,0.5), rgba(30,59,52,0.42))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderBottom: "1px solid var(--color-border-subtle)",
@@ -334,7 +334,7 @@ export default function Notes() {
             <div
               className="px-5 py-3 flex items-center gap-2"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.30), rgba(11,22,21,0.26))",
+                background: "linear-gradient(180deg, rgba(32,85,74,0.5), rgba(30,59,52,0.42))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderTop: "1px solid var(--color-border-subtle)",
