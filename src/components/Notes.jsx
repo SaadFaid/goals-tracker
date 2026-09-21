@@ -138,12 +138,16 @@ export default function Notes() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Dark glass header */}
+            {/* Glass navbar — matches the site's floating controls card */}
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"
               style={{
-                background: "linear-gradient(160deg, #0E1817 0%, #0F2A26 100%)",
-                borderBottom: "1px solid rgba(109,245,227,0.14)",
+                background: "linear-gradient(180deg, rgba(20,40,37,0.9), rgba(11,22,21,0.85))",
+                backdropFilter: "blur(18px) saturate(1.6)",
+                WebkitBackdropFilter: "blur(18px) saturate(1.6)",
+                borderBottom: "1px solid var(--color-border-subtle)",
+                boxShadow:
+                  "inset 0 1px 0 rgba(229,246,240,0.07), 0 6px 16px rgba(0,0,0,0.35)",
               }}
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -338,10 +342,17 @@ export default function Notes() {
               </div>
             </div>
 
-            {/* Add line */}
+            {/* Glass footer — matches the site, input + accent Add */}
             <div
-              className="px-6 py-3 flex items-center gap-2"
-              style={{ background: "#FDFAF4", borderTop: "1px solid rgba(0,0,0,0.08)" }}
+              className="px-5 py-3 flex items-center gap-2"
+              style={{
+                background: "linear-gradient(180deg, rgba(20,40,37,0.9), rgba(11,22,21,0.85))",
+                backdropFilter: "blur(18px) saturate(1.6)",
+                WebkitBackdropFilter: "blur(18px) saturate(1.6)",
+                borderTop: "1px solid var(--color-border-subtle)",
+                boxShadow:
+                  "inset 0 -1px 0 rgba(229,246,240,0.05), 0 -6px 16px rgba(0,0,0,0.35)",
+              }}
             >
               <input
                 ref={inputRef}
@@ -351,13 +362,13 @@ export default function Notes() {
                   if (e.key === "Enter") addNote();
                 }}
                 placeholder="Write a task… press Enter"
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-w-0"
-                style={{ background: "#FFF", border: "1px solid #E2D9C2", color: "#33291B" }}
+                className="flex-1 bg-sunken text-heading text-sm rounded-lg px-3 py-2 outline-none min-w-0"
+                style={{ border: "1px solid var(--color-border-subtle)" }}
               />
               <button
                 onClick={addNote}
                 className="h-9 px-4 rounded-lg font-bold text-sm shrink-0 cursor-pointer"
-                style={{ background: "#0E7A6B", color: "#FFFDF5" }}
+                style={{ background: "var(--color-accent)", color: "#101010" }}
               >
                 Add
               </button>
