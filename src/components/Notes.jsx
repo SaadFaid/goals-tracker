@@ -126,7 +126,7 @@ export default function Notes() {
       {open && (
         <div
           className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(11,31,30,0.72)", backdropFilter: "blur(8px)" }}
+          style={{ background: "rgba(11,31,30,0.55)", backdropFilter: "blur(10px)" }}
           onClick={() => setOpen(false)}
         >
           <div
@@ -142,7 +142,7 @@ export default function Notes() {
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.9), rgba(11,22,21,0.85))",
+                background: "linear-gradient(180deg, rgba(20,40,37,0.45), rgba(11,22,21,0.4))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderBottom: "1px solid var(--color-border-subtle)",
@@ -321,18 +321,6 @@ export default function Notes() {
                               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
                             </svg>
                           </button>
-                          <span
-                            className="shrink-0 cursor-grab active:cursor-grabbing text-[#C9BCA4]"
-                            style={{ marginBottom: 5 }}
-                            title="Drag to reorder"
-                            aria-hidden="true"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <circle cx="5" cy="12" r="1.8" />
-                              <circle cx="12" cy="12" r="1.8" />
-                              <circle cx="19" cy="12" r="1.8" />
-                            </svg>
-                          </span>
                         </>
                       ) : null}
                     </div>
@@ -346,7 +334,7 @@ export default function Notes() {
             <div
               className="px-5 py-3 flex items-center gap-2"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.9), rgba(11,22,21,0.85))",
+                background: "linear-gradient(180deg, rgba(20,40,37,0.45), rgba(11,22,21,0.4))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderTop: "1px solid var(--color-border-subtle)",
