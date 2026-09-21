@@ -258,23 +258,25 @@ export default function Notes() {
                               setMenuId(null);
                               setEditingId(n.id);
                             }}
-                            className="h-7 px-2.5 rounded-md text-xs font-semibold cursor-pointer hover:bg-[#EDF6F3] flex items-center gap-1"
+                            title="Edit"
+                            aria-label="Edit"
+                            className="grid place-items-center w-7 h-7 rounded-md cursor-pointer hover:bg-[#EDF6F3]"
                             style={{ color: "#0E7A6B" }}
                           >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                             </svg>
-                            Edit
                           </button>
                           <button
                             onClick={() => removeNote(n.id)}
-                            className="h-7 px-2.5 rounded-md text-xs font-semibold cursor-pointer hover:bg-[#FBEFF3] flex items-center gap-1"
+                            title="Delete"
+                            aria-label="Delete"
+                            className="grid place-items-center w-7 h-7 rounded-md cursor-pointer hover:bg-[#FBEFF3]"
                             style={{ color: "#DB6088" }}
                           >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
                             </svg>
-                            Delete
                           </button>
                         </div>
                       )}
