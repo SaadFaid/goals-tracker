@@ -9,6 +9,7 @@ import Footer from "./components/Footer";
 import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
+import Notes from "./components/Notes";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PrintReport from "./components/PrintReport";
 import PlanPage from "./components/PlanPage";
@@ -173,6 +174,7 @@ function Dashboard() {
           updateResult(catId, idx, "current", checked ? result.target : 0);
         }}
       />
+      <Notes />
       </>
       )}
     </main>
