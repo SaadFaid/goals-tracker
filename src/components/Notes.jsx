@@ -118,15 +118,15 @@ export default function Notes() {
               }}
             >
               {notes.length === 0 ? (
-                <p className="text-sm" style={{ color: "#A1998A", lineHeight: "28px" }}>
+                <p className="text-sm" style={{ color: "#A1998A", lineHeight: "27px", paddingBottom: 1 }}>
                   Add a task below — a new line appears on the paper.
                 </p>
               ) : (
                 notes.map((n) => (
                   <div
                     key={n.id}
-                    className="flex items-center gap-2.5 group cursor-pointer"
-                    style={{ lineHeight: "28px" }}
+                    className="flex items-end gap-2.5 group cursor-pointer"
+                    style={{ minHeight: 28, paddingBottom: 1 }}
                     onClick={() => toggleNote(n.id)}
                   >
                     <span
@@ -134,6 +134,7 @@ export default function Notes() {
                       style={{
                         width: 16,
                         height: 16,
+                        marginBottom: 6,
                         borderRadius: 4,
                         border: "2px solid " + (n.done ? "#0E7A6B" : "#C9BCA4"),
                         background: n.done ? "#0E7A6B" : "transparent",
@@ -151,6 +152,8 @@ export default function Notes() {
                         color: n.done ? "#ABA08C" : "#33291B",
                         textDecoration: n.done ? "line-through" : undefined,
                         textDecorationColor: "#ABA08C",
+                        lineHeight: "27px",
+                        paddingBottom: 1,
                       }}
                     >
                       {n.text}
@@ -162,6 +165,7 @@ export default function Notes() {
                       }}
                       aria-label="Delete note"
                       className="opacity-0 group-hover:opacity-100 cursor-pointer text-[#C9BCA4] hover:text-[#DB6088] shrink-0"
+                      style={{ marginBottom: 5 }}
                     >
                       <IconClose size={13} />
                     </button>
