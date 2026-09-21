@@ -16,10 +16,6 @@ function loadNotes() {
   }
 }
 
-const lineBg = {
-  backgroundImage: `repeating-linear-gradient(transparent 0 ${ROW_H - 1}px, rgba(80,120,160,0.28) ${ROW_H - 1}px ${ROW_H}px)`,
-};
-
 export default function Notes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
@@ -128,33 +124,82 @@ export default function Notes() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(11,31,30,0.7)", backdropFilter: "blur(6px)" }}
+          className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(11,31,30,0.72)", backdropFilter: "blur(8px)" }}
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-[540px] max-h-[84vh] flex flex-col rounded-xl overflow-hidden"
-            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
+            className="notes-pop w-full max-w-[540px] max-h-[84vh] flex flex-col rounded-2xl overflow-hidden"
+            style={{
+              border: "1px solid rgba(109,245,227,0.16)",
+              boxShadow:
+                "0 0 0 1px rgba(0,0,0,0.4), 0 30px 70px rgba(0,0,0,0.65), 0 6px 18px rgba(0,0,0,0.45), 0 0 40px rgba(109,245,227,0.10)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Dark glass header */}
             <div
-              className="flex items-center justify-between px-5 py-2.5"
-              style={{ background: "#FDFAF2", borderBottom: "1px solid rgba(0,0,0,0.1)" }}
+              className="relative flex items-center justify-between gap-3 px-5 py-3"
+              style={{
+                background: "linear-gradient(160deg, #0E1817 0%, #0F2A26 100%)",
+                borderBottom: "1px solid rgba(109,245,227,0.14)",
+              }}
             >
-              <h2 className="text-lg font-bold" style={{ color: "#2A2116", fontFamily: "var(--font-display)" }}>
-                Notes
-              </h2>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close notes"
-                className="cursor-pointer text-[#8a7f6a] hover:text-[#2A2116]"
-              >
-                <IconClose size={14} />
-              </button>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className="grid place-items-center w-7 h-7 rounded-lg shrink-0"
+                  style={{
+                    background: "var(--color-accent-muted)",
+                    color: "var(--color-accent)",
+                    boxShadow: "0 0 16px rgba(109,245,227,0.35)",
+                  }}
+                  aria-hidden="true"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16v16H4z" />
+                    <path d="M8 8h8M8 12h8M8 16h5" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold leading-none" style={{ color: "#8FFFF2", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
+                    Notes
+                  </h2>
+                  <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                    tick a line · drag to reorder
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {notes.length > 0 && (
+                  <span
+                    className="h-6 px-2.5 rounded-full grid place-items-center text-[11px] font-bold tabular-nums"
+                    style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
+                  >
+                    {doneCount}/{notes.length}
+                  </span>
+                )}
+                <button
+                  onClick={() => setOpen(false)}
+                  aria-label="Close notes"
+                  className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer transition-colors"
+                  style={{ color: "var(--color-text-secondary)", background: "var(--color-sunken)" }}
+                >
+                  <IconClose size={13} />
+                </button>
+              </div>
+              <span
+                aria-hidden="true"
+                className="absolute left-5 right-5 bottom-0 h-px"
+                style={{ background: "linear-gradient(90deg, transparent, rgba(109,245,227,0.5), transparent)" }}
+              />
             </div>
 
-            {/* The paper — ruled lines every ROW_H px, one per task line */}
-            <div className="flex-1 overflow-y-auto px-6 pt-2 pb-2" style={{ ...lineBg, backgroundColor: "#FFFDF5" }}>
+            {/* The paper — ruled lines, red margin, one per task line */}
+            <div
+              className="notes-sheet notes-sheet-inner flex-1 overflow-y-auto"
+              style={{ paddingLeft: 46, paddingRight: 22, paddingTop: 0, paddingBottom: 6 }}
+            >
+              <div style={{ paddingRight: 10 }}>
               {notes.length === 0 ? (
                 <p className="text-sm" style={{ color: "#A1998A", height: ROW_H, lineHeight: `${ROW_H - 3}px`, paddingBottom: 2 }}>
                   Add a task below — a new line appears on the paper.
@@ -250,13 +295,17 @@ export default function Notes() {
                   )
                 )
               )}
+              </div>
             </div>
 
-            {/* Add line */}
+            {/* Add line — pencils a new task onto the paper */}
             <div
-              className="px-6 py-3 flex items-center gap-2"
-              style={{ background: "#FDFAF2", borderTop: "1px solid rgba(0,0,0,0.1)" }}
+              className="px-6 py-3.5 flex items-center gap-2"
+              style={{ background: "#FDFAF4", borderTop: "1px solid rgba(0,0,0,0.08)" }}
             >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C9BCA4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+                <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              </svg>
               <input
                 ref={inputRef}
                 value={draft}
@@ -265,13 +314,13 @@ export default function Notes() {
                   if (e.key === "Enter") addNote();
                 }}
                 placeholder="Write a task… press Enter"
-                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-w-0"
-                style={{ background: "#FFF", border: "1px solid #E2D9C2", color: "#33291B" }}
+                className="flex-1 text-sm outline-none min-w-0 bg-transparent"
+                style={{ color: "#33291B", paddingBottom: 4, borderBottom: "1.5px dashed #C9BCA4" }}
               />
               <button
                 onClick={addNote}
-                className="h-9 px-4 rounded-lg font-bold text-sm shrink-0 cursor-pointer"
-                style={{ background: "#0E7A6B", color: "#FFFDF5" }}
+                className="h-8 px-4 rounded-full font-bold text-sm shrink-0 cursor-pointer transition-transform active:scale-95"
+                style={{ background: "#0E7A6B", color: "#FFFDF5", boxShadow: "0 3px 10px rgba(14,122,107,0.35)" }}
               >
                 Add
               </button>

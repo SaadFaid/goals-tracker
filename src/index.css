@@ -611,22 +611,58 @@ html, body {
   border-bottom: 1px solid #EDF3F0;
 }
 .pl-row:last-child { border-bottom: none; }
-.pl-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; align-self: center; }
-.pl-label { flex: 1 1 auto; min-width: 0; font-weight: 500; color: #23302C; }
-.pl-sub { font-weight: 400; color: #7A8B86; }
-.pl-value { flex-shrink: 0; color: #6B7C76; font-variant-numeric: tabular-nums; }
-.pl-sep { color: #B9C6C1; }
-.pl-pct { flex-shrink: 0; min-width: 52px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pl-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+  .pl-label { flex: 1 1 auto; min-width: 0; font-weight: 500; color: #23302C; }
+  .pl-sub { font-weight: 400; color: #7A8B86; }
+  .pl-value { flex-shrink: 0; color: #6B7C76; font-variant-numeric: tabular-nums; }
+  .pl-sep { color: #B9C6C1; }
+  .pl-pct { flex-shrink: 0; min-width: 52px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; }
-.pl-day {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 6px 4px; border: 1px solid #E2EBE7; border-radius: 8px; background: #F4F8F6;
+  .pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; }
+  .pl-day {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 6px 4px; border: 1px solid #E2EBE7; border-radius: 8px; background: #F4F8F6;
+  }
+  .pl-day-num { font-size: 10px; color: #7A8B86; }
+  .pl-day-pct { font-size: 12px; font-weight: 700; color: #0E7A6B; font-variant-numeric: tabular-nums; }
+
+  .pl-footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #E2EBE7; font-size: 10px; color: #8A9994; text-align: center; }
+
+/* ── Notes popup ─────────────────────────────────────────── */
+@keyframes notes-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.pl-day-num { font-size: 10px; color: #7A8B86; }
-.pl-day-pct { font-size: 12px; font-weight: 700; color: #0E7A6B; font-variant-numeric: tabular-nums; }
+.notes-backdrop-in { animation: notes-backdrop-in 0.18s ease; }
 
-.pl-footer { margin-top: 18px; padding-top: 12px; border-top: 1px solid #E2EBE7; font-size: 10px; color: #8A9994; text-align: center; }
+@keyframes notes-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(14px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.notes-pop { animation: notes-pop 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* The notebook sheet — cream paper, red margin line, ruled blue lines */
+.notes-sheet {
+  background-color: #FFFDF4;
+  background-image:
+    linear-gradient(90deg,
+      transparent 0,
+      transparent 25px,
+      rgba(226, 116, 105, 0.48) 25px,
+      rgba(226, 116, 105, 0.48) 26px,
+      transparent 26px),
+    repeating-linear-gradient(
+      transparent 0 29px,
+      rgba(80, 120, 160, 0.26) 29px 30px
+    );
+  background-position: 12px 0, 0 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -10px 24px rgba(180, 150, 90, 0.10);
+}
+.notes-sheet-inner {
+  background: linear-gradient(180deg, transparent, rgba(233, 214, 170, 0.06));
+}
 
 /* Dashboard-style top widgets on the sheet: stat rings + score rail + chart */
 .pl-summary { margin-bottom: 18px; }
