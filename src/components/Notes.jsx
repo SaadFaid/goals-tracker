@@ -126,7 +126,7 @@ export default function Notes() {
       {open && (
         <div
           className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(11,31,30,0.55)", backdropFilter: "blur(10px)" }}
+          style={{ background: "rgba(11,31,30,0.32)", backdropFilter: "blur(12px)" }}
           onClick={() => setOpen(false)}
         >
           <div
@@ -142,7 +142,7 @@ export default function Notes() {
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.45), rgba(11,22,21,0.4))",
+                background: "linear-gradient(180deg, rgba(20,40,37,0.30), rgba(11,22,21,0.26))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderBottom: "1px solid var(--color-border-subtle)",
@@ -334,7 +334,7 @@ export default function Notes() {
             <div
               className="px-5 py-3 flex items-center gap-2"
               style={{
-                background: "linear-gradient(180deg, rgba(20,40,37,0.45), rgba(11,22,21,0.4))",
+                background: "linear-gradient(180deg, rgba(20,40,37,0.30), rgba(11,22,21,0.26))",
                 backdropFilter: "blur(18px) saturate(1.6)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.6)",
                 borderTop: "1px solid var(--color-border-subtle)",
