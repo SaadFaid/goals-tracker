@@ -641,27 +641,14 @@ html, body {
 }
 .notes-pop { animation: notes-pop 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* The notebook sheet — cream paper, red margin line, ruled blue lines */
+/* The notebook sheet — plain paper with simple ruled lines */
 .notes-sheet {
   background-color: #FFFDF4;
   background-image:
-    linear-gradient(90deg,
-      transparent 0,
-      transparent 25px,
-      rgba(226, 116, 105, 0.48) 25px,
-      rgba(226, 116, 105, 0.48) 26px,
-      transparent 26px),
     repeating-linear-gradient(
       transparent 0 29px,
-      rgba(80, 120, 160, 0.26) 29px 30px
+      rgba(80, 120, 160, 0.22) 29px 30px
     );
-  background-position: 12px 0, 0 0;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.65),
-    inset 0 -10px 24px rgba(180, 150, 90, 0.10);
-}
-.notes-sheet-inner {
-  background: linear-gradient(180deg, transparent, rgba(233, 214, 170, 0.06));
 }
 
 /* Dashboard-style top widgets on the sheet: stat rings + score rail + chart */

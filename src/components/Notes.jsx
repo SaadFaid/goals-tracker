@@ -196,8 +196,8 @@ export default function Notes() {
 
             {/* The paper — ruled lines, red margin, one per task line */}
             <div
-              className="notes-sheet notes-sheet-inner flex-1 overflow-y-auto"
-              style={{ paddingLeft: 46, paddingRight: 22, paddingTop: 0, paddingBottom: 6 }}
+              className="notes-sheet flex-1 overflow-y-auto"
+              style={{ paddingLeft: 28, paddingRight: 22, paddingTop: 0, paddingBottom: 6 }}
             >
               <div style={{ paddingRight: 10 }}>
               {notes.length === 0 ? (
@@ -298,14 +298,11 @@ export default function Notes() {
               </div>
             </div>
 
-            {/* Add line — pencils a new task onto the paper */}
+            {/* Add line */}
             <div
-              className="px-6 py-3.5 flex items-center gap-2"
+              className="px-6 py-3 flex items-center gap-2"
               style={{ background: "#FDFAF4", borderTop: "1px solid rgba(0,0,0,0.08)" }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C9BCA4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
-                <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-              </svg>
               <input
                 ref={inputRef}
                 value={draft}
@@ -314,13 +311,13 @@ export default function Notes() {
                   if (e.key === "Enter") addNote();
                 }}
                 placeholder="Write a task… press Enter"
-                className="flex-1 text-sm outline-none min-w-0 bg-transparent"
-                style={{ color: "#33291B", paddingBottom: 4, borderBottom: "1.5px dashed #C9BCA4" }}
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-w-0"
+                style={{ background: "#FFF", border: "1px solid #E2D9C2", color: "#33291B" }}
               />
               <button
                 onClick={addNote}
-                className="h-8 px-4 rounded-full font-bold text-sm shrink-0 cursor-pointer transition-transform active:scale-95"
-                style={{ background: "#0E7A6B", color: "#FFFDF5", boxShadow: "0 3px 10px rgba(14,122,107,0.35)" }}
+                className="h-9 px-4 rounded-lg font-bold text-sm shrink-0 cursor-pointer"
+                style={{ background: "#0E7A6B", color: "#FFFDF5" }}
               >
                 Add
               </button>
