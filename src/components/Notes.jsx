@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconClose } from "./Icons";
 
 const STORAGE_KEY = "august-goals-notes";
+const ROW_H = 30;
 
 function loadNotes() {
   try {
@@ -15,11 +16,20 @@ function loadNotes() {
   }
 }
 
+const lineBg = {
+  backgroundImage: `repeating-linear-gradient(transparent 0 ${ROW_H - 1}px, rgba(80,120,160,0.28) ${ROW_H - 1}px ${ROW_H}px)`,
+};
+
 export default function Notes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
   const [draft, setDraft] = useState("");
+  const [menuId, setMenuId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const inputRef = useRef(null);
+  const dragId = useRef(null);
+  const justDragged = useRef(false);
+  const paperRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
@@ -29,6 +39,15 @@ export default function Notes() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    if (!menuId) return;
+    const close = (e) => {
+      if (!paperRef.current?.contains(e.target)) setMenuId(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuId]);
+
   const addNote = () => {
     const text = draft.trim();
     if (!text) return;
@@ -37,13 +56,53 @@ export default function Notes() {
   };
 
   const toggleNote = (id) => {
-    setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, done: !n.done } : n))
-    );
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, done: !n.done } : n)));
   };
 
   const removeNote = (id) => {
     setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (menuId === id) setMenuId(null);
+    if (editingId === id) setEditingId(null);
+  };
+
+  const saveEdit = (id, text) => {
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n)));
+    setEditingId(null);
+  };
+
+  // HTML5 drag reorder — hold a row and move it.
+  const onRowDragStart = (e, id) => {
+    dragId.current = id;
+    justDragged.current = false;
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onRowDragOver = (e, id) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (!dragId.current || dragId.current === id) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    setNotes((prev) => {
+      const from = prev.findIndex((n) => n.id === dragId.current);
+      const to = prev.findIndex((n) => n.id === id);
+      if (from < 0 || to < 0 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      const toIdx = next.findIndex((n) => n.id === id);
+      next.splice(before ? toIdx : toIdx + 1, 0, moved);
+      return next;
+    });
+  };
+
+  const onRowDragEnd = () => {
+    // suppress the click-to-menu right after a drop
+    justDragged.current = true;
+    setTimeout(() => {
+      justDragged.current = false;
+      dragId.current = null;
+    }, 0);
   };
 
   const doneCount = notes.filter((n) => n.done).length;
@@ -92,10 +151,7 @@ export default function Notes() {
           >
             <div
               className="flex items-center justify-between px-5 py-2.5"
-              style={{
-                background: "#FDFAF2",
-                borderBottom: "1px solid rgba(0,0,0,0.1)",
-              }}
+              style={{ background: "#FDFAF2", borderBottom: "1px solid rgba(0,0,0,0.1)" }}
             >
               <h2 className="text-lg font-bold" style={{ color: "#2A2116", fontFamily: "var(--font-display)" }}>
                 Notes
@@ -109,68 +165,122 @@ export default function Notes() {
               </button>
             </div>
 
-            {/* The paper — ruled lines, red margin, like a notebook sheet */}
-            <div
-              className="flex-1 overflow-y-auto px-6 pt-4 pb-2"
-              style={{
-                background:
-                  "repeating-linear-gradient(transparent 0 27px, rgba(80,120,160,0.28) 27px 28px), #FFFDF5",
-              }}
-            >
+            {/* The paper — ruled lines every ROW_H px, one per task line */}
+            <div ref={paperRef} className="flex-1 overflow-y-auto px-6 pt-2 pb-2" style={{ ...lineBg, backgroundColor: "#FFFDF5" }}>
               {notes.length === 0 ? (
-                <p className="text-sm" style={{ color: "#A1998A", lineHeight: "27px", paddingBottom: 1 }}>
+                <p className="text-sm" style={{ color: "#A1998A", height: ROW_H, lineHeight: `${ROW_H - 3}px`, paddingBottom: 2 }}>
                   Add a task below — a new line appears on the paper.
                 </p>
               ) : (
-                notes.map((n) => (
-                  <div
-                    key={n.id}
-                    className="flex items-end gap-2.5 group cursor-pointer"
-                    style={{ minHeight: 28, paddingBottom: 1 }}
-                    onClick={() => toggleNote(n.id)}
-                  >
-                    <span
-                      className="grid place-items-center shrink-0"
-                      style={{
-                        width: 16,
-                        height: 16,
-                        marginBottom: 6,
-                        borderRadius: 4,
-                        border: "2px solid " + (n.done ? "#0E7A6B" : "#C9BCA4"),
-                        background: n.done ? "#0E7A6B" : "transparent",
+                notes.map((n) =>
+                  editingId === n.id ? (
+                    <EditNote
+                      key={n.id}
+                      initial={n.text}
+                      onSave={(text) => saveEdit(n.id, text)}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <div
+                      key={n.id}
+                      draggable
+                      onDragStart={(e) => onRowDragStart(e, n.id)}
+                      onDragOver={(e) => onRowDragOver(e, n.id)}
+                      onDragEnd={onRowDragEnd}
+                      onDrop={(e) => e.preventDefault()}
+                      onClick={() => {
+                        if (justDragged.current) return;
+                        setMenuId(menuId === n.id ? null : n.id);
                       }}
+                      className="flex items-end gap-2.5 group cursor-grab active:cursor-grabbing select-none"
+                      style={{ position: "relative", height: ROW_H }}
                     >
-                      {n.done && (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                          <path d="M5 13l4 4 10-10" stroke="#FFFDF5" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+                      <span
+                        className="grid place-items-center shrink-0"
+                        style={{
+                          width: 16,
+                          height: 16,
+                          marginBottom: 7,
+                          borderRadius: 4,
+                          border: "2px solid " + (n.done ? "#0E7A6B" : "#C9BCA4"),
+                          background: n.done ? "#0E7A6B" : "transparent",
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleNote(n.id);
+                        }}
+                      >
+                        {n.done && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 13l4 4 10-10" stroke="#FFFDF5" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span
+                        className="flex-1 min-w-0 truncate text-[15px]"
+                        style={{
+                          color: n.done ? "#ABA08C" : "#33291B",
+                          textDecoration: n.done ? "line-through" : undefined,
+                          textDecorationColor: "#ABA08C",
+                          cursor: "pointer",
+                          paddingBottom: 2,
+                        }}
+                      >
+                        {n.text}
+                      </span>
+                      <span
+                        className="shrink-0 text-[#C9BCA4] group-hover:text-[#A1998A]"
+                        style={{ marginBottom: 6 }}
+                        aria-hidden="true"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="5" cy="12" r="1.8" />
+                          <circle cx="12" cy="12" r="1.8" />
+                          <circle cx="19" cy="12" r="1.8" />
                         </svg>
+                      </span>
+
+                      {menuId === n.id && (
+                        <div
+                          className="absolute right-5 bottom-full mb-1 flex items-center gap-1.5"
+                          style={{
+                            background: "#FFF",
+                            border: "1px solid #E2D9C2",
+                            borderRadius: 8,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
+                            padding: "3px 4px",
+                            zIndex: 5,
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => {
+                              setMenuId(null);
+                              setEditingId(n.id);
+                            }}
+                            className="h-7 px-2.5 rounded-md text-xs font-semibold cursor-pointer hover:bg-[#EDF6F3] flex items-center gap-1"
+                            style={{ color: "#0E7A6B" }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            </svg>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => removeNote(n.id)}
+                            className="h-7 px-2.5 rounded-md text-xs font-semibold cursor-pointer hover:bg-[#FBEFF3] flex items-center gap-1"
+                            style={{ color: "#DB6088" }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
                       )}
-                    </span>
-                    <span
-                      className="flex-1 min-w-0 break-words text-[15px]"
-                      style={{
-                        color: n.done ? "#ABA08C" : "#33291B",
-                        textDecoration: n.done ? "line-through" : undefined,
-                        textDecorationColor: "#ABA08C",
-                        lineHeight: "27px",
-                        paddingBottom: 1,
-                      }}
-                    >
-                      {n.text}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeNote(n.id);
-                      }}
-                      aria-label="Delete note"
-                      className="opacity-0 group-hover:opacity-100 cursor-pointer text-[#C9BCA4] hover:text-[#DB6088] shrink-0"
-                      style={{ marginBottom: 5 }}
-                    >
-                      <IconClose size={13} />
-                    </button>
-                  </div>
-                ))
+                    </div>
+                  )
+                )
               )}
             </div>
 
@@ -188,11 +298,7 @@ export default function Notes() {
                 }}
                 placeholder="Write a task… press Enter"
                 className="flex-1 px-3 py-2 rounded-lg text-sm outline-none min-w-0"
-                style={{
-                  background: "#FFF",
-                  border: "1px solid #E2D9C2",
-                  color: "#33291B",
-                }}
+                style={{ background: "#FFF", border: "1px solid #E2D9C2", color: "#33291B" }}
               />
               <button
                 onClick={addNote}
@@ -206,5 +312,46 @@ export default function Notes() {
         </div>
       )}
     </>
+  );
+}
+
+function EditNote({ initial, onSave, onCancel }) {
+  const [value, setValue] = useState(initial);
+  const ref = useRef(null);
+  const done = useRef(false);
+
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  const commit = (save) => {
+    if (done.current) return;
+    done.current = true;
+    if (save && value.trim()) onSave(value.trim());
+    else onCancel();
+  };
+
+  return (
+    <div className="flex items-end gap-2.5" style={{ height: ROW_H, paddingBottom: 3 }}>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") commit(true);
+          else if (e.key === "Escape") commit(false);
+        }}
+        onBlur={() => commit(true)}
+        className="flex-1 min-w-0 px-2 rounded-md text-[15px] outline-none"
+        style={{
+          background: "#EDF6F3",
+          border: "1px solid #0E7A6B",
+          color: "#33291B",
+          height: 24,
+        }}
+      />
+    </div>
   );
 }
