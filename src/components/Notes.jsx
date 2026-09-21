@@ -21,6 +21,7 @@ export default function Notes() {
   const [notes, setNotes] = useState(() => loadNotes());
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [editMode, setEditMode] = useState(false);
   const inputRef = useRef(null);
   const dragId = useRef(null);
   const justDragged = useRef(false);
@@ -165,7 +166,7 @@ export default function Notes() {
                     Notes
                   </h2>
                   <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
-                    tick a line · drag to reorder
+                    {editMode ? "edit, delete or drag to reorder" : "tick a line when it's done"}
                   </p>
                 </div>
               </div>
@@ -178,6 +179,27 @@ export default function Notes() {
                     {doneCount}/{notes.length}
                   </span>
                 )}
+                <button
+                  onClick={() => setEditMode((m) => !m)}
+                  aria-pressed={editMode}
+                  title={editMode ? "Exit edit mode" : "Edit tasks"}
+                  className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer transition-colors"
+                  style={{
+                    color: editMode ? "#101010" : "var(--color-accent)",
+                    background: editMode ? "var(--color-accent)" : "var(--color-sunken)",
+                    boxShadow: editMode ? "0 0 16px rgba(109,245,227,0.4)" : "none",
+                  }}
+                >
+                  {editMode ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M5 13l4 4 10-10" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                    </svg>
+                  )}
+                </button>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close notes"
@@ -216,12 +238,14 @@ export default function Notes() {
                   ) : (
                     <div
                       key={n.id}
-                      draggable
+                      draggable={editMode}
                       onDragStart={(e) => onRowDragStart(e, n.id)}
                       onDragOver={(e) => onRowDragOver(e, n.id)}
                       onDragEnd={onRowDragEnd}
                       onDrop={(e) => e.preventDefault()}
-                      className="flex items-end gap-2 group cursor-grab active:cursor-grabbing select-none"
+                      className={`flex items-end gap-2 ${
+                        editMode ? "group cursor-grab active:cursor-grabbing select-none" : ""
+                      }`}
                       style={{ height: ROW_H }}
                     >
                       <span
@@ -254,7 +278,7 @@ export default function Notes() {
                           paddingBottom: 2,
                         }}
                         onClick={(e) => {
-                          if (justDragged.current) return;
+                          if (justDragged.current || editMode) return;
                           e.stopPropagation();
                           toggleNote(n.id);
                         }}
@@ -262,35 +286,51 @@ export default function Notes() {
                         {n.text}
                       </span>
 
-                      {/* Edit + delete — fixed on the rule line, right side */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingId(n.id);
-                        }}
-                        title="Edit"
-                        aria-label="Edit"
-                        className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-40 group-hover:opacity-100 hover:opacity-100"
-                        style={{ marginBottom: 4, color: "#0E7A6B" }}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeNote(n.id);
-                        }}
-                        title="Delete"
-                        aria-label="Delete"
-                        className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-40 group-hover:opacity-100 hover:opacity-100"
-                        style={{ marginBottom: 4, color: "#DB6088" }}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
-                        </svg>
-                      </button>
+                      {editMode ? (
+                        <>
+                          {/* Edit + delete + drag handle — only in edit mode */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(n.id);
+                            }}
+                            title="Edit"
+                            aria-label="Edit"
+                            className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-50 hover:opacity-100"
+                            style={{ marginBottom: 4, color: "#0E7A6B" }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeNote(n.id);
+                            }}
+                            title="Delete"
+                            aria-label="Delete"
+                            className="grid place-items-center w-6 h-6 rounded shrink-0 cursor-pointer opacity-50 hover:opacity-100"
+                            style={{ marginBottom: 4, color: "#DB6088" }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" />
+                            </svg>
+                          </button>
+                          <span
+                            className="shrink-0 cursor-grab active:cursor-grabbing text-[#C9BCA4]"
+                            style={{ marginBottom: 5 }}
+                            title="Drag to reorder"
+                            aria-hidden="true"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="5" cy="12" r="1.8" />
+                              <circle cx="12" cy="12" r="1.8" />
+                              <circle cx="19" cy="12" r="1.8" />
+                            </svg>
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                   )
                 )
