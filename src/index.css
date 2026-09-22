@@ -770,6 +770,11 @@ html, body {
 }
 .flip-half.top { top: 0; }
 .flip-half.bottom { bottom: 0; }
+/* Send the bottom half's digit up by half its line so its CENTER sits on the
+   tile's middle divider — clipping then shows the lower half of the glyph. */
+.flip-half.bottom .flip-digit {
+  transform: translateY(-50%);
+}
 .flip-digit {
   display: block;
   width: 100%;

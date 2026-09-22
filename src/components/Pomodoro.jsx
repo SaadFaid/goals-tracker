@@ -84,6 +84,8 @@ export default function Pomodoro() {
   const [running, setRunning] = useState(false);
   const [endAt, setEndAt] = useState(null);
   const [now, setNow] = useState(Date.now());
+  // Remaining focus time preserved while paused (so pause/resume keeps progress).
+  const [hold, setHold] = useState(0);
 
   // Plain timer (black clock).
   const [tH, setTH] = useState(s.tH);
@@ -201,24 +203,56 @@ export default function Pomodoro() {
   /* ---------- focus (pomodoro) ---------- */
 
   const focusDur = (phase === "work" ? workM : breakM) * 60000;
-  const fRemaining = running && endAt ? Math.max(0, endAt - now) : focusDur;
+  const fRemaining = running && endAt ? Math.max(0, endAt - now) : hold > 0 ? hold : focusDur;
 
   const startFocus = () => {
     if ((phase === "work" && workM <= 0) || (phase === "break" && breakM <= 0)) return;
     dismissAlert();
     const ctx = getCtx();
     if (ctx && ctx.state === "suspended") ctx.resume();
-    if (notif && "Notification" in window && Notification.permission === "default") {
+    if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().then(setNotif);
     }
-    setEndAt(Date.now() + focusDur);
+    const resumeMs = hold > 0 ? hold : focusDur;
+    setHold(0);
+    setEndAt(Date.now() + resumeMs);
     setNow(Date.now());
     setRunning(true);
   };
 
-  const stopFocus = () => {
+  const pauseFocus = () => {
+    const rem = running && endAt ? Math.max(0, endAt - Date.now()) : 0;
+    setHold(rem > 0 ? rem : focusDur);
     setRunning(false);
     setEndAt(null);
+  };
+
+  const resetFocus = () => {
+    setHold(0);
+    setRunning(false);
+    setEndAt(null);
+  };
+
+  // Applies a session patch coming from the fullscreen flip clock. The two
+  // views share one session, so they always show the same countdown.
+  const applySession = ({ running: r, endAt: e, hold: h, mins }) => {
+    if (r !== undefined) {
+      if (r) {
+        dismissAlert();
+        const ctx = getCtx();
+        if (ctx && ctx.state === "suspended") ctx.resume();
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission().then(setNotif);
+        }
+      }
+      setRunning(r);
+    }
+    if (e !== undefined) setEndAt(e);
+    if (h !== undefined) setHold(h);
+    if (mins !== undefined) {
+      if (phase === "work") setWorkM(mins);
+      else setBreakM(mins);
+    }
   };
 
   // Focus finished -> switch phase + raise alert.
@@ -228,6 +262,7 @@ export default function Pomodoro() {
     const justEnded = phaseRef.current;
     setRunning(false);
     setEndAt(null);
+    setHold(0);
     const nextPhase = justEnded === "work" ? "break" : "work";
     if (justEnded === "work") setPomodoros((p) => p + 1);
     setPhase(nextPhase);
@@ -426,16 +461,16 @@ export default function Pomodoro() {
                 workM={workM}
                 breakM={breakM}
                 pomodoros={pomodoros}
-                onToggle={running ? stopFocus : startFocus}
+                onToggle={running ? pauseFocus : startFocus}
                 onSkip={() => {
                   const j = phase;
                   if (j === "work") setPomodoros((p) => p + 1);
                   setPhase(j === "work" ? "break" : "work");
-                  stopFocus();
+                  resetFocus();
                 }}
                 onSetWork={(v) => setWorkM(v)}
                 onSetBreak={(v) => setBreakM(v)}
-                onReset={() => { stopFocus(); setNow(Date.now()); }}
+                onReset={() => { resetFocus(); setNow(Date.now()); }}
                 soundId={soundId}
                 onSound={(id) => { setSoundId(id); fireIdle(id); }}
                 notif={notif}
@@ -465,16 +500,13 @@ export default function Pomodoro() {
           </div>
         </div>
       )}
-    {/* Fullscreen flip-clock focus timer */}
+    {/* Fullscreen flip-clock focus timer — shares the live session with the
+        Focus tab, so time carries over in both directions. */}
       <FlipClock
         open={flipOpen}
         onClose={() => setFlipOpen(false)}
-        initialMinutes={workM}
-        onDone={() => {
-          if (phase === "work") setPomodoros((p) => p + 1);
-          setRunning(false);
-          setEndAt(null);
-        }}
+        session={{ running, endAt, hold, mins: phase === "work" ? workM : breakM }}
+        onSession={applySession}
       />
     </>
   );

@@ -10,81 +10,49 @@ const PRESETS = [
   { label: "60", min: 60 },
 ];
 
-let flipCtx = null;
-function ctx() {
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return null;
-  if (!flipCtx) flipCtx = new AC();
-  if (flipCtx.state === "suspended") flipCtx.resume();
-  return flipCtx;
-}
+const clampMins = (m) => Math.max(1, Math.min(180, Math.round(m)));
 
-// Soft two-note chime for the end of a session.
-function softChime() {
-  const c = ctx();
-  if (!c) return;
-  const play = (freq, at, dur, gain) => {
-    const osc = c.createOscillator();
-    const g = c.createGain();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(gain, at + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    osc.connect(g);
-    g.connect(c.destination);
-    osc.start(at);
-    osc.stop(at + dur + 0.05);
-  };
-  const t = c.currentTime;
-  play(880, t, 1.1, 0.12);
-  play(1318, t + 0.18, 1.1, 0.1);
-  play(1760, t + 0.36, 1.4, 0.08);
-}
-
-function useTileSize() {
-  const [h, setH] = useState(Math.min(240, Math.round(window.innerHeight * 0.3)));
+function useTileSize(nGroups) {
+  const [h, setH] = useState(() => calcFor(nGroups, window.innerWidth, window.innerHeight));
   useEffect(() => {
-    const onR = () => setH(Math.min(240, Math.round(window.innerHeight * 0.3)));
+    const onR = () => setH(calcFor(nGroups, window.innerWidth, window.innerHeight));
     window.addEventListener("resize", onR);
     return () => window.removeEventListener("resize", onR);
-  }, []);
+  }, [nGroups]);
   return h;
 }
 
+// Fit the tile row to the viewport and make it as large as possible.
+function calcFor(nGroups, vw, vh) {
+  const fromW = Math.floor(vw / (nGroups * 1.62));
+  const fromH = Math.floor(vh * 0.5);
+  return Math.max(90, Math.min(Math.min(fromW, fromH), 340));
+}
+
 /**
- * Fullscreen split-flap focus timer. Pure black background, flip-clock tiles,
- * +/- minutes, start/pause/reset, soft chime + notification on finish.
- * Trigger it from anywhere: <FlipClock open={...} onClose={...} />
+ * Fullscreen split-flap focus timer — a CONTROLLED view of a shared session.
+ * The same session lives in the caller (the Focus tab); starting / pausing /
+ * skipping here updates it there, and vice versa, so the countdown just
+ * continues seamlessly in and out of fullscreen.
+ *
+ * Props:
+ *   open        bool
+ *   onClose     () => void
+ *   session     { running, endAt, hold, mins }
+ *   onSession   (patch: { running?, endAt?, hold?, mins? }) => void
  */
-export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }) {
-  const [mins, setMins] = useState(Math.max(1, Math.round(initialMinutes)));
-  const [running, setRunning] = useState(false);
-  const [endAt, setEndAt] = useState(null);
+export default function FlipClock({ open, onClose, session, onSession }) {
   const [now, setNow] = useState(Date.now());
-  const [finished, setFinished] = useState(false);
-  const [notif, setNotif] = useState(
-    typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted"
-  );
-  const tileH = useTileSize();
-  const tileW = Math.round(tileH * 0.62);
-  const fontSize = Math.round(tileH * 0.78);
-  const line = tileH;
-  const initRef = useRef(initialMinutes);
+  const will = useRef(session);
 
-  // Keep the requested duration in sync when opened later.
-  useEffect(() => {
-    initRef.current = initialMinutes;
-  }, [initialMinutes]);
+  const mins = session.mins;
+  const running = !!session.running;
+  const endAt = session.endAt;
+  const hold = session.hold || 0;
 
   useEffect(() => {
-    if (!open) return;
-    setMins(Math.max(1, Math.round(initRef.current)));
-    setRunning(false);
-    setEndAt(null);
-    setFinished(false);
-    setNow(Date.now());
-  }, [open]);
+    will.current = session;
+  }, [session]);
 
   useEffect(() => {
     if (running) {
@@ -103,55 +71,36 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
   }, [open, onClose]);
 
   const total = mins * 60000;
-  const remaining = running && endAt ? Math.max(0, endAt - now) : total;
-
-  const start = () => {
-    setFinished(false);
-    ctx();
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then((p) => setNotif(p === "granted"));
-    }
-    setEndAt(Date.now() + mins * 60000);
-    setNow(Date.now());
-    setRunning(true);
-  };
-  const togglePause = () => setRunning((r) => !r);
-  const reset = () => {
-    setRunning(false);
-    setEndAt(null);
-    setFinished(false);
-    setNow(Date.now());
-  };
-  const bump = (d) => {
-    if (running) return;
-    setMins((m) => Math.max(1, Math.min(180, m + d)));
-  };
-
-  // Finish: chime + notification + banner + count the session.
-  useEffect(() => {
-    if (!running || !endAt) return;
-    if (endAt - now > 40) return;
-    setRunning(false);
-    setEndAt(null);
-    setFinished(true);
-    softChime();
-    if (("Notification" in window) && Notification.permission === "granted") {
-      try {
-        new Notification("Focus finished", { body: `${mins} minutes — time to rest.` });
-      } catch {
-        /* banner below covers it */
-      }
-    }
-    onDone?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [now, endAt, running]);
+  const remaining = running && endAt ? Math.max(0, endAt - now) : hold > 0 ? hold : total;
+  const finished = !running && remaining <= 0 && total > 0;
 
   const totalS = Math.round(remaining / 1000);
   const hh = Math.floor(totalS / 3600);
   const mm = Math.floor((totalS % 3600) / 60);
   const ss = totalS % 60;
   const groups = hh > 0 ? [hh, mm, ss] : [mm, ss];
-  const progress = 1 - remaining / total;
+
+  const tileH = useTileSize(groups.length);
+  const tileW = Math.round(tileH * 0.62);
+  const fontSize = Math.round(tileH * 0.78);
+
+  const progress = running ? 1 - remaining / total : finished ? 1 : 0;
+
+  const startOrResume = () => {
+    const pad = will.current;
+    const dur = (pad.hold > 0 ? pad.hold : pad.mins * 60000);
+    onSession({ running: true, endAt: Date.now() + dur, hold: 0 });
+  };
+  const pause = () => {
+    const pad = will.current;
+    const rem = pad.endAt ? Math.max(0, pad.endAt - Date.now()) : pad.mins * 60000;
+    onSession({ running: false, endAt: null, hold: rem });
+  };
+  const reset = () => onSession({ running: false, endAt: null, hold: 0 });
+  const bump = (d) => {
+    if (running) return;
+    onSession({ running: false, endAt: null, hold: 0, mins: clampMins(mins + d) });
+  };
 
   if (!open) return null;
 
@@ -163,7 +112,7 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
       {/* progress sliver along the top */}
       <div
         className="fc-progress"
-        style={{ transform: `scaleX(${running ? progress : 0})`, width: "100%" }}
+        style={{ transform: `scaleX(${progress})`, width: "100%" }}
       />
 
       {/* close — subtle, top corner */}
@@ -190,17 +139,17 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
 
       <div className="flex-1 flex flex-col items-center justify-center px-4">
         {/* flip tiles */}
-        <div className="flex items-center gap-[min(2vw,14px)]">
+        <div className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
           {groups.map((v, i) => (
-            <div key={i} className="flex items-center gap-[min(2vw,14px)]">
-              {i > 0 && <Colon size={Math.round(tileH * 0.14)} height={tileH} />}
-              <FlipTile value={v} width={tileW} height={tileH} fontSize={fontSize} line={line} />
+            <div key={i} className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
+              {i > 0 && <Colon size={Math.max(7, Math.round(tileH * 0.12))} height={tileH} />}
+              <FlipTile value={v} width={tileW} height={tileH} fontSize={fontSize} />
             </div>
           ))}
         </div>
 
         <p className="mt-6 text-[13px] font-semibold" style={{ color: "#58585D" }}>
-          {running ? "focusing" : finished ? "done — take a break" : "tap start when you're ready"}
+          {running ? "focusing" : finished ? "done — take a break" : hold > 0 ? "paused" : "tap start when you're ready"}
         </p>
 
         {/* finished banner */}
@@ -210,7 +159,7 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
             className="mt-4 h-10 px-6 rounded-full font-bold text-[14px] cursor-pointer"
             style={{ background: "#22D3EE", color: "#000000", boxShadow: "0 0 40px rgba(34,211,238,0.5)" }}
           >
-            Time's up — rest! (again)
+            Time's up — rest!
           </button>
         )}
       </div>
@@ -224,7 +173,7 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
             {PRESETS.map((p) => (
               <button
                 key={p.label}
-                onClick={() => !running && setMins(p.min)}
+                onClick={() => !running && onSession({ running: false, endAt: null, hold: 0, mins: p.min })}
                 disabled={running}
                 className="h-8 px-3 rounded-full text-[12px] font-semibold cursor-pointer disabled:opacity-30"
                 style={{
@@ -242,11 +191,11 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
 
         <div className="flex items-center gap-3">
           <button
-            onClick={running ? togglePause : start}
+            onClick={running ? pause : startOrResume}
             className="h-14 px-10 rounded-full font-bold text-[16px] cursor-pointer"
             style={{ background: running ? "#FF453A" : "#22D3EE", color: "#000000", boxShadow: "0 6px 24px rgba(34,211,238,0.35)" }}
           >
-            {running ? "Pause" : "Start"}
+            {running ? "Pause" : hold > 0 ? "Resume" : "Start"}
           </button>
           <button
             onClick={reset}
@@ -260,22 +209,6 @@ export default function FlipClock({ open, onClose, initialMinutes = 25, onDone }
             </svg>
           </button>
         </div>
-
-        {notif ? (
-          <span className="text-[11px]" style={{ color: "#58585D" }}>Desktop alerts on</span>
-        ) : (
-          <button
-            onClick={() => {
-              if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission().then((p) => setNotif(p === "granted"));
-              }
-            }}
-            className="text-[11px] underline cursor-pointer"
-            style={{ color: "#58585D" }}
-          >
-            Enable desktop alerts
-          </button>
-        )}
       </div>
     </div>
   );
@@ -304,7 +237,7 @@ function StepperBtn({ onClick, label }) {
 }
 
 /** One flip tile for a single digit. */
-function FlipTile({ value, width, height, fontSize, line }) {
+function FlipTile({ value, width, height, fontSize }) {
   const digit = String(value % 10);
   const [oldVal, setOldVal] = useState(digit);
   const [anim, setAnim] = useState(0);
@@ -317,13 +250,10 @@ function FlipTile({ value, width, height, fontSize, line }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [digit]);
 
-  const digitStyle = { fontSize, lineHeight: `${line}px`, height: line };
+  const digitStyle = { fontSize, lineHeight: `${height}px`, height };
 
   return (
-    <div
-      className="flip-tile"
-      style={{ width, height }}
-    >
+    <div className="flip-tile" style={{ width, height }}>
       <div className="flip-half top">
         <span className="flip-digit" style={digitStyle}>{digit}</span>
       </div>
