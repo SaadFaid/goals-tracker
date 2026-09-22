@@ -22,14 +22,15 @@ function fmtClock(ms) {
 
 function useTileSize(nGroups, running) {
   const calc = (g, vw, vh, r) => {
-    const wf = r ? 0.85 : 0.62;
+    const wf = 0.62;
     const fromW = Math.floor(vw / (g * (2 * wf + 0.35)));
-    // While counting, the pickers are hidden — give the tiles more room,
-    // but always leave space for the status line + Pause/Reset row.
+    // While counting, the pickers are hidden — use the full height between
+    // the header and the Pause/Reset row. Idle also fits the pickers.
     const fromH = r
-      ? Math.max(120, Math.min(Math.floor(vh * 0.7), vh - 320))
+      ? Math.max(120, Math.min(Math.floor(vh * 0.72), vh - 320))
       : Math.floor(vh * 0.5);
-    return Math.max(90, Math.min(Math.min(fromW, fromH), r ? 480 : 340));
+    // No artificial cap — as tall as width allows (≈800px on a 4K display).
+    return Math.max(90, Math.min(fromW, fromH));
   };
   const [h, setH] = useState(() => calc(nGroups, window.innerWidth, window.innerHeight, running));
   useEffect(() => {
@@ -91,8 +92,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
   const groups = [hh, mm, ss];
 
   const tileH = useTileSize(groups.length, running);
-  // Wider (longer) digits while counting.
-  const tileW = Math.round(tileH * (running ? 0.85 : 0.62));
+  const tileW = Math.round(tileH * 0.62);
   const fontSize = Math.round(tileH * 0.78);
 
   const progress = running ? 1 - remaining / durMs : finished ? 1 : 0;
