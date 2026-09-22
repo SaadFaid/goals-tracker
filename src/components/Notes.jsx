@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { IconClose } from "./Icons";
+import { scopeKey } from "../lib/storageScope";
+import { makeExampleDays } from "../lib/seedExamples";
 
-const STORAGE_KEY = "august-goals-notes";
-const DAYS_KEY = "august-goals-notes-days";
+const NOTES_BASE = "august-goals-notes";
+const DAYS_BASE = "august-goals-notes-days";
 const ROW_H = 30;
 
 const MONTHS = [
@@ -29,8 +31,22 @@ function dayLabel(dayKey) {
 }
 
 function loadNotes() {
+  const key = scopeKey(NOTES_BASE);
+  // First visit for this identity: migrate legacy device-scope data (pre
+  // account-split) into this identity so existing notes are not lost.
+  if (localStorage.getItem(key) === null) {
+    try {
+      const rawLegacy = localStorage.getItem(NOTES_BASE);
+      if (rawLegacy !== null) {
+        const items = JSON.parse(rawLegacy);
+        if (Array.isArray(items)) return items.filter((n) => n && typeof n.text === "string");
+      }
+    } catch {
+      /* ignore malformed legacy data */
+    }
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return [];
     const items = JSON.parse(raw);
     if (!Array.isArray(items)) return [];
@@ -42,17 +58,28 @@ function loadNotes() {
 
 // Per-day history of the checklist: { lastDay: "YYYY-MM-DD", map: { date: [{id,text,done}] } }.
 function loadDayRec() {
+  const key = scopeKey(DAYS_BASE);
   try {
-    const raw = localStorage.getItem(DAYS_KEY);
-    if (!raw) return { lastDay: null, map: {} };
-    const obj = JSON.parse(raw);
-    return {
-      lastDay: typeof obj?.lastDay === "string" ? obj.lastDay : null,
-      map: obj?.map && typeof obj.map === "object" ? obj.map : {},
-    };
+    const raw = localStorage.getItem(key);
+    let obj = null;
+    if (raw !== null) {
+      obj = JSON.parse(raw);
+    } else {
+      // Migrate the pre-account-split blob into the active identity.
+      const rawLegacy = localStorage.getItem(DAYS_BASE);
+      if (rawLegacy !== null) obj = JSON.parse(rawLegacy);
+    }
+    if (obj && typeof obj === "object") {
+      return {
+        lastDay: typeof obj?.lastDay === "string" ? obj.lastDay : null,
+        map: obj?.map && typeof obj.map === "object" ? obj.map : {},
+      };
+    }
   } catch {
-    return { lastDay: null, map: {} };
+    /* fall through to seed */
   }
+  // First use: seed example days so the Days history has something to browse.
+  return { lastDay: todayKeyOf(), map: makeExampleDays() };
 }
 
 function todayKeyOf(d = new Date()) {
@@ -78,7 +105,7 @@ export default function Notes() {
 
   useEffect(() => {
     latestNotes.current = notes;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
   }, [notes]);
 
   // Archive the previous day's checklist on day rollover (on open/mount, like
@@ -100,7 +127,7 @@ export default function Notes() {
   }, [open]);
 
   useEffect(() => {
-    localStorage.setItem(DAYS_KEY, JSON.stringify(dayRec));
+    localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
   }, [dayRec]);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { categories as seedCategories, generateRewardTiers } from "../data/goals
 import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
 import { api } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
+import { setIdentityScope } from "../lib/storageScope";
 
 const GUEST_KEY = "august-goals-guest-v2";
 const PROFILES_KEY = "august-goals-profiles";
@@ -1013,6 +1014,10 @@ export const useGoalsStore = create(
 // Mirror every categories change into the logged-in user's local profile so
 // their stats survive logout and future visits on this device.
 useGoalsStore.subscribe((state, prev) => {
+  const identity = state.isGuest ? null : state.user?.email || null;
+  if (identity !== (prev.isGuest ? null : prev.user?.email || null)) {
+    setIdentityScope(identity);
+  }
   if (state.categories !== prev.categories && state.user?.email && !state.isGuest) {
     const map = readProfiles();
     const slot = map[state.user.email];

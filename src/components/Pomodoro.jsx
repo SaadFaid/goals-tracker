@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import FlipClock from "./FlipClock";
+import { scopeKey } from "../lib/storageScope";
 
-const STORAGE_KEY = "august-goals-pomodoro";
+const STORAGE_BASE = "august-goals-pomodoro";
 const ALERT_KEY = "august-goals-alerts";
 const REPEAT_MS = 10_000;
 
@@ -32,7 +33,15 @@ function readJson(key, fallback) {
 }
 
 function loadState() {
-  const s = readJson(STORAGE_KEY, null);
+  let s = readJson(scopeKey(STORAGE_BASE), null);
+  // Migrate pre-account-split device data into the active identity.
+  if (s === null) {
+    const legacy = readJson(STORAGE_BASE, null);
+    if (legacy !== null) {
+      localStorage.setItem(scopeKey(STORAGE_BASE), JSON.stringify(legacy));
+      s = legacy;
+    }
+  }
   const base = { workM: 25, breakM: 5, soundId: "tritone", phase: "work", pomodoros: 0, repeat: true, mode: "focus", fRunning: false, fEndAt: null, fHold: 0, tH: 0, tM: 10, tS: 0, tRunning: false, tEndAt: null };
   if (!s || typeof s !== "object") return base;
   const tEndNow = Date.now();
@@ -131,7 +140,7 @@ export default function Pomodoro() {
   // Persist settings.
   useEffect(() => {
     localStorage.setItem(
-      STORAGE_KEY,
+      scopeKey(STORAGE_BASE),
       JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold })
     );
   }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold]);
