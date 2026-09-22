@@ -360,7 +360,7 @@ export default function Pomodoro() {
                   className="h-6 px-2.5 rounded-full grid place-items-center text-[11px] font-bold tabular-nums"
                   style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
                 >
-                  {pomodoros}🍅
+                  {pomodoros}
                 </span>
               )}
               <button
