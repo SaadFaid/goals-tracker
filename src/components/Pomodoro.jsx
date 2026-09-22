@@ -146,7 +146,7 @@ export default function Pomodoro() {
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-40">
+      <div className="fixed bottom-5 left-44 z-40">
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"

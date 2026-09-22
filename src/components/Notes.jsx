@@ -104,14 +104,14 @@ export default function Notes() {
             border: "1px solid var(--color-border-active)",
             boxShadow: "0 6px 24px rgba(0,0,0,0.45)",
           }}
-          aria-label="Open notes"
-          title="Notes"
+          aria-label="Open checklist"
+          title="Checklist"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 4h16v16H4z" />
             <path d="M8 8h8M8 12h8M8 16h5" />
           </svg>
-          Notes
+          Checklist
           {notes.length > 0 && (
             <span
               className="grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold"
@@ -167,7 +167,7 @@ export default function Notes() {
                 </span>
                 <div className="min-w-0">
                   <h2 className="text-base font-bold leading-none" style={{ color: "#8FFFF2", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
-                    Notes
+                    Checklist
                   </h2>
                   <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
                     {editMode ? "edit, delete or drag to reorder" : "tick a line when it's done"}
