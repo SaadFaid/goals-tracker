@@ -360,7 +360,15 @@ export default function Notes() {
 
             {/* The paper — ruled lines, red margin, one per task line */}
             {view === "days" ? (
-              <div className="notes-sheet flex-1 overflow-y-auto" style={{ padding: 16 }}>
+              <div
+                className="flex-1 overflow-y-auto"
+                style={{
+                  background: "var(--color-elevated)",
+                  backdropFilter: "blur(18px) saturate(1.6)",
+                  WebkitBackdropFilter: "blur(18px) saturate(1.6)",
+                  padding: 16,
+                }}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <span className="flex items-center gap-1">
                     <button type="button" onClick={() => shiftGridMonth(-1)} className="stepper-btn" aria-label="Previous month">‹</button>
@@ -415,7 +423,7 @@ export default function Notes() {
                     <button type="button" onClick={() => scrollDay(1)} disabled={!active} className="stepper-btn" aria-label="Next day">›</button>
                   </div>
                   {dayKeys.length === 0 ? (
-                    <p className="text-sm" style={{ color: "#A1998A" }}>
+                    <p className="text-sm text-muted">
                       No saved days yet — each day's checklist is saved from today onward.
                     </p>
                   ) : (
@@ -429,7 +437,7 @@ export default function Notes() {
                               height: 16,
                               marginBottom: 7,
                               borderRadius: 4,
-                              border: "2px solid " + (n.done ? "#0E7A6B" : "#C9BCA4"),
+                              border: "2px solid " + (n.done ? "#0E7A6B" : "var(--color-border-active)"),
                               background: n.done ? "#0E7A6B" : "transparent",
                             }}
                           >
@@ -442,9 +450,9 @@ export default function Notes() {
                           <span
                             className="flex-1 min-w-0 truncate text-[15px]"
                             style={{
-                              color: n.done ? "#ABA08C" : "#33291B",
+                              color: n.done ? "var(--color-text-tertiary)" : "var(--color-heading)",
                               textDecoration: n.done ? "line-through" : undefined,
-                              textDecorationColor: "#ABA08C",
+                              textDecorationColor: "var(--color-text-tertiary)",
                               paddingBottom: 2,
                             }}
                           >
