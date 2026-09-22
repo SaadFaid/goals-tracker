@@ -22,14 +22,13 @@ function fmtClock(ms) {
 
 function useTileSize(nGroups, running) {
   const calc = (g, vw, vh, r) => {
-    const wf = 0.62;
-    const fromW = Math.floor(vw / (g * (2 * wf + 0.35)));
-    // While counting, the pickers are hidden — use the full height between
-    // the header and the Pause/Reset row. Idle also fits the pickers.
+    // Slim 0.55 width ratio + tight colons/gaps → the smallest horizontal
+    // footprint, so the height can go as tall as the screen allows (longer).
+    const wf = 0.55;
+    const fromW = Math.floor(vw / (g * (2 * wf + 0.3)));
     const fromH = r
-      ? Math.max(120, Math.min(Math.floor(vh * 0.72), vh - 320))
+      ? Math.max(120, Math.floor(vh) - 260)
       : Math.floor(vh * 0.5);
-    // No artificial cap — as tall as width allows (≈800px on a 4K display).
     return Math.max(90, Math.min(fromW, fromH));
   };
   const [h, setH] = useState(() => calc(nGroups, window.innerWidth, window.innerHeight, running));
@@ -92,8 +91,9 @@ export default function FlipClock({ open, onClose, session, onSession }) {
   const groups = [hh, mm, ss];
 
   const tileH = useTileSize(groups.length, running);
-  const tileW = Math.round(tileH * 0.62);
-  const fontSize = Math.round(tileH * 0.78);
+  const tileW = Math.round(tileH * 0.55);
+  // Keep the digit fitting inside the slimmer tile.
+  const fontSize = Math.round(Math.min(tileH * 0.78, tileW * 1.35));
 
   const progress = running ? 1 - remaining / durMs : finished ? 1 : 0;
 
@@ -178,10 +178,10 @@ export default function FlipClock({ open, onClose, session, onSession }) {
 
       <div className="flex-1 flex flex-col items-center justify-center px-4">
         {/* flip tiles — two digit slots (tens + ones) per group */}
-        <div className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
+        <div className="flex items-center" style={{ gap: Math.max(6, Math.round(tileH * 0.055)) }}>
           {groups.map((v, i) => (
-            <div key={i} className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
-              {i > 0 && <Colon size={Math.max(7, Math.round(tileH * 0.12))} height={tileH} />}
+            <div key={i} className="flex items-center" style={{ gap: Math.max(6, Math.round(tileH * 0.055)) }}>
+              {i > 0 && <Colon size={Math.max(6, Math.round(tileH * 0.09))} height={tileH} />}
               <FlipTile value={Math.floor(v / 10) % 10} width={tileW} height={tileH} fontSize={fontSize} />
               <FlipTile value={v % 10} width={tileW} height={tileH} fontSize={fontSize} />
             </div>

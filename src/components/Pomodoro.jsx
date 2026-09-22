@@ -277,9 +277,11 @@ export default function Pomodoro() {
   };
 
   const stopTimer = () => {
+    // Stop without reloading: freeze the remaining time and show Resume.
+    const rem = tRunning && tEndAt ? Math.max(0, tEndAt - Date.now()) : 0;
+    setTHold(rem > 0 ? rem : 0);
     setTRunning(false);
     setTEndAt(null);
-    setTHold(0);
   };
 
   const setTimer = (h, m, s) => {
