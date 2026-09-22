@@ -262,14 +262,16 @@ export default function Pomodoro() {
   /* ---------- plain timer ---------- */
 
   const startTimer = () => {
-    if (tTotal <= 0) return;
+    const resumeMs = tHold > 0 ? tHold : tTotal;
+    if (resumeMs <= 0) return;
     dismissAlert();
     const ctx = getCtx();
     if (ctx && ctx.state === "suspended") ctx.resume();
     if (notif && "Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().then(setNotif);
     }
-    setTEndAt(Date.now() + tTotal);
+    setTEndAt(Date.now() + resumeMs);
+    setTHold(0);
     setTNow(Date.now());
     setTRunning(true);
   };
@@ -484,6 +486,7 @@ export default function Pomodoro() {
                 m={tM}
                 s={tS}
                 running={tRunning}
+                paused={!tRunning && tHold > 0}
                 remaining={tRemaining}
                 endClock={endClock(tEndAt)}
                 onSet={setTimer}
@@ -667,7 +670,7 @@ function FocusPanel(props) {
 }
 
 function TimerPanel(props) {
-  const { h, m, s, running, remaining, endClock, onSet, onStart, onStop, onFullscreen, soundId, onSound, notif, onNotif, repeat, onRepeat } = props;
+  const { h, m, s, running, paused, remaining, endClock, onSet, onStart, onStop, onFullscreen, soundId, onSound, notif, onNotif, repeat, onRepeat } = props;
   const presets = [
     { label: "10 min", h: 0, m: 10, s: 0 },
     { label: "30 min", h: 0, m: 30, s: 0 },
@@ -701,7 +704,7 @@ function TimerPanel(props) {
           <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(ss)}</span>
         </div>
         <span className="mt-2 text-[13px] font-semibold" style={{ color: "#8E8E93" }}>
-          {running ? (endClock || "counting") : "ready"}
+          {running ? (endClock || "counting") : paused ? "paused" : "ready"}
         </span>
       </div>
 
@@ -753,7 +756,7 @@ function TimerPanel(props) {
           className="h-12 px-8 rounded-full font-bold text-[15px] cursor-pointer"
           style={{ background: running ? "#FF453A" : "#30D158", color: "#000000" }}
         >
-          {running ? "Stop" : "Start"}
+          {running ? "Stop" : paused ? "Resume" : "Start"}
         </button>
       </div>
 
