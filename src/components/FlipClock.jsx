@@ -22,7 +22,8 @@ function fmtClock(ms) {
 
 function useTileSize(nGroups, running) {
   const calc = (g, vw, vh, r) => {
-    const fromW = Math.floor(vw / (g * 1.62));
+    const wf = r ? 0.85 : 0.62;
+    const fromW = Math.floor(vw / (g * (2 * wf + 0.35)));
     // While counting, the pickers are hidden — give the tiles more room,
     // but always leave space for the status line + Pause/Reset row.
     const fromH = r
@@ -90,7 +91,8 @@ export default function FlipClock({ open, onClose, session, onSession }) {
   const groups = [hh, mm, ss];
 
   const tileH = useTileSize(groups.length, running);
-  const tileW = Math.round(tileH * 0.62);
+  // Wider (longer) digits while counting.
+  const tileW = Math.round(tileH * (running ? 0.85 : 0.62));
   const fontSize = Math.round(tileH * 0.78);
 
   const progress = running ? 1 - remaining / durMs : finished ? 1 : 0;
