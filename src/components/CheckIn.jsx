@@ -1,77 +1,12 @@
 import { useState } from "react";
 import { actionPct, resultPct } from "../lib/score";
-import { useGoalsStore } from "../store/useGoalsStore";
 import { IconCheckCircle, IconClose } from "./Icons";
 
 const isKgResult = (item) =>
   item.resultType === "check" || item.invert || String(item.unit || "").toLowerCase().includes("kg");
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-const monthKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
-const monthDays = (key) => {
-  const [y, m] = key.split("-").map(Number);
-  return y && m ? new Date(y, m, 0).getDate() : 30;
-};
-const dk = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
-function dayLabel(dayKey) {
-  const [y, m, d] = (dayKey || "").split("-").map(Number);
-  if (!y || !m || !d) return "";
-  return `${MONTHS[m - 1]} ${d}, ${y}`;
-}
-
-// What was typed + checked on a saved day, read-only. Filled dot = done
-// (current>0), open dot = not done.
-function DayContent({ snap }) {
-  const cats = (snap || []).filter((c) => !c.isRewards);
-  if (cats.length === 0) {
-    return <p className="text-sm text-text-tertiary py-3 text-center">Nothing saved for this day.</p>;
-  }
-  return (
-    <div className="max-h-72 overflow-y-auto">
-      {cats.map((cat) => {
-        const actions = cat.actions || [];
-        const results = cat.results || [];
-        if (actions.length === 0 && results.length === 0) return null;
-        return (
-          <div key={cat.id} className="mb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: `var(--color-${cat.dotColor || "turquoise"})` }} aria-hidden="true" />
-              <span className="text-xs font-semibold text-heading">{cat.name}</span>
-            </div>
-            <div className="pl-4 space-y-0.5">
-              {[...actions, ...results].map((a) => {
-                const done = a.current > 0;
-                return (
-                  <div key={a.id} className="flex items-center gap-2 text-xs">
-                    <span style={{ color: "var(--color-text-tertiary)" }} aria-hidden="true">{done ? "●" : "○"}</span>
-                    <span className={done ? "text-muted" : "text-text-tertiary line-through decoration-text-tertiary/40"}>{a.label}</span>
-                    <span className="mono ml-auto text-[10px] text-text-tertiary">{a.current}/{a.target}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function CheckIn({ categories, onIncrement, onDecrement, onResultToggle }) {
   const [open, setOpen] = useState(false);
-  // "checklist" = today's check-in rows; "days" = saved days history.
-  const [view, setView] = useState("checklist");
-  const [gridYear, setGridYear] = useState(new Date().getFullYear());
-  const [gridMonth, setGridMonth] = useState(new Date().getMonth());
-  const [activeDay, setActiveDay] = useState(null);
-  const dailySnapshots = useGoalsStore((s) => s.dailySnapshots);
-  const now = new Date();
 
   const rows = [];
   (categories || []).forEach((cat) => {
@@ -91,46 +26,8 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
     r.type === "result" ? resultPct(r.item) < 100 : r.item.current < r.item.target;
   const openCount = rows.filter(notDone).length;
 
-  // ── Days history helpers ───────────────────────────
-  const dayKeys = Object.keys(dailySnapshots || {})
-    .filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k))
-    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
-  const active = activeDay || dayKeys[0] || null;
-  const gridTotal = monthDays(monthKey(gridYear, gridMonth + 1));
-  const gridLeading = new Date(gridYear, gridMonth, 1).getDay();
-  const todayKey = dk(now.getFullYear(), now.getMonth() + 1, now.getDate());
-
-  const openDays = () => {
-    setGridMonth(now.getMonth());
-    setGridYear(now.getFullYear());
-    setActiveDay(dayKeys[0] || null);
-    setView("days");
-  };
-
-  const shiftGridMonth = (delta) => {
-    let m = gridMonth + delta;
-    let y = gridYear;
-    if (m < 0) { m = 11; y -= 1; }
-    else if (m > 11) { m = 0; y += 1; }
-    setGridMonth(m);
-    setGridYear(y);
-  };
-
-  const scrollDay = (dir) => {
-    if (dayKeys.length === 0) return;
-    const idx = dayKeys.indexOf(active);
-    const nxt = Math.max(0, Math.min(dayKeys.length - 1, idx + dir));
-    if (dayKeys[nxt]) setActiveDay(dayKeys[nxt]);
-  };
-
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const openPopover = (v) => {
-    if (v === "days") openDays();
-    else setView("checklist");
-    setOpen(true);
   };
 
   return (
@@ -153,7 +50,7 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
           </svg>
         </button>
         <button
-          onClick={() => openPopover("checklist")}
+          onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
           style={{
             background: "var(--color-accent)",
@@ -173,26 +70,6 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
             </span>
           )}
         </button>
-        <button
-          onClick={() => openPopover("days")}
-          className="flex items-center gap-1.5 px-4 py-3 rounded-full font-bold text-sm"
-          style={{
-            background: "var(--color-navy-600)",
-            color: "var(--color-text-secondary)",
-            border: "1px solid var(--color-border-subtle)",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.35)",
-          }}
-          aria-label="Days history"
-          title="Saved checklist days"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <line x1="8" y1="3" x2="8" y2="7" />
-            <line x1="16" y1="3" x2="16" y2="7" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Days
-        </button>
       </div>
 
       {open && (
@@ -207,101 +84,10 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-              <div className="flex items-center gap-3">
-                <h2 className="display text-heading text-lg">{view === "days" ? "Days history" : "Check in"}</h2>
-                <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: "var(--color-navy-700)" }}>
-                  <button
-                    type="button"
-                    onClick={() => setView("checklist")}
-                    className={`rounded-md px-2 py-1 text-[11px] transition-colors ${view === "checklist" ? "bg-accent text-navy-900 font-semibold" : "text-muted hover:text-heading"}`}
-                  >
-                    Checklist
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openDays}
-                    className={`rounded-md px-2 py-1 text-[11px] transition-colors ${view === "days" ? "bg-accent text-navy-900 font-semibold" : "text-muted hover:text-heading"}`}
-                    title="Saved checklist days"
-                  >
-                    Days
-                  </button>
-                </div>
-              </div>
+              <h2 className="display text-heading text-lg">Check in</h2>
               <button onClick={() => setOpen(false)} aria-label="Close check-in" className="text-text-tertiary cursor-pointer"><IconClose size={14} /></button>
             </div>
 
-            {view === "days" ? (
-              <div className="flex-1 overflow-y-auto px-4 py-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="flex items-center gap-1">
-                    <button type="button" onClick={() => shiftGridMonth(-1)} className="stepper-btn" aria-label="Previous month">‹</button>
-                    <span className="mono text-heading text-sm w-28 text-center">
-                      {MONTHS[gridMonth]} {gridYear}
-                    </span>
-                    <button type="button" onClick={() => shiftGridMonth(1)} className="stepper-btn" aria-label="Next month">›</button>
-                  </span>
-                </div>
-                <div className="grid grid-cols-7 gap-1 mb-1">
-                  {WEEKDAYS.map((w) => (
-                    <span key={w} className="text-center text-[10px] uppercase tracking-wide text-text-tertiary">{w}</span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: gridLeading }).map((_, i) => (
-                    <span key={`b${i}`} aria-hidden="true" />
-                  ))}
-                  {Array.from({ length: gridTotal }).map((_, i) => {
-                    const d = i + 1;
-                    const key = dk(gridYear, gridMonth + 1, d);
-                    const saved = !!dailySnapshots[key];
-                    const isSel = key === active;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={!saved}
-                        onClick={() => setActiveDay(key)}
-                        className={`relative aspect-square rounded-lg grid place-items-center text-xs transition-colors ${
-                          saved
-                            ? "text-heading hover:bg-accent-muted cursor-pointer"
-                            : "text-text-tertiary/50 cursor-default"
-                        } ${isSel ? "bg-accent text-navy-900 font-semibold" : key === todayKey ? "ring-1 ring-accent" : ""}`}
-                        title={saved ? `Open ${dayLabel(key)}` : dayLabel(key)}
-                      >
-                        <span>{d}</span>
-                        {saved && !isSel && (
-                          <span
-                            className="absolute bottom-0.5 w-1 h-1 rounded-full"
-                            style={{ background: "var(--color-accent)" }}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-3 pt-2" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
-                  <div className="flex items-center justify-between mb-1">
-                    <button type="button" onClick={() => scrollDay(-1)} disabled={!active} className="stepper-btn" aria-label="Previous day">‹</button>
-                    <span className="text-xs font-semibold text-heading">
-                      {active ? dayLabel(active) : "No saved days"}
-                    </span>
-                    <button type="button" onClick={() => scrollDay(1)} disabled={!active} className="stepper-btn" aria-label="Next day">›</button>
-                  </div>
-                  {dayKeys.length === 0 ? (
-                    <p className="text-sm text-text-tertiary py-3 text-center">No saved days yet — they're saved from today onward.</p>
-                  ) : (
-                    <>
-                      <DayContent snap={dailySnapshots[active]} />
-                      <p className="mt-1 text-[11px] text-text-tertiary">
-                        {active} <span className="text-text-tertiary/70">· ● done ○ not done</span>
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
               {rows.length === 0 ? (
                 <p className="text-text-tertiary text-sm text-center py-8">No actions or results yet. Add some to start.</p>
@@ -313,7 +99,6 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
                 ))
               )}
             </div>
-            )}
 
             <div className="px-4 py-3" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
               <button

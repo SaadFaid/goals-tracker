@@ -2,7 +2,31 @@ import { useEffect, useRef, useState } from "react";
 import { IconClose } from "./Icons";
 
 const STORAGE_KEY = "august-goals-notes";
+const DAYS_KEY = "august-goals-notes-days";
 const ROW_H = 30;
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+const monthKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
+const monthDays = (key) => {
+  const [y, m] = key.split("-").map(Number);
+  return y && m ? new Date(y, m, 0).getDate() : 30;
+};
+const dk = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+function dayLabel(dayKey) {
+  const [y, m, d] = (dayKey || "").split("-").map(Number);
+  if (!y || !m || !d) return "";
+  let suffix = "th";
+  if (d % 10 === 1 && d % 100 !== 11) suffix = "st";
+  else if (d % 10 === 2 && d % 100 !== 12) suffix = "nd";
+  else if (d % 10 === 3 && d % 100 !== 13) suffix = "rd";
+  return `${MONTHS[m - 1]} ${d}${suffix}, ${y}`;
+}
 
 function loadNotes() {
   try {
@@ -16,23 +40,72 @@ function loadNotes() {
   }
 }
 
+// Per-day history of the checklist: { lastDay: "YYYY-MM-DD", map: { date: [{id,text,done}] } }.
+function loadDayRec() {
+  try {
+    const raw = localStorage.getItem(DAYS_KEY);
+    if (!raw) return { lastDay: null, map: {} };
+    const obj = JSON.parse(raw);
+    return {
+      lastDay: typeof obj?.lastDay === "string" ? obj.lastDay : null,
+      map: obj?.map && typeof obj.map === "object" ? obj.map : {},
+    };
+  } catch {
+    return { lastDay: null, map: {} };
+  }
+}
+
+function todayKeyOf(d = new Date()) {
+  return dk(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
 export default function Notes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
+  const [dayRec, setDayRec] = useState(() => loadDayRec());
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  // "list" = the live checklist; "days" = saved days history.
+  const [view, setView] = useState("list");
+  const [gridYear, setGridYear] = useState(new Date().getFullYear());
+  const [gridMonth, setGridMonth] = useState(new Date().getMonth());
+  const [activeDay, setActiveDay] = useState(null);
   const inputRef = useRef(null);
   const dragId = useRef(null);
   const justDragged = useRef(false);
+  const latestNotes = useRef(notes);
 
   useEffect(() => {
+    latestNotes.current = notes;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
   }, [notes]);
 
+  // Archive the previous day's checklist on day rollover (on open/mount, like
+  // the store's daily reset). The current day's list is saved under its own
+  // date the next time a new day is opened — starts saving from today.
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    const tk = todayKeyOf();
+    setDayRec((prev) => {
+      const map = { ...(prev?.map || {}) };
+      if (prev?.lastDay && prev.lastDay !== tk && !map[prev.lastDay]) {
+        map[prev.lastDay] = latestNotes.current.map((n) => ({
+          id: n.id,
+          text: n.text,
+          done: !!n.done,
+        }));
+      }
+      return { lastDay: tk, map };
+    });
   }, [open]);
+
+  useEffect(() => {
+    localStorage.setItem(DAYS_KEY, JSON.stringify(dayRec));
+  }, [dayRec]);
+
+  useEffect(() => {
+    if (open && view === "list") inputRef.current?.focus();
+  }, [open, view]);
 
   const addNote = () => {
     const text = draft.trim();
@@ -91,6 +164,41 @@ export default function Notes() {
   };
 
   const doneCount = notes.filter((n) => n.done).length;
+
+  // ── Days history helpers ───────────────────────────
+  const dayMap = dayRec?.map || {};
+  const dayKeys = Object.keys(dayMap)
+    .filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k))
+    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+  const active = activeDay || dayKeys[0] || null;
+  const gridTotal = monthDays(monthKey(gridYear, gridMonth + 1));
+  const gridLeading = new Date(gridYear, gridMonth, 1).getDay();
+  const now = new Date();
+  const todayKey = dk(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+  const openDays = () => {
+    setGridMonth(now.getMonth());
+    setGridYear(now.getFullYear());
+    setActiveDay(dayKeys[0] || null);
+    setView("days");
+    setEditMode(false);
+  };
+
+  const shiftGridMonth = (delta) => {
+    let m = gridMonth + delta;
+    let y = gridYear;
+    if (m < 0) { m = 11; y -= 1; }
+    else if (m > 11) { m = 0; y += 1; }
+    setGridMonth(m);
+    setGridYear(y);
+  };
+
+  const scrollDay = (dir) => {
+    if (dayKeys.length === 0) return;
+    const idx = dayKeys.indexOf(active);
+    const nxt = Math.max(0, Math.min(dayKeys.length - 1, idx + dir));
+    if (dayKeys[nxt]) setActiveDay(dayKeys[nxt]);
+  };
 
   return (
     <>
@@ -167,15 +275,43 @@ export default function Notes() {
                 </span>
                 <div className="min-w-0">
                   <h2 className="text-base font-bold leading-none" style={{ color: "#8FFFF2", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
-                    Checklist
+                    {view === "days" ? "Days history" : "Checklist"}
                   </h2>
                   <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
-                    {editMode ? "edit, delete or drag to reorder" : "tick a line when it's done"}
+                    {view === "days"
+                      ? "tap a day to see what you typed and checked"
+                      : editMode
+                        ? "edit, delete or drag to reorder"
+                        : "tick a line when it's done"}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {notes.length > 0 && (
+                <button
+                  onClick={() => (view === "days" ? setView("list") : openDays())}
+                  aria-pressed={view === "days"}
+                  title={view === "days" ? "Back to today's checklist" : "Saved days history"}
+                  className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer transition-colors"
+                  style={{
+                    color: view === "days" ? "#101010" : "var(--color-accent)",
+                    background: view === "days" ? "var(--color-accent)" : "var(--color-sunken)",
+                    boxShadow: view === "days" ? "0 0 16px rgba(109,245,227,0.4)" : "none",
+                  }}
+                >
+                  {view === "days" ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="16" rx="2" />
+                      <line x1="8" y1="3" x2="8" y2="7" />
+                      <line x1="16" y1="3" x2="16" y2="7" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  )}
+                </button>
+                {notes.length > 0 && view !== "days" && (
                   <span
                     className="h-6 px-2.5 rounded-full grid place-items-center text-[11px] font-bold tabular-nums"
                     style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
@@ -183,27 +319,29 @@ export default function Notes() {
                     {doneCount}/{notes.length}
                   </span>
                 )}
-                <button
-                  onClick={() => setEditMode((m) => !m)}
-                  aria-pressed={editMode}
-                  title={editMode ? "Exit edit mode" : "Edit tasks"}
-                  className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer transition-colors"
-                  style={{
-                    color: editMode ? "#101010" : "var(--color-accent)",
-                    background: editMode ? "var(--color-accent)" : "var(--color-sunken)",
-                    boxShadow: editMode ? "0 0 16px rgba(109,245,227,0.4)" : "none",
-                  }}
-                >
-                  {editMode ? (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M5 13l4 4 10-10" />
-                    </svg>
-                  ) : (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                    </svg>
-                  )}
-                </button>
+                {view === "list" && (
+                  <button
+                    onClick={() => setEditMode((m) => !m)}
+                    aria-pressed={editMode}
+                    title={editMode ? "Exit edit mode" : "Edit tasks"}
+                    className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer transition-colors"
+                    style={{
+                      color: editMode ? "#101010" : "var(--color-accent)",
+                      background: editMode ? "var(--color-accent)" : "var(--color-sunken)",
+                      boxShadow: editMode ? "0 0 16px rgba(109,245,227,0.4)" : "none",
+                    }}
+                  >
+                    {editMode ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M5 13l4 4 10-10" />
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      </svg>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close notes"
@@ -221,6 +359,107 @@ export default function Notes() {
             </div>
 
             {/* The paper — ruled lines, red margin, one per task line */}
+            {view === "days" ? (
+              <div className="notes-sheet flex-1 overflow-y-auto" style={{ padding: 16 }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="flex items-center gap-1">
+                    <button type="button" onClick={() => shiftGridMonth(-1)} className="stepper-btn" aria-label="Previous month">‹</button>
+                    <span className="mono text-heading text-sm w-28 text-center">{MONTHS[gridMonth]} {gridYear}</span>
+                    <button type="button" onClick={() => shiftGridMonth(1)} className="stepper-btn" aria-label="Next month">›</button>
+                  </span>
+                </div>
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {WEEKDAYS.map((w) => (
+                    <span key={w} className="text-center text-[10px] uppercase tracking-wide text-text-tertiary">{w}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: gridLeading }).map((_, i) => (
+                    <span key={`b${i}`} aria-hidden="true" />
+                  ))}
+                  {Array.from({ length: gridTotal }).map((_, i) => {
+                    const d = i + 1;
+                    const key = dk(gridYear, gridMonth + 1, d);
+                    const saved = !!dayMap[key];
+                    const isSel = key === active;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        disabled={!saved}
+                        onClick={() => setActiveDay(key)}
+                        className={`relative aspect-square rounded-lg grid place-items-center text-xs transition-colors ${
+                          saved
+                            ? "text-heading hover:bg-accent-muted cursor-pointer"
+                            : "text-text-tertiary/50 cursor-default"
+                        } ${isSel ? "bg-accent text-navy-900 font-semibold" : key === todayKey ? "ring-1 ring-accent" : ""}`}
+                        title={saved ? `Open ${dayLabel(key)}` : dayLabel(key)}
+                      >
+                        <span>{d}</span>
+                        {saved && !isSel && (
+                          <span
+                            className="absolute bottom-0.5 w-1 h-1 rounded-full"
+                            style={{ background: "var(--color-accent)" }}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 pt-2" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <button type="button" onClick={() => scrollDay(-1)} disabled={!active} className="stepper-btn" aria-label="Previous day">‹</button>
+                    <span className="text-xs font-semibold text-heading">{active ? dayLabel(active) : "No saved days"}</span>
+                    <button type="button" onClick={() => scrollDay(1)} disabled={!active} className="stepper-btn" aria-label="Next day">›</button>
+                  </div>
+                  {dayKeys.length === 0 ? (
+                    <p className="text-sm" style={{ color: "#A1998A" }}>
+                      No saved days yet — each day's checklist is saved from today onward.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(dayMap[active] || []).map((n) => (
+                        <div key={n.id} className="flex items-end gap-2" style={{ height: ROW_H }}>
+                          <span
+                            className="grid place-items-center shrink-0"
+                            style={{
+                              width: 16,
+                              height: 16,
+                              marginBottom: 7,
+                              borderRadius: 4,
+                              border: "2px solid " + (n.done ? "#0E7A6B" : "#C9BCA4"),
+                              background: n.done ? "#0E7A6B" : "transparent",
+                            }}
+                          >
+                            {n.done && (
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                                <path d="M5 13l4 4 10-10" stroke="#FFFDF5" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </span>
+                          <span
+                            className="flex-1 min-w-0 truncate text-[15px]"
+                            style={{
+                              color: n.done ? "#ABA08C" : "#33291B",
+                              textDecoration: n.done ? "line-through" : undefined,
+                              textDecorationColor: "#ABA08C",
+                              paddingBottom: 2,
+                            }}
+                          >
+                            {n.text}
+                          </span>
+                        </div>
+                      ))}
+                      <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
+                        {active} <span style={{ opacity: 0.7 }}>· {dayMap[active]?.filter((x) => x.done).length || 0}/{dayMap[active]?.length || 0} done</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
             <div
               className="notes-sheet flex-1 overflow-y-auto"
               style={{ paddingLeft: 28, paddingRight: 22, paddingTop: 0, paddingBottom: 6 }}
@@ -329,8 +568,10 @@ export default function Notes() {
               )}
               </div>
             </div>
+            )}
 
             {/* Glass footer — matches the site, input + accent Add */}
+            {view === "list" && (
             <div
               className="px-5 py-3 flex items-center gap-2"
               style={{
@@ -361,6 +602,7 @@ export default function Notes() {
                 Add
               </button>
             </div>
+            )}
           </div>
         </div>
       )}
