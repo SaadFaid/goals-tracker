@@ -173,12 +173,13 @@ export default function FlipClock({ open, onClose, session, onSession }) {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-4">
-        {/* flip tiles */}
+        {/* flip tiles — two digit slots (tens + ones) per group */}
         <div className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
           {groups.map((v, i) => (
             <div key={i} className="flex items-center" style={{ gap: Math.max(8, Math.round(tileH * 0.08)) }}>
               {i > 0 && <Colon size={Math.max(7, Math.round(tileH * 0.12))} height={tileH} />}
-              <FlipTile value={v} width={tileW} height={tileH} fontSize={fontSize} />
+              <FlipTile value={Math.floor(v / 10) % 10} width={tileW} height={tileH} fontSize={fontSize} />
+              <FlipTile value={v % 10} width={tileW} height={tileH} fontSize={fontSize} />
             </div>
           ))}
         </div>
