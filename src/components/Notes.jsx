@@ -274,10 +274,17 @@ export default function Notes() {
                   </svg>
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-base font-bold leading-none" style={{ color: "#8FFFF2", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
+                  <h2
+                    className={view === "days" ? "h2 text-heading" : "text-base font-bold leading-none"}
+                    style={
+                      view === "days"
+                        ? { letterSpacing: "-0.01em" }
+                        : { color: "#8FFFF2", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }
+                    }
+                  >
                     {view === "days" ? "Days history" : "Checklist"}
                   </h2>
-                  <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                  <p className={view === "days" ? "caption mt-1 text-text-tertiary" : "text-[10px] mt-1"} style={view === "days" ? undefined : { color: "var(--color-text-tertiary)" }}>
                     {view === "days"
                       ? "tap a day to see what you typed and checked"
                       : editMode
