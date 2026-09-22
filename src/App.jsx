@@ -10,6 +10,7 @@ import AuthScreen from "./components/AuthScreen";
 import AddCategoryButton from "./components/AddCategoryButton";
 import CheckIn from "./components/CheckIn";
 import Notes from "./components/Notes";
+import Pomodoro from "./components/Pomodoro";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PrintReport from "./components/PrintReport";
 import PlanPage from "./components/PlanPage";
@@ -175,6 +176,7 @@ function Dashboard() {
         }}
       />
       <Notes />
+      <Pomodoro />
       </>
       )}
     </main>
