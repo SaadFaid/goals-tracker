@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import FlipClock from "./FlipClock";
 
 const STORAGE_KEY = "august-goals-pomodoro";
 const ALERT_KEY = "august-goals-alerts";
@@ -91,6 +92,9 @@ export default function Pomodoro() {
   const [tRunning, setTRunning] = useState(false);
   const [tEndAt, setTEndAt] = useState(null);
   const [tNow, setTNow] = useState(Date.now());
+
+  // Fullscreen flip-clock overlay.
+  const [flipOpen, setFlipOpen] = useState(false);
 
   // Active alert (finish event needing acknowledgement). A cached alert from a
   // previous visit is replayed on load so it "shows" again.
@@ -321,7 +325,7 @@ export default function Pomodoro() {
           <div
             className="notes-pop w-full overflow-hidden rounded-2xl flex flex-col"
             style={{
-              maxWidth: mode === "focus" ? 380 : 340,
+              maxWidth: 480,
               maxHeight: "88vh",
               fontFamily: SF,
             }}
@@ -363,6 +367,17 @@ export default function Pomodoro() {
                   {pomodoros}
                 </span>
               )}
+              <button
+                onClick={() => setFlipOpen(true)}
+                aria-label="Fullscreen focus timer"
+                title="Fullscreen flip clock"
+                className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer"
+                style={{ color: "var(--color-accent)", background: "var(--color-sunken)" }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                </svg>
+              </button>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
@@ -450,6 +465,17 @@ export default function Pomodoro() {
           </div>
         </div>
       )}
+    {/* Fullscreen flip-clock focus timer */}
+      <FlipClock
+        open={flipOpen}
+        onClose={() => setFlipOpen(false)}
+        initialMinutes={workM}
+        onDone={() => {
+          if (phase === "work") setPomodoros((p) => p + 1);
+          setRunning(false);
+          setEndAt(null);
+        }}
+      />
     </>
   );
 }
@@ -468,7 +494,7 @@ function RevealLabel({ children }) {
 function FocusPanel(props) {
   const { phase, running, remaining, dur, workM, breakM, pomodoros, onToggle, onSkip, onSetWork, onSetBreak, onReset, soundId, onSound, notif, onNotif, repeat, onRepeat } = props;
   const ringColor = phase === "work" ? "#FFB340" : "#4BE376";
-  const R = 92;
+  const R = 105;
   const C = 2 * Math.PI * R;
   const frac = running ? (dur - remaining) / dur : 0;
   const mm = Math.floor(remaining / 60000);
@@ -492,11 +518,11 @@ function FocusPanel(props) {
         <RevealLabel>session {pomodoros > 0 ? pomodoros : 0}</RevealLabel>
       </div>
 
-      <div className="relative grid place-items-center mx-auto" style={{ width: 208, height: 208, marginTop: 4 }}>
-        <svg width="208" height="208" viewBox="0 0 208 208" style={{ transform: "rotate(-90deg)" }}>
-          <circle cx="104" cy="104" r={R} fill="none" stroke="rgba(109,245,227,0.08)" strokeWidth="12" />
+      <div className="relative grid place-items-center mx-auto" style={{ width: 236, height: 236, marginTop: 4 }}>
+        <svg width="236" height="236" viewBox="0 0 236 236" style={{ transform: "rotate(-90deg)" }}>
+          <circle cx="118" cy="118" r={R} fill="none" stroke="rgba(109,245,227,0.08)" strokeWidth="12" />
           <circle
-            cx="104" cy="104" r={R} fill="none"
+            cx="118" cy="118" r={R} fill="none"
             stroke={ringColor}
             strokeWidth="12"
             strokeLinecap="round"
@@ -507,10 +533,10 @@ function FocusPanel(props) {
         </svg>
         <div
           className="absolute grid place-items-center rounded-full"
-          style={{ width: 168, height: 168, background: "rgba(6,16,14,0.72)", border: "1px solid rgba(109,245,227,0.14)" }}
+          style={{ width: 190, height: 190, background: "rgba(6,16,14,0.72)", border: "1px solid rgba(109,245,227,0.14)" }}
         >
           <div className="flex flex-col items-center" style={{ fontVariantNumeric: "tabular-nums" }}>
-            <span className="text-[46px] font-semibold leading-none" style={{ color: "#EAFBF8", letterSpacing: "-0.02em" }}>
+            <span className="text-[54px] font-semibold leading-none" style={{ color: "#EAFBF8", letterSpacing: "-0.02em" }}>
               {pad2(mm)}:{pad2(ss)}
             </span>
             <span className="mt-1.5 text-[11px] font-medium" style={{ color: "var(--color-text-tertiary)" }}>
@@ -624,11 +650,11 @@ function TimerPanel(props) {
       {/* big black clock */}
       <div className="flex flex-col items-center pt-7 pb-6 px-4">
         <div className="flex items-end" style={{ fontVariantNumeric: "tabular-nums" }}>
-          <span className="text-[64px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(hh)}</span>
-          <span className="text-[64px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
-          <span className="text-[64px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(mm)}</span>
-          <span className="text-[64px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
-          <span className="text-[64px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(ss)}</span>
+          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(hh)}</span>
+          <span className="text-[84px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
+          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(mm)}</span>
+          <span className="text-[84px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
+          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(ss)}</span>
         </div>
         <span className="mt-2 text-[13px] font-semibold" style={{ color: "#8E8E93" }}>
           {running ? (endClock || "counting") : "ready"}
