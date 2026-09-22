@@ -33,7 +33,7 @@ function readJson(key, fallback) {
 
 function loadState() {
   const s = readJson(STORAGE_KEY, null);
-  const base = { workM: 25, breakM: 5, soundId: "tritone", phase: "work", pomodoros: 0, repeat: true, mode: "focus", tH: 0, tM: 10, tS: 0, tRunning: false, tEndAt: null };
+  const base = { workM: 25, breakM: 5, soundId: "tritone", phase: "work", pomodoros: 0, repeat: true, mode: "focus", fRunning: false, fEndAt: null, fHold: 0, tH: 0, tM: 10, tS: 0, tRunning: false, tEndAt: null };
   if (!s || typeof s !== "object") return base;
   const tEndNow = Date.now();
   return {
@@ -44,6 +44,12 @@ function loadState() {
     pomodoros: Number(s.pomodoros) || 0,
     repeat: s.repeat !== false,
     mode: s.mode === "timer" ? "timer" : "focus",
+    // Keep a running focus session alive across a refresh: restore its absolute
+    // end timestamp only if it is still in the future. Remaining focus time is
+    // preserved while paused (so pause/resume and Stop keep progress).
+    fRunning: !!s.fRunning,
+    fEndAt: !!s.fRunning && Number(s.fEndAt) > Date.now() ? Number(s.fEndAt) : null,
+    fHold: Math.max(0, Number(s.fHold) || 0),
     tH: Math.max(0, Math.min(99, Number(s.tH) || 0)),
     tM: Math.max(0, Math.min(59, Number(s.tM) || 0)),
     tS: Math.max(0, Math.min(59, Number(s.tS) || 0)),
@@ -87,11 +93,11 @@ export default function Pomodoro() {
   const [repeat, setRepeat] = useState(s.repeat);
   const [notif, setNotif] = useState(hasNotifPerm());
 
-  const [running, setRunning] = useState(false);
-  const [endAt, setEndAt] = useState(null);
+  const [running, setRunning] = useState(s.fRunning);
+  const [endAt, setEndAt] = useState(s.fEndAt);
   const [now, setNow] = useState(Date.now());
   // Remaining focus time preserved while paused (so pause/resume keeps progress).
-  const [hold, setHold] = useState(0);
+  const [hold, setHold] = useState(s.fHold || 0);
 
   // Plain timer (black clock).
   const [tH, setTH] = useState(s.tH);
@@ -126,9 +132,9 @@ export default function Pomodoro() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt, tHold })
+      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold })
     );
-  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt, tHold]);
+  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
   useEffect(() => {

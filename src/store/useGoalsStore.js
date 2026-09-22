@@ -60,6 +60,14 @@ function localMidnightISO(date = new Date()) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}T00:00:00`;
 }
+// Padded "YYYY-MM-DD" key for a Date's local calendar day (sortable; used for
+// daily history snapshots).
+function paddedDayKey(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 function dateOfMonthKey(key) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, (m || 1) - 1, 1);
@@ -194,6 +202,11 @@ const emptyState = () => ({
   liveCategories: null,
   monthlySnapshots: {},
   serverSnapshotMonths: [],
+  // Archived day-of-checklist history, keyed by "YYYY-MM-DD". Grows on a daily
+  // rollover, so a refresh or next-day visit sees the previous day as history.
+  dailySnapshots: {},
+  // Padded "YYYY-MM-DD" of the last day checkDailyResets() processed.
+  lastDayKey: null,
 });
 
 export const useGoalsStore = create(
@@ -304,6 +317,23 @@ export const useGoalsStore = create(
         }
 
         apply([]);
+      },
+
+      switchDay(dayKey) {
+        const data = get().dailySnapshots[dayKey];
+        if (!Array.isArray(data) || data.length === 0) return;
+        const [y, m, d] = String(dayKey || "").split("-").map(Number);
+        if (!y || !m) return;
+        const liveCategories = get().liveCategories || deepClone(get().categories);
+        const dashboard = calculateDashboardState(data, new Date(y, m - 1, d || 1), 0);
+        set({
+          selectedMonth: monthKeyOf(new Date(y, m - 1, 1)),
+          viewingHistory: true,
+          liveCategories,
+          categories: deepClone(data),
+          dashboard,
+          bootstrapped: true,
+        });
       },
 
       pushUndo() {
@@ -597,8 +627,19 @@ export const useGoalsStore = create(
       // device clock shifted by an hour).
       checkDailyResets: () => {
         const today = new Date();
-        const todayKey = localDayKey(today);
-        const sameDay = (d) => d && localDayKey(d) === todayKey;
+        const todayKey = paddedDayKey(today);
+        const sameDay = (d) => d && localDayKey(d) === localDayKey(today);
+
+        // Day rollover: archive the finished day's checklist under its own
+        // "YYYY-MM-DD" history key BEFORE the daily reset empties it.
+        const prevKey = get().lastDayKey;
+        if (prevKey && prevKey !== todayKey && !get().dailySnapshots[prevKey]) {
+          set((st) => ({
+            dailySnapshots: { ...st.dailySnapshots, [prevKey]: deepClone(get().categories) },
+          }));
+        }
+        set({ lastDayKey: todayKey });
+
         const resets = [];
         const anyDaily = get().categories.some(
           (c) => !c.isRewards && (c.actions || []).some((a) => a.resetType === "daily")
@@ -958,6 +999,8 @@ export const useGoalsStore = create(
           viewingHistory: s.viewingHistory,
           liveCategories: s.liveCategories,
           monthlySnapshots: s.monthlySnapshots,
+          dailySnapshots: s.dailySnapshots,
+          lastDayKey: s.lastDayKey,
         }),
         onRehydrateStorage: () => (state) => {
           if (!state) return;
