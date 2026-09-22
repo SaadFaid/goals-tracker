@@ -165,7 +165,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
       {/* label top-left */}
       <div className="fixed top-6 left-6 flex items-center gap-2 z-[95]">
         <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#58585D" }}>
-          Focus
+          Timer
         </span>
         <span className="h-5 px-2 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums" style={{ background: "rgba(255,255,255,0.08)", color: "#A1A1A6" }}>
           {fmtClock(durMs)}
@@ -184,7 +184,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
         </div>
 
         <p className="mt-6 text-[13px] font-semibold" style={{ color: "#58585D" }}>
-          {running ? "focusing" : finished ? "done — take a break" : hold > 0 ? "paused" : "tap start when you're ready"}
+          {running ? "counting down" : finished ? "done" : hold > 0 ? "paused" : "tap start when you're ready"}
         </p>
 
         {/* finished banner */}
@@ -194,7 +194,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
             className="mt-4 h-10 px-6 rounded-full font-bold text-[14px] cursor-pointer"
             style={{ background: "#22D3EE", color: "#000000", boxShadow: "0 0 40px rgba(34,211,238,0.5)" }}
           >
-            Time's up — rest!
+            Time's up!
           </button>
         )}
       </div>

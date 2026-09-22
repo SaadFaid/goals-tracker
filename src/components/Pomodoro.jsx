@@ -97,6 +97,8 @@ export default function Pomodoro() {
   const [tRunning, setTRunning] = useState(s.tRunning);
   const [tEndAt, setTEndAt] = useState(s.tEndAt);
   const [tNow, setTNow] = useState(Date.now());
+  // Remaining plain-timer time preserved while paused.
+  const [tHold, setTHold] = useState(s.tHold || 0);
 
   // Fullscreen flip-clock overlay.
   const [flipOpen, setFlipOpen] = useState(false);
@@ -121,9 +123,9 @@ export default function Pomodoro() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt })
+      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt, tHold })
     );
-  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt]);
+  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt, tHold]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
   useEffect(() => {
@@ -135,7 +137,7 @@ export default function Pomodoro() {
   }, [alert]);
 
   const tTotal = (tH * 3600 + tM * 60 + tS) * 1000;
-  const tRemaining = tRunning && tEndAt ? Math.max(0, tEndAt - tNow) : tTotal;
+  const tRemaining = tRunning && tEndAt ? Math.max(0, tEndAt - tNow) : tHold > 0 ? tHold : tTotal;
 
   // Ticks while a timer is live.
   useEffect(() => {
@@ -236,29 +238,6 @@ export default function Pomodoro() {
     setEndAt(null);
   };
 
-  // Applies a session patch coming from the fullscreen flip clock. The two
-  // views share one session, so they always show the same countdown.
-  const applySession = ({ running: r, endAt: e, hold: h, durMs }) => {
-    if (r !== undefined) {
-      if (r) {
-        dismissAlert();
-        const ctx = getCtx();
-        if (ctx && ctx.state === "suspended") ctx.resume();
-        if ("Notification" in window && Notification.permission === "default") {
-          Notification.requestPermission().then(setNotif);
-        }
-      }
-      setRunning(r);
-    }
-    if (e !== undefined) setEndAt(e);
-    if (h !== undefined) setHold(h);
-    if (durMs !== undefined) {
-      const min = Math.max(1, Math.round(durMs / 60000));
-      if (phase === "work") setWorkM(min);
-      else setBreakM(min);
-    }
-  };
-
   // Focus finished -> switch phase + raise alert.
   useEffect(() => {
     if (!running || !endAt) return;
@@ -298,6 +277,7 @@ export default function Pomodoro() {
   const stopTimer = () => {
     setTRunning(false);
     setTEndAt(null);
+    setTHold(0);
   };
 
   const setTimer = (h, m, s) => {
@@ -305,6 +285,32 @@ export default function Pomodoro() {
     setTH(Math.min(99, h));
     setTM(Math.min(59, m));
     setTS(Math.min(59, s));
+    setTHold(0);
+  };
+
+  // Applies a session patch coming from the fullscreen flip clock. The popup
+  // and fullscreen share one plain-timer session (absolute end time, so it
+  // stays consistent across refreshes too).
+  const applyTimerSession = ({ running: r, endAt: e, hold: h, durMs }) => {
+    if (r !== undefined) {
+      if (r) {
+        dismissAlert();
+        const ctx = getCtx();
+        if (ctx && ctx.state === "suspended") ctx.resume();
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission().then(setNotif);
+        }
+      }
+      setTRunning(r);
+    }
+    if (e !== undefined) setTEndAt(e);
+    if (h !== undefined) setTHold(h);
+    if (durMs !== undefined) {
+      setTH(Math.max(0, Math.min(99, Math.floor(durMs / 3600000))));
+      setTM(Math.max(0, Math.min(59, Math.floor((durMs % 3600000) / 60000))));
+      setTS(Math.max(0, Math.min(59, Math.floor((durMs % 60000) / 1000))));
+      setTHold(0);
+    }
   };
 
   useEffect(() => {
@@ -312,6 +318,7 @@ export default function Pomodoro() {
     if (tEndAt - tNow > 40) return;
     setTRunning(false);
     setTEndAt(null);
+    setTHold(0);
     startAlert({ kind: "timer", label: "Timer finished" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tNow, tEndAt, tRunning]);
@@ -407,17 +414,6 @@ export default function Pomodoro() {
                 </span>
               )}
               <button
-                onClick={() => setFlipOpen(true)}
-                aria-label="Fullscreen focus timer"
-                title="Fullscreen flip clock"
-                className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer"
-                style={{ color: "var(--color-accent)", background: "var(--color-sunken)" }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
-                </svg>
-              </button>
-              <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
                 className="grid place-items-center w-7 h-7 rounded-lg cursor-pointer"
@@ -493,6 +489,7 @@ export default function Pomodoro() {
                 onSet={setTimer}
                 onStart={startTimer}
                 onStop={stopTimer}
+                onFullscreen={() => setFlipOpen(true)}
                 soundId={soundId}
                 onSound={(id) => { setSoundId(id); fireIdle(id); }}
                 notif={notif}
@@ -504,13 +501,13 @@ export default function Pomodoro() {
           </div>
         </div>
       )}
-    {/* Fullscreen flip-clock focus timer — shares the live session with the
-        Focus tab, so time carries over in both directions. */}
+    {/* Fullscreen flip-clock timer — a controlled view of the plain Timer
+        session, so the countdown continues in and out of fullscreen. */}
       <FlipClock
         open={flipOpen}
         onClose={() => setFlipOpen(false)}
-        session={{ running, endAt, hold, durMs: (phase === "work" ? workM : breakM) * 60000 }}
-        onSession={applySession}
+        session={{ running: tRunning, endAt: tEndAt, hold: tHold, durMs: tTotal }}
+        onSession={applyTimerSession}
       />
     </>
   );
@@ -670,7 +667,7 @@ function FocusPanel(props) {
 }
 
 function TimerPanel(props) {
-  const { h, m, s, running, remaining, endClock, onSet, onStart, onStop, soundId, onSound, notif, onNotif, repeat, onRepeat } = props;
+  const { h, m, s, running, remaining, endClock, onSet, onStart, onStop, onFullscreen, soundId, onSound, notif, onNotif, repeat, onRepeat } = props;
   const presets = [
     { label: "10 min", h: 0, m: 10, s: 0 },
     { label: "30 min", h: 0, m: 30, s: 0 },
@@ -682,9 +679,20 @@ function TimerPanel(props) {
   const ss = Math.floor((remaining % 60000) / 1000);
 
   return (
-    <div className="flex flex-col" style={{ background: "#000000" }}>
+    <div className="relative flex flex-col" style={{ background: "#000000" }}>
       {/* big black clock */}
       <div className="flex flex-col items-center pt-7 pb-6 px-4">
+        <button
+          onClick={onFullscreen}
+          aria-label="Fullscreen timer"
+          title="Fullscreen flip clock"
+          className="absolute top-3 right-3 grid place-items-center w-8 h-8 rounded-lg cursor-pointer"
+          style={{ color: "#A1A1A6", background: "#1C1C1E", border: "1px solid #2C2C2E" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+        </button>
         <div className="flex items-end" style={{ fontVariantNumeric: "tabular-nums" }}>
           <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(hh)}</span>
           <span className="text-[84px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
