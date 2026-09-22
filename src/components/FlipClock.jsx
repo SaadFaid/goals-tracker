@@ -201,51 +201,50 @@ export default function FlipClock({ open, onClose, session, onSession }) {
 
       {/* controls */}
       <div className="flex flex-col items-center gap-4 pb-10 px-4">
-        {/* h / min / s pickers — same style as the popup's timer */}
-        <div className="flex items-center justify-center gap-3" style={{ border: "none" }}>
-          {[
-            { label: "h", val: pk.h, step: (v) => Math.min(99, Math.max(0, v)) },
-            { label: "min", val: pk.m, step: (v) => Math.min(59, Math.max(0, v)) },
-            { label: "s", val: pk.s, step: (v) => Math.min(59, Math.max(0, v)) },
-          ].map((d, i) => (
-            <div key={d.label} className="flex flex-col items-center gap-1">
-              <button
-                onClick={() => (running ? null : bumpPk(i, +1, d.step))}
-                disabled={running}
-                className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer disabled:opacity-30"
-                style={{ background: "#1C1C1E", color: "#EBEBF0" }}
-                aria-label={`+ ${d.label}`}
-              >+</button>
-              <span className="text-[26px] font-medium tabular-nums w-14 text-center" style={{ color: "#FFFFFF" }}>{pad2(d.val)}</span>
-              <button
-                onClick={() => (running ? null : bumpPk(i, -1, d.step))}
-                disabled={running}
-                className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer disabled:opacity-30"
-                style={{ background: "#1C1C1E", color: "#EBEBF0" }}
-                aria-label={`- ${d.label}`}
-              >−</button>
-              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#8E8E93" }}>{d.label}</span>
+        {/* h / min / s pickers — only before start or after it's stopped */}
+        {!running && (
+          <>
+            <div className="flex items-center justify-center gap-3" style={{ border: "none" }}>
+              {[
+                { label: "h", val: pk.h, step: (v) => Math.min(99, Math.max(0, v)) },
+                { label: "min", val: pk.m, step: (v) => Math.min(59, Math.max(0, v)) },
+                { label: "s", val: pk.s, step: (v) => Math.min(59, Math.max(0, v)) },
+              ].map((d, i) => (
+                <div key={d.label} className="flex flex-col items-center gap-1">
+                  <button
+                    onClick={() => bumpPk(i, +1, d.step)}
+                    className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer"
+                    style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+                    aria-label={`+ ${d.label}`}
+                  >+</button>
+                  <span className="text-[26px] font-medium tabular-nums w-14 text-center" style={{ color: "#FFFFFF" }}>{pad2(d.val)}</span>
+                  <button
+                    onClick={() => bumpPk(i, -1, d.step)}
+                    className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer"
+                    style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+                    aria-label={`- ${d.label}`}
+                  >−</button>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#8E8E93" }}>{d.label}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="flex items-center justify-center gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              onClick={() =>
-                running
-                  ? null
-                  : onSession({ running: false, endAt: null, hold: 0, durMs: (p.h * 3600 + p.m * 60 + p.s) * 1000 })
-              }
-              disabled={running}
-              className="h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer disabled:opacity-30"
-              style={{ background: "#1C1C1E", color: "#EBEBF0" }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+            <div className="flex items-center justify-center gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  onClick={() =>
+                    onSession({ running: false, endAt: null, hold: 0, durMs: (p.h * 3600 + p.m * 60 + p.s) * 1000 })
+                  }
+                  className="h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer"
+                  style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="flex items-center gap-3">
           <button
