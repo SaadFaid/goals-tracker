@@ -33,8 +33,9 @@ function readJson(key, fallback) {
 
 function loadState() {
   const s = readJson(STORAGE_KEY, null);
-  const base = { workM: 25, breakM: 5, soundId: "tritone", phase: "work", pomodoros: 0, repeat: true, mode: "focus", tH: 0, tM: 10, tS: 0 };
+  const base = { workM: 25, breakM: 5, soundId: "tritone", phase: "work", pomodoros: 0, repeat: true, mode: "focus", tH: 0, tM: 10, tS: 0, tRunning: false, tEndAt: null };
   if (!s || typeof s !== "object") return base;
+  const tEndNow = Date.now();
   return {
     workM: Number(s.workM) || base.workM,
     breakM: Number(s.breakM) || base.breakM,
@@ -46,6 +47,10 @@ function loadState() {
     tH: Math.max(0, Math.min(99, Number(s.tH) || 0)),
     tM: Math.max(0, Math.min(59, Number(s.tM) || 0)),
     tS: Math.max(0, Math.min(59, Number(s.tS) || 0)),
+    // Keep a running plain timer alive across a refresh: restore the absolute
+    // end timestamp only if it is still in the future.
+    tRunning: !!s.tRunning,
+    tEndAt: !!s.tRunning && Number(s.tEndAt) > tEndNow ? Number(s.tEndAt) : null,
   };
 }
 
@@ -54,9 +59,7 @@ function fmtClock(ms, withHours = false) {
   const h = Math.floor(ms / 3600);
   const m = Math.floor((ms % 3600) / 60);
   const s = ms % 60;
-  if (withHours) return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
-  if (h > 0) return `${h}:${pad2(m)}:${pad2(s)}`;
-  return `${pad2(m)}:${pad2(s)}`;
+  return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
 }
 
 function endClock(endAt) {
@@ -91,8 +94,8 @@ export default function Pomodoro() {
   const [tH, setTH] = useState(s.tH);
   const [tM, setTM] = useState(s.tM);
   const [tS, setTS] = useState(s.tS);
-  const [tRunning, setTRunning] = useState(false);
-  const [tEndAt, setTEndAt] = useState(null);
+  const [tRunning, setTRunning] = useState(s.tRunning);
+  const [tEndAt, setTEndAt] = useState(s.tEndAt);
   const [tNow, setTNow] = useState(Date.now());
 
   // Fullscreen flip-clock overlay.
@@ -118,9 +121,9 @@ export default function Pomodoro() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS })
+      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt })
     );
-  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS]);
+  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, tH, tM, tS, tRunning, tEndAt]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
   useEffect(() => {
