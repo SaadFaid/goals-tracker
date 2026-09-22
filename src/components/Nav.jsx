@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconCheck, IconPencil, IconChart, IconPrint } from "./Icons";
 import MonthPicker from "./MonthPicker";
-import DayPicker from "./DayPicker";
 
 export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onPrint }) {
   const user = useGoalsStore((s) => s.user);
@@ -11,7 +9,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
   const openAuth = useGoalsStore((s) => s.openAuth);
   const editMode = useGoalsStore((s) => s.editMode);
   const toggleEditMode = useGoalsStore((s) => s.toggleEditMode);
-  const [daysOpen, setDaysOpen] = useState(false);
 
   const signedIn = !!user && !isGuest;
 
@@ -102,7 +99,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
       <div className="sticky top-0 z-40 px-3 sm:px-5 pt-2 pb-3">
         <div className="controls-card mx-auto max-w-[1100px] rounded-2xl flex items-center justify-center gap-2 flex-wrap px-3 py-2">
           <MonthPicker />
-          <DayPicker open={daysOpen} onOpenChange={setDaysOpen} />
           <span className="nav-divider" aria-hidden="true" />
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <button
