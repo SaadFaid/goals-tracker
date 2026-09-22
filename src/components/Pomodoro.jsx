@@ -51,6 +51,9 @@ function loadState() {
     // end timestamp only if it is still in the future.
     tRunning: !!s.tRunning,
     tEndAt: !!s.tRunning && Number(s.tEndAt) > tEndNow ? Number(s.tEndAt) : null,
+    // A paused plain timer keeps its remaining time across a refresh: without
+    // this, Stop then reload snaps back to the full duration.
+    tHold: Math.max(0, Number(s.tHold) || 0),
   };
 }
 
