@@ -109,12 +109,14 @@ export default function FlipClock({ open, onClose, session, onSession }) {
   }, [durMs, running]);
 
   const pickMs = () => pk.h * 3600000 + pk.m * 60000 + pk.s * 1000;
+  const pickerDirty = useRef(false);
   const commitPick = () => {
     const ms = pickMs();
     if (ms <= 0) return;
     onSession({ running: false, endAt: null, hold: 0, durMs: ms });
   };
   const bumpPk = (i, d, step) => {
+    pickerDirty.current = true;
     setPk((p) => {
       const keys = ["h", "m", "s"];
       const next = { ...p };
@@ -122,8 +124,13 @@ export default function FlipClock({ open, onClose, session, onSession }) {
       return next;
     });
   };
+  // Commit a picker edit 220ms after the last bump — but ONLY for edits the
+  // user actually made, never for the sync that follows a pause/resume. That
+  // sync must not wipe the held remaining time.
   useEffect(() => {
     if (running) return;
+    if (!pickerDirty.current) return;
+    pickerDirty.current = false;
     const id = window.setTimeout(commitPick, 220);
     return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -238,9 +245,10 @@ export default function FlipClock({ open, onClose, session, onSession }) {
               {PRESETS.map((p) => (
                 <button
                   key={p.label}
-                  onClick={() =>
-                    onSession({ running: false, endAt: null, hold: 0, durMs: (p.h * 3600 + p.m * 60 + p.s) * 1000 })
-                  }
+                  onClick={() => {
+                    pickerDirty.current = false;
+                    onSession({ running: false, endAt: null, hold: 0, durMs: (p.h * 3600 + p.m * 60 + p.s) * 1000 });
+                  }}
                   className="h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer"
                   style={{ background: "#1C1C1E", color: "#EBEBF0" }}
                 >
