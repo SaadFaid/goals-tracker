@@ -56,7 +56,7 @@ function loadNotes() {
   }
 }
 
-// Per-day history of the checklist: { lastDay: "YYYY-MM-DD", map: { date: [{id,text,done}] } }.
+// Per-day history of the checklist: { lastDay: "YYYY-MM-DD", map: { date: [{id,text,done}] }, seeded }.
 function loadDayRec() {
   const key = scopeKey(DAYS_BASE);
   try {
@@ -73,13 +73,23 @@ function loadDayRec() {
       return {
         lastDay: typeof obj?.lastDay === "string" ? obj.lastDay : null,
         map: obj?.map && typeof obj.map === "object" ? obj.map : {},
+        seeded: obj?.seeded === true,
       };
     }
   } catch {
     /* fall through to seed */
   }
-  // First use: seed example days so the Days history has something to browse.
-  return { lastDay: todayKeyOf(), map: makeExampleDays() };
+  return { lastDay: todayKeyOf(), map: {}, seeded: false };
+}
+
+// Fill in example days the first time there's nothing (or almost nothing) to
+// look at, so the Days history has data across the last months. Real days win
+// on the same date; runs once per identity (guarded by the seeded flag).
+function ensureSeeded(map, seeded) {
+  if (seeded) return null;
+  const realDays = Object.keys(map || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
+  if (realDays.length >= 10) return null;
+  return { ...makeExampleDays(), ...map };
 }
 
 function todayKeyOf(d = new Date()) {
@@ -89,7 +99,12 @@ function todayKeyOf(d = new Date()) {
 export default function Notes() {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
-  const [dayRec, setDayRec] = useState(() => loadDayRec());
+  const [dayRec, setDayRec] = useState(() => {
+    const rec = loadDayRec();
+    const merged = ensureSeeded(rec.map, rec.seeded);
+    if (merged) return { ...rec, map: merged, seeded: true };
+    return rec;
+  });
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -122,7 +137,7 @@ export default function Notes() {
           done: !!n.done,
         }));
       }
-      return { lastDay: tk, map };
+      return { lastDay: tk, map, seeded: prev?.seeded === true };
     });
   }, [open]);
 

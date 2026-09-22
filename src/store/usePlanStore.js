@@ -22,21 +22,25 @@ function readIdentityPlan() {
   } catch {
     /* ignore */
   }
-  const out = { schedule: [], past: [] };
+  const out = { schedule: [], past: [], seeded: false };
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
       const state = parsed?.state && typeof parsed.state === "object" ? parsed.state : parsed;
       if (Array.isArray(state?.schedule)) out.schedule = state.schedule;
       if (Array.isArray(state?.past)) out.past = state.past.slice(-MAX_HISTORY);
+      if (state?.seeded === true) out.seeded = true;
     } catch {
       /* fall back to seed */
     }
   }
-  if (out.schedule.length === 0) {
-    // First use for this identity: seed example schedule rows so the Plan view
-    // has something across the last months. Real additions take over.
-    out.schedule = makeExamplePlanRows();
+  if (!out.seeded && out.schedule.length < 10) {
+    // Sparse or empty plan for this identity: merge example rows so the Plan
+    // view has data across the last months. Real rows take precedence (examples
+    // get appended first, real rows override the same slot via addSlot later).
+    // Flag so this runs once per identity.
+    out.schedule = [...makeExamplePlanRows(), ...out.schedule];
+    out.seeded = true;
   }
   return out;
 }
@@ -46,6 +50,7 @@ export const usePlanStore = create(
     (set, get) => ({
       schedule: [],
       past: [],
+      seeded: false,
 
       // (Re)load the schedule for the currently active identity, seeding
       // examples on first use. Called on boot and on account switch.
@@ -111,7 +116,7 @@ export const usePlanStore = create(
     {
       name: PLAN_KEY,
       storage: identityStorage,
-      partialize: (s) => ({ schedule: s.schedule, past: s.past.slice(-MAX_HISTORY) }),
+      partialize: (s) => ({ schedule: s.schedule, past: s.past.slice(-MAX_HISTORY), seeded: s.seeded === true }),
     }
   )
 );
