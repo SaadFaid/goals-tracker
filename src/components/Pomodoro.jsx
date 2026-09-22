@@ -235,7 +235,7 @@ export default function Pomodoro() {
 
   // Applies a session patch coming from the fullscreen flip clock. The two
   // views share one session, so they always show the same countdown.
-  const applySession = ({ running: r, endAt: e, hold: h, mins }) => {
+  const applySession = ({ running: r, endAt: e, hold: h, durMs }) => {
     if (r !== undefined) {
       if (r) {
         dismissAlert();
@@ -249,9 +249,10 @@ export default function Pomodoro() {
     }
     if (e !== undefined) setEndAt(e);
     if (h !== undefined) setHold(h);
-    if (mins !== undefined) {
-      if (phase === "work") setWorkM(mins);
-      else setBreakM(mins);
+    if (durMs !== undefined) {
+      const min = Math.max(1, Math.round(durMs / 60000));
+      if (phase === "work") setWorkM(min);
+      else setBreakM(min);
     }
   };
 
@@ -505,7 +506,7 @@ export default function Pomodoro() {
       <FlipClock
         open={flipOpen}
         onClose={() => setFlipOpen(false)}
-        session={{ running, endAt, hold, mins: phase === "work" ? workM : breakM }}
+        session={{ running, endAt, hold, durMs: (phase === "work" ? workM : breakM) * 60000 }}
         onSession={applySession}
       />
     </>

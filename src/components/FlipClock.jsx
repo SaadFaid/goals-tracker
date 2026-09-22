@@ -4,13 +4,21 @@ const SF =
   "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif";
 
 const PRESETS = [
-  { label: "10", min: 10 },
-  { label: "25", min: 25 },
-  { label: "50", min: 50 },
-  { label: "60", min: 60 },
+  { label: "10 min", h: 0, m: 10, s: 0 },
+  { label: "30 min", h: 0, m: 30, s: 0 },
+  { label: "1 h", h: 1, m: 0, s: 0 },
+  { label: "10 h", h: 10, m: 0, s: 0 },
 ];
 
-const clampMins = (m) => Math.max(1, Math.min(180, Math.round(m)));
+const pad2 = (n) => String(n).padStart(2, "0");
+
+function fmtClock(ms) {
+  ms = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(ms / 3600);
+  const m = Math.floor((ms % 3600) / 60);
+  const s = ms % 60;
+  return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+}
 
 function useTileSize(nGroups) {
   const [h, setH] = useState(() => calcFor(nGroups, window.innerWidth, window.innerHeight));
@@ -30,7 +38,7 @@ function calcFor(nGroups, vw, vh) {
 }
 
 /**
- * Fullscreen split-flap focus timer — a CONTROLLED view of a shared session.
+ * Fullscreen split-flap timer — a CONTROLLED view of a shared session.
  * The same session lives in the caller (the Focus tab); starting / pausing /
  * skipping here updates it there, and vice versa, so the countdown just
  * continues seamlessly in and out of fullscreen.
@@ -38,14 +46,14 @@ function calcFor(nGroups, vw, vh) {
  * Props:
  *   open        bool
  *   onClose     () => void
- *   session     { running, endAt, hold, mins }
- *   onSession   (patch: { running?, endAt?, hold?, mins? }) => void
+ *   session     { running, endAt, hold, durMs }
+ *   onSession   (patch: { running?, endAt?, hold?, durMs? }) => void
  */
 export default function FlipClock({ open, onClose, session, onSession }) {
   const [now, setNow] = useState(Date.now());
   const will = useRef(session);
 
-  const mins = session.mins;
+  const durMs = session.durMs;
   const running = !!session.running;
   const endAt = session.endAt;
   const hold = session.hold || 0;
@@ -70,37 +78,64 @@ export default function FlipClock({ open, onClose, session, onSession }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const total = mins * 60000;
-  const remaining = running && endAt ? Math.max(0, endAt - now) : hold > 0 ? hold : total;
-  const finished = !running && remaining <= 0 && total > 0;
+  const remaining = running && endAt ? Math.max(0, endAt - now) : hold > 0 ? hold : durMs;
+  const finished = !running && remaining <= 0 && durMs > 0;
 
   const totalS = Math.round(remaining / 1000);
   const hh = Math.floor(totalS / 3600);
   const mm = Math.floor((totalS % 3600) / 60);
   const ss = totalS % 60;
-  const groups = hh > 0 ? [hh, mm, ss] : [mm, ss];
+  const groups = [hh, mm, ss];
 
   const tileH = useTileSize(groups.length);
   const tileW = Math.round(tileH * 0.62);
   const fontSize = Math.round(tileH * 0.78);
 
-  const progress = running ? 1 - remaining / total : finished ? 1 : 0;
+  const progress = running ? 1 - remaining / durMs : finished ? 1 : 0;
+
+  // Time picker (mirrors the popup's Timer tab): h / min / s setters.
+  const [pk, setPk] = useState({ h: 0, m: 10, s: 0 });
+  useEffect(() => {
+    if (running) return;
+    setPk({
+      h: Math.floor(durMs / 3600000),
+      m: Math.floor((durMs % 3600000) / 60000),
+      s: Math.floor((durMs % 60000) / 1000),
+    });
+  }, [durMs, running]);
+
+  const pickMs = () => pk.h * 3600000 + pk.m * 60000 + pk.s * 1000;
+  const commitPick = () => {
+    const ms = pickMs();
+    if (ms <= 0) return;
+    onSession({ running: false, endAt: null, hold: 0, durMs: ms });
+  };
+  const bumpPk = (i, d, step) => {
+    setPk((p) => {
+      const keys = ["h", "m", "s"];
+      const next = { ...p };
+      next[keys[i]] = step(p[keys[i]] + d);
+      return next;
+    });
+  };
+  useEffect(() => {
+    if (running) return;
+    const id = window.setTimeout(commitPick, 220);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pk]);
 
   const startOrResume = () => {
     const pad = will.current;
-    const dur = (pad.hold > 0 ? pad.hold : pad.mins * 60000);
+    const dur = pad.hold > 0 ? pad.hold : pad.durMs;
     onSession({ running: true, endAt: Date.now() + dur, hold: 0 });
   };
   const pause = () => {
     const pad = will.current;
-    const rem = pad.endAt ? Math.max(0, pad.endAt - Date.now()) : pad.mins * 60000;
+    const rem = pad.endAt ? Math.max(0, pad.endAt - Date.now()) : pad.durMs;
     onSession({ running: false, endAt: null, hold: rem });
   };
   const reset = () => onSession({ running: false, endAt: null, hold: 0 });
-  const bump = (d) => {
-    if (running) return;
-    onSession({ running: false, endAt: null, hold: 0, mins: clampMins(mins + d) });
-  };
 
   if (!open) return null;
 
@@ -119,7 +154,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
       <button
         onClick={onClose}
         aria-label="Exit fullscreen"
-        className="fixed top-5 right-5 w-11 h-11 grid place-items-center rounded-full cursor-pointer z-[95] transition-opacity hover:opacity-100"
+        className="fixed top-5 right-5 w-11 h-11 grid place-items-center rounded-full cursor-pointer transition-opacity hover:opacity-100 z-[95]"
         style={{ background: "rgba(255,255,255,0.07)", color: "#A1A1A6", border: "1px solid rgba(255,255,255,0.12)", opacity: 0.75 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -133,7 +168,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
           Focus
         </span>
         <span className="h-5 px-2 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums" style={{ background: "rgba(255,255,255,0.08)", color: "#A1A1A6" }}>
-          {mins} min
+          {fmtClock(durMs)}
         </span>
       </div>
 
@@ -166,27 +201,50 @@ export default function FlipClock({ open, onClose, session, onSession }) {
 
       {/* controls */}
       <div className="flex flex-col items-center gap-4 pb-10 px-4">
-        {/* minute stepper + presets */}
-        <div className="flex items-center gap-3">
-          <StepperBtn onClick={() => bump(-1)} label="−" />
-          <div className="flex items-center gap-2">
-            {PRESETS.map((p) => (
+        {/* h / min / s pickers — same style as the popup's timer */}
+        <div className="flex items-center justify-center gap-3" style={{ border: "none" }}>
+          {[
+            { label: "h", val: pk.h, step: (v) => Math.min(99, Math.max(0, v)) },
+            { label: "min", val: pk.m, step: (v) => Math.min(59, Math.max(0, v)) },
+            { label: "s", val: pk.s, step: (v) => Math.min(59, Math.max(0, v)) },
+          ].map((d, i) => (
+            <div key={d.label} className="flex flex-col items-center gap-1">
               <button
-                key={p.label}
-                onClick={() => !running && onSession({ running: false, endAt: null, hold: 0, mins: p.min })}
+                onClick={() => (running ? null : bumpPk(i, +1, d.step))}
                 disabled={running}
-                className="h-8 px-3 rounded-full text-[12px] font-semibold cursor-pointer disabled:opacity-30"
-                style={{
-                  background: mins === p.min ? "#22D3EE" : "rgba(255,255,255,0.07)",
-                  color: mins === p.min ? "#000000" : "#A1A1A6",
-                  border: mins === p.min ? "1px solid #22D3EE" : "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                {p.min}
-              </button>
-            ))}
-          </div>
-          <StepperBtn onClick={() => bump(1)} label="+" />
+                className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer disabled:opacity-30"
+                style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+                aria-label={`+ ${d.label}`}
+              >+</button>
+              <span className="text-[26px] font-medium tabular-nums w-14 text-center" style={{ color: "#FFFFFF" }}>{pad2(d.val)}</span>
+              <button
+                onClick={() => (running ? null : bumpPk(i, -1, d.step))}
+                disabled={running}
+                className="w-12 h-8 rounded-lg text-[15px] font-bold cursor-pointer disabled:opacity-30"
+                style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+                aria-label={`- ${d.label}`}
+              >−</button>
+              <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "#8E8E93" }}>{d.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-center gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.label}
+              onClick={() =>
+                running
+                  ? null
+                  : onSession({ running: false, endAt: null, hold: 0, durMs: (p.h * 3600 + p.m * 60 + p.s) * 1000 })
+              }
+              disabled={running}
+              className="h-7 px-3 rounded-full text-[12px] font-semibold cursor-pointer disabled:opacity-30"
+              style={{ background: "#1C1C1E", color: "#EBEBF0" }}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-3">
@@ -220,19 +278,6 @@ function Colon({ size, height }) {
       <span style={{ width: size, height: size }} />
       <span style={{ width: size, height: size }} />
     </div>
-  );
-}
-
-function StepperBtn({ onClick, label }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className="h-12 w-12 grid place-items-center rounded-full text-[24px] font-bold cursor-pointer"
-      style={{ background: "rgba(255,255,255,0.07)", color: "#D7D7DB", border: "1px solid rgba(255,255,255,0.12)" }}
-    >
-      {label}
-    </button>
   );
 }
 
