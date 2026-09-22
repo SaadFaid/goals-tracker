@@ -11,7 +11,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
   const editMode = useGoalsStore((s) => s.editMode);
   const toggleEditMode = useGoalsStore((s) => s.toggleEditMode);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState("month");
 
   const signedIn = !!user && !isGuest;
 
@@ -101,17 +100,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
       {/* Row 2 — month + control deck. A floating card, pinned to the top. */}
       <div className="sticky top-0 z-40 px-3 sm:px-5 pt-2 pb-3">
         <div className="controls-card mx-auto max-w-[1100px] rounded-2xl flex items-center justify-center gap-2 flex-wrap px-3 py-2">
-          <MonthPicker open={pickerOpen} onOpenChange={setPickerOpen} tab={pickerTab} onTab={setPickerTab} />
-          <button
-            type="button"
-            onClick={() => { setPickerTab("days"); setPickerOpen(!pickerOpen); }}
-            className="nav-btn"
-            aria-pressed={pickerOpen && pickerTab === "days"}
-            title="Past days of your checklist"
-            style={pill(pickerOpen && pickerTab === "days")}
-          >
-            Days
-          </button>
+          <MonthPicker open={pickerOpen} onOpenChange={setPickerOpen} />
           <span className="nav-divider" aria-hidden="true" />
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <button
