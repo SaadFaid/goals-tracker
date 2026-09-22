@@ -20,21 +20,23 @@ function fmtClock(ms) {
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
 }
 
-function useTileSize(nGroups) {
-  const [h, setH] = useState(() => calcFor(nGroups, window.innerWidth, window.innerHeight));
+function useTileSize(nGroups, running) {
+  const calc = (g, vw, vh, r) => {
+    const fromW = Math.floor(vw / (g * 1.62));
+    // While counting, the pickers are hidden — give the tiles more room,
+    // but always leave space for the status line + Pause/Reset row.
+    const fromH = r
+      ? Math.max(120, Math.min(Math.floor(vh * 0.7), vh - 320))
+      : Math.floor(vh * 0.5);
+    return Math.max(90, Math.min(Math.min(fromW, fromH), r ? 480 : 340));
+  };
+  const [h, setH] = useState(() => calc(nGroups, window.innerWidth, window.innerHeight, running));
   useEffect(() => {
-    const onR = () => setH(calcFor(nGroups, window.innerWidth, window.innerHeight));
+    const onR = () => setH(calc(nGroups, window.innerWidth, window.innerHeight, running));
     window.addEventListener("resize", onR);
     return () => window.removeEventListener("resize", onR);
-  }, [nGroups]);
+  }, [nGroups, running]);
   return h;
-}
-
-// Fit the tile row to the viewport and make it as large as possible.
-function calcFor(nGroups, vw, vh) {
-  const fromW = Math.floor(vw / (nGroups * 1.62));
-  const fromH = Math.floor(vh * 0.5);
-  return Math.max(90, Math.min(Math.min(fromW, fromH), 340));
 }
 
 /**
@@ -87,7 +89,7 @@ export default function FlipClock({ open, onClose, session, onSession }) {
   const ss = totalS % 60;
   const groups = [hh, mm, ss];
 
-  const tileH = useTileSize(groups.length);
+  const tileH = useTileSize(groups.length, running);
   const tileW = Math.round(tileH * 0.62);
   const fontSize = Math.round(tileH * 0.78);
 
