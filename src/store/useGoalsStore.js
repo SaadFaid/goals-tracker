@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { categories as seedCategories, generateRewardTiers } from "../data/goals";
 import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
-import { api } from "../lib/api";
+import { api, setAccessToken } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
 import { setIdentityScope } from "../lib/storageScope";
 
@@ -405,9 +405,33 @@ export const useGoalsStore = create(
         get().ensureDailyLog();
       },
 
+      // Pull this account's data down from the server and make it the live
+      // state. The server is the source of truth once a session is server-backed;
+      // the local profile slot is only a cache for offline/guest use.
+      adoptServerSession: async (accessToken, user) => {
+        setAccessToken(accessToken);
+        const dashboard = await api.dashboard();
+        set({
+          user: { email: user.email, name: user.name },
+          isGuest: false,
+          isServerBacked: true,
+          sessionStarted: true,
+          error: null,
+          categories: ensureRewardTiers(deepClone(dashboard.categories || [])),
+          lastSyncedAt: new Date().toISOString(),
+        });
+        setIdentityScope(user.email);
+        get().persistLocalProfile();
+        const d = calculateDashboardState(get().categories, new Date(), get().monthOffset);
+        set({ dashboard: d, bootstrapped: true });
+        get().derive();
+        get().ensureDailyLog(get().categories, d);
+      },
+
       register: async (credentials) => {
         const email = String(credentials?.email || "").trim().toLowerCase();
         const password = String(credentials?.password || "");
+        const name = String(credentials?.name || "").trim() || "User";
         if (!email || !/.+@.+\..+/.test(email)) {
           set({ error: "Enter a valid email address", loading: false });
           throw new Error("Enter a valid email address");
@@ -416,6 +440,20 @@ export const useGoalsStore = create(
           set({ error: "Password must be at least 4 characters", loading: false });
           throw new Error("Password must be at least 4 characters");
         }
+        try {
+          const { accessToken, user } = await api.register({ email, password, name });
+          await get().adoptServerSession(accessToken, user);
+          return;
+        } catch (err) {
+          // The server already knows this email, or is unreachable. A local-only
+          // account is still a valid destination, so fall through instead of
+          // hard-failing — this is a guest-first app that must work offline.
+          if (err?.status === 409) {
+            const msg = "An account with this email already exists. Log in instead.";
+            set({ error: msg, loading: false });
+            throw new Error(msg);
+          }
+        }
         const map = readProfiles();
         if (map[email]) {
           const msg = "An account with this email already exists. Log in instead.";
@@ -423,7 +461,7 @@ export const useGoalsStore = create(
           throw new Error(msg);
         }
         const passHash = await hashPassword(password);
-        map[email] = { name: String(credentials?.name || "User").trim() || "User", passHash, categories: seedClone() };
+        map[email] = { name, passHash, categories: seedClone() };
         writeProfiles(map);
         get().applyLocalProfile(email, map[email]);
       },
@@ -431,6 +469,23 @@ export const useGoalsStore = create(
       login: async (credentials) => {
         const email = String(credentials?.email || "").trim().toLowerCase();
         const password = String(credentials?.password || "");
+        if (!email || !password) {
+          set({ error: "Enter your email and password", loading: false });
+          throw new Error("Enter your email and password");
+        }
+        try {
+          const { accessToken, user } = await api.login({ email, password });
+          await get().adoptServerSession(accessToken, user);
+          return;
+        } catch (err) {
+          // 401 means the server rejected the credentials outright. That is the
+          // authoritative answer, so do not let the local cache second-guess it.
+          if (err?.status === 401 || err?.status === 400) {
+            const msg = "Incorrect email or password.";
+            set({ error: msg, loading: false });
+            throw new Error(msg);
+          }
+        }
         const map = readProfiles();
         const slot = map[email];
         if (!slot) {
@@ -448,9 +503,25 @@ export const useGoalsStore = create(
         get().applyLocalProfile(email, slot);
       },
 
+      // Restore a server session from the refresh cookie so a reload does not
+      // bounce the user back to the auth screen.
+      resumeServerSession: async () => {
+        try {
+          const { accessToken, user } = await api.refresh();
+          await get().adoptServerSession(accessToken, user);
+          return true;
+        } catch {
+          setAccessToken(null);
+          return false;
+        }
+      },
+
       logout: () => {
+        if (get().isServerBacked) api.logout().catch(() => {});
+        setAccessToken(null);
         get().persistLocalProfile();
         set({
+          isServerBacked: false,
           user: null,
           isGuest: true,
           sessionStarted: false,
@@ -994,6 +1065,7 @@ export const useGoalsStore = create(
           progressLogs: s.progressLogs,
           user: s.user,
           isGuest: s.isGuest,
+          isServerBacked: s.isServerBacked,
           sessionStarted: s.sessionStarted,
           monthOffset: s.monthOffset,
           selectedMonth: s.selectedMonth,

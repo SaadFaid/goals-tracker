@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getIdentityScope, identityStorage } from "../lib/storageScope";
 import { useGoalsStore } from "./useGoalsStore";
+import { api } from "../lib/api";
 import { makeExamplePlanRows } from "../lib/seedExamples";
 
 const PLAN_KEY = "august-goals-schedule-v1";
@@ -52,10 +53,40 @@ export const usePlanStore = create(
       past: [],
       seeded: false,
 
+      // Server is the source of truth for a server-backed session; localStorage
+      // is only the offline cache. Mirror every local edit back up so the two
+      // cannot drift.
+      pushToServer() {
+        if (!useGoalsStore.getState().isServerBacked) return;
+        const s = get();
+        api
+          .savePlan({ mode: "merge", schedule: s.schedule, past: s.past.slice(-MAX_HISTORY) })
+          .catch(() => {});
+      },
+
+      pullFromServer() {
+        if (!useGoalsStore.getState().isServerBacked) return Promise.resolve(false);
+        return api
+          .getPlan()
+          .then((res) => {
+            set({
+              schedule: Array.isArray(res?.schedule) ? res.schedule : [],
+              // The API stores snapshots as {date, seq, items}; the client keeps
+              // them as bare arrays, so unwrap on the way in.
+              past: Array.isArray(res?.past) ? res.past.map((p) => p.items) : [],
+              seeded: true,
+            });
+            return true;
+          })
+          .catch(() => false);
+      },
+
       // (Re)load the schedule for the currently active identity, seeding
       // examples on first use. Called on boot and on account switch.
       reloadForIdentity() {
-        set(readIdentityPlan());
+        return get().pullFromServer().then((pulled) => {
+          if (!pulled) set(readIdentityPlan());
+        });
       },
 
       remember() {
@@ -72,6 +103,7 @@ export const usePlanStore = create(
         if (s.past.length === 0) return false;
         const last = s.past[s.past.length - 1];
         set({ schedule: last, past: s.past.slice(0, -1) });
+        get().pushToServer();
         return true;
       },
 
@@ -93,6 +125,7 @@ export const usePlanStore = create(
           repeatDay: slot.repeatDay,
         };
         set((s) => ({ schedule: [...s.schedule, row] }));
+        get().pushToServer();
         return row;
       },
 
@@ -101,16 +134,19 @@ export const usePlanStore = create(
         set((s) => ({
           schedule: s.schedule.map((r) => (r.id === id ? { ...r, ...patch, id: r.id } : r)),
         }));
+        get().pushToServer();
       },
 
       removeSlot(id) {
         get().remember();
         set((s) => ({ schedule: s.schedule.filter((r) => r.id !== id) }));
+        get().pushToServer();
       },
 
       clearDate(date) {
         get().remember();
         set((s) => ({ schedule: s.schedule.filter((r) => r.date !== date) }));
+        get().pushToServer();
       },
     }),
     {

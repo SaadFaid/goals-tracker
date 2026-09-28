@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../lib/api";
+import { useGoalsStore } from "../store/useGoalsStore";
 import { IconClose } from "./Icons";
 import { scopeKey } from "../lib/storageScope";
 import { makeExampleDays } from "../lib/seedExamples";
@@ -97,6 +99,9 @@ function todayKeyOf(d = new Date()) {
 }
 
 export default function Notes() {
+  // Server-backed sessions read/write through the API; localStorage stays the
+  // offline cache.
+  const isServerBacked = useGoalsStore((st) => st.isServerBacked === true);
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
   const [dayRec, setDayRec] = useState(() => {
@@ -121,7 +126,10 @@ export default function Notes() {
   useEffect(() => {
     latestNotes.current = notes;
     localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
-  }, [notes]);
+    if (isServerBacked) {
+      api.saveNotes({ mode: "merge", notes }).catch(() => {});
+    }
+  }, [notes, isServerBacked]);
 
   // Archive the previous day's checklist on day rollover (on open/mount, like
   // the store's daily reset). The current day's list is saved under its own
@@ -143,11 +151,37 @@ export default function Notes() {
 
   useEffect(() => {
     localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
-  }, [dayRec]);
+    if (isServerBacked) {
+      api
+        .saveNotes({ mode: "merge", days: dayRec?.map || {}, lastDay: dayRec?.lastDay })
+        .catch(() => {});
+    }
+  }, [dayRec, isServerBacked]);
 
   useEffect(() => {
     if (open && view === "list") inputRef.current?.focus();
   }, [open, view]);
+
+  // A server-backed session loads the account's notes from the API rather than
+  // from this device's cache.
+  useEffect(() => {
+    if (!isServerBacked) return;
+    api
+      .getNotes()
+      .then((res) => {
+        if (Array.isArray(res?.notes)) setNotes(res.notes);
+        if (res?.days) {
+          setDayRec((prev) => ({
+            lastDay: res.lastDay || prev?.lastDay,
+            map: res.days.map || {},
+            seeded: prev?.seeded === true,
+          }));
+        }
+      })
+      .catch(() => {});
+    // Runs once per mount: later edits flow through the save effects above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isServerBacked]);
 
   const addNote = () => {
     const text = draft.trim();

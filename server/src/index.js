@@ -17,6 +17,9 @@ import rewardRoutes from "./routes/rewards.js";
 import progressRoutes from "./routes/progress.js";
 import snapshotRoutes from "./routes/snapshots.js";
 import syncRoutes from "./routes/sync.js";
+import planRoutes from "./routes/plan.js";
+import notesRoutes from "./routes/notes.js";
+import pomodoroRoutes from "./routes/pomodoro.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -54,6 +57,9 @@ app.use("/api/rewards", rewardRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/snapshots", snapshotRoutes);
 app.use("/api/sync", syncRoutes);
+app.use("/api/plan", planRoutes);
+app.use("/api/notes", notesRoutes);
+app.use("/api/pomodoro", pomodoroRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

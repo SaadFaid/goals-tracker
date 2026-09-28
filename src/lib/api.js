@@ -80,6 +80,23 @@ export const api = {
   // Sync
   sync: (body) => request("POST", "/sync", body),
 
+  // Plan (daily schedule blocks)
+  getPlan: () => request("GET", "/plan"),
+  savePlan: (body) => request("PUT", "/plan", body),
+  createPlanItem: (body) => request("POST", "/plan", body),
+  deletePlanItem: (id) => request("DELETE", `/plan/${id}`),
+
+  // Notes (standing list + per-day history)
+  getNotes: () => request("GET", "/notes"),
+  saveNotes: (body) => request("PUT", "/notes", body),
+  createNote: (body) => request("POST", "/notes", body),
+  deleteNote: (id) => request("DELETE", `/notes/${id}`),
+
+  // Pomodoro
+  getPomodoro: () => request("GET", "/pomodoro"),
+  savePomodoro: (settings) => request("PUT", "/pomodoro", { settings }),
+  resetPomodoro: () => request("DELETE", "/pomodoro"),
+
   // Month snapshots (server-side, cross-device history)
   snapshots: () => request("GET", "/snapshots"),
   snapshot: (month) => request("GET", `/snapshots/${month}`),

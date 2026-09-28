@@ -22,6 +22,12 @@ model User {
   monthlySnapshots MonthlySnapshot[]
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  planItems     PlanItem[]
+  planSnapshots PlanSnapshot[]
+  notes         Note[]
+  noteDays      NoteDay[]
+  noteDayState  NoteDayState?
+  pomodoro      PomodoroSettings?
 }
 
 model PasswordResetToken {
@@ -54,6 +60,7 @@ model Category {
   id        String    @id @default(uuid())
   userId    String
   name      String
+  slug      String?   // the client's stable id ("discipline"); PlanItem rows reference it
   dotColor  String    @default("turquoise") // turquoise | white | pink | purple | blue | orange | green | red | grey | black | yellow
   sortOrder Int       @default(0)
   expanded  Boolean   @default(true)
@@ -63,7 +70,9 @@ model Category {
   actions   Action[]
   results   Result[]
   rewards   Reward[]
+  planItems PlanItem[]
 
+  @@unique([userId, slug])
   @@index([userId, sortOrder])
 }
 
@@ -154,4 +163,120 @@ model MonthlySnapshot {
 
   @@unique([userId, month])
   @@index([userId, month])
+}
+
+// ---------------------------------------------------------------------------
+// Per-account planner, notes, pomodoro and the rest of the app state that used
+// to live only in browser localStorage. Every table carries userId and cascades
+// from User, so deleting an account cannot leave another account's rows behind.
+// Authorization is done in the route layer (see AGENTS.md — RLS is deliberately
+// off because Prisma connects as a BYPASSRLS role), so every query here must
+// filter on userId taken from the verified JWT, never from the request body.
+// ---------------------------------------------------------------------------
+
+// One row per scheduled block. The id is the client-generated uuid so re-syncing
+// the same plan updates rows instead of duplicating them.
+model PlanItem {
+  id         String   @id
+  userId     String
+  categoryId String?  // resolved from legacyCatId at import; null once the category is deleted
+  legacyCatId String  // the client's category id ("discipline"), kept for display after a rename
+  type       String   @default("action")  // "action" | "result"
+  idx        Int      @default(0)          // position within the category
+  label      String
+  catName    String
+  date       String                       // "YYYY-MM-DD"
+  start      String?                      // "HH:MM"
+  end        String?
+  repeat     String   @default("daily")   // "daily" | "weekly"
+  repeatDay  Int[]    @default([])        // weekday numbers, only for repeat = "weekly"
+  color      String?
+  note       String?
+  sortOrder  Int      @default(0)
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+}
+
+// The client's "past" buffer: whole-schedule snapshots kept as items get edited.
+model PlanSnapshot {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String
+  seq       Int      @default(0)
+  items     Json
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+// The standing note list (today's notes). The primary key is (userId, id) rather
+// than id alone, so two accounts can hold notes with the same client id without
+// either being able to read or clobber the other's.
+model Note {
+  id        String
+  userId    String
+  text      String
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, id])
+}
+
+// One day's worth of notes, kept so past days can be reopened.
+model NoteDay {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String                       // "YYYY-MM-DD"
+  noteId    String
+  text      String
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, noteId])
+  @@index([userId, date])
+}
+
+// The two scalars the client tracks alongside the notes-days map.
+model NoteDayState {
+  userId   String   @id
+  lastDay  String
+  seeded   Boolean  @default(false)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Pomodoro durations plus the running-timer state, so a reload on another device
+// picks up where the previous one left off.
+model PomodoroSettings {
+  userId    String    @id
+  workM     Int       @default(25)
+  breakM    Int       @default(5)
+  soundId   String    @default("chime")
+  phase     String    @default("focus")  // "focus" | "break"
+  pomodoros Int       @default(0)
+  repeat    Boolean   @default(true)
+  mode      String    @default("focus")  // "focus" | "timer"
+  fRunning  Boolean   @default(false)
+  fEndAt    DateTime?
+  fHold     Int       @default(0)       // paused seconds remaining
+  tH        Int       @default(0)
+  tM        Int       @default(0)
+  tS        Int       @default(0)
+  tRunning  Boolean   @default(false)
+  tEndAt    DateTime?
+  tHold     Int       @default(0)
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

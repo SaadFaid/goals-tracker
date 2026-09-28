@@ -68,11 +68,16 @@ router.post("/", async (req, res, next) => {
       if (!name) { stats.skipped++; continue; }
 
       let dbCat = pickExisting(existing, localCat.id, (c) => c.name === name);
+      // The client's category id ("discipline") is what PlanItem.catId refers to,
+      // so keep it as the slug. Uniqueness is scoped per user, and a second import
+      // that leaves the column null must not trip the unique index.
+      const slug = cleanText(localCat.id, 100) || null;
       if (!dbCat) {
         dbCat = await prisma.category.create({
           data: {
             userId: req.user.id,
             name,
+            slug,
             dotColor: isDotColor(localCat.dotColor) ? localCat.dotColor : "turquoise",
             sortOrder: sortOrder++,
             expanded: localCat.expanded !== false,
@@ -85,6 +90,16 @@ router.post("/", async (req, res, next) => {
         dbCat.rewards = [];
         existing.push(dbCat);
         stats.categories++;
+      } else if (slug && !dbCat.slug) {
+        // Backfill the slug on a category that predates the column, so plan items
+        // can resolve their catId.
+        dbCat = await prisma.category.update({
+          where: { id: dbCat.id },
+          data: { slug },
+          include: { actions: true, results: true, rewards: true },
+        });
+        const at = existing.findIndex((c) => c.id === dbCat.id);
+        if (at >= 0) existing[at] = dbCat;
       }
 
       const actionIds = new Map();

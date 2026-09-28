@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import FlipClock from "./FlipClock";
 import { scopeKey } from "../lib/storageScope";
+import { api } from "../lib/api";
+import { useGoalsStore } from "../store/useGoalsStore";
 
 const STORAGE_BASE = "august-goals-pomodoro";
 const ALERT_KEY = "august-goals-alerts";
@@ -92,6 +94,9 @@ export default function Pomodoro() {
   const boot = useRef(loadState());
   const s = boot.current;
 
+  // Server-backed sessions read/write through the API; localStorage stays the
+  // offline cache.
+  const isServerBacked = useGoalsStore((st) => st.isServerBacked === true);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState(s.mode);
   const [workM, setWorkM] = useState(s.workM);
@@ -139,11 +144,10 @@ export default function Pomodoro() {
 
   // Persist settings.
   useEffect(() => {
-    localStorage.setItem(
-      scopeKey(STORAGE_BASE),
-      JSON.stringify({ workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold })
-    );
-  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold]);
+    const settings = { workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold };
+    localStorage.setItem(scopeKey(STORAGE_BASE), JSON.stringify(settings));
+    if (isServerBacked) api.savePomodoro(settings).catch(() => {});
+  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold, isServerBacked]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
   useEffect(() => {
@@ -158,6 +162,35 @@ export default function Pomodoro() {
   const tRemaining = tRunning && tEndAt ? Math.max(0, tEndAt - tNow) : tHold > 0 ? tHold : tTotal;
 
   // Ticks while a timer is live.
+  useEffect(() => {
+    if (!isServerBacked) return;
+    api
+      .getPomodoro()
+      .then((remote) => {
+        const r = remote?.settings;
+        if (!r) return;
+        setWorkM(r.workM ?? workM);
+        setBreakM(r.breakM ?? breakM);
+        setSoundId(soundIdFrom(r));
+        setPhase(r.phase ?? phase);
+        setPomodoros(r.pomodoros ?? 0);
+        setRepeat(r.repeat ?? repeat);
+        setMode(r.mode ?? mode);
+        setRunning(!!r.fRunning);
+        setEndAt(r.fEndAt ?? null);
+        setHold(r.fHold ?? 0);
+        setTH(r.tH ?? 0);
+        setTM(r.tM ?? 0);
+        setTS(r.tS ?? 0);
+        setTRunning(!!r.tRunning);
+        setTEndAt(r.tEndAt ?? null);
+        setTHold(r.tHold ?? 0);
+      })
+      .catch(() => {});
+    // Runs once per mount: later edits flow through the persist effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isServerBacked]);
+
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => setNow(Date.now()), 250);

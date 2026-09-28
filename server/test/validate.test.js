@@ -2,13 +2,29 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cleanText, cleanUnit } from "../src/validation/validate.js";
 
-// sanitize-html escapes a bare "&" even with allowedTags: []. Every category
-// name in the real profile contains one ("Discipline & Mind"), so the import
-// used to store "Discipline &amp; Mind" and the label stopped matching itself.
-test("cleanText preserves ampersands instead of escaping them", () => {
+// sanitize-html escapes a bare "&" and ">" while serializing, even with
+// allowedTags: []. Every category name in the real profile contains one
+// ("Discipline & Mind"), and one note read "nq 9->18", so the import stored
+// "Discipline &amp; Mind" and "nq 9-&gt;18".
+test("cleanText preserves ampersands and angle brackets", () => {
   assert.equal(cleanText("Discipline & Mind"), "Discipline & Mind");
   assert.equal(cleanText("a & b & c"), "a & b & c");
   assert.equal(cleanText("100% & rising"), "100% & rising");
+  assert.equal(cleanText("nq 9->18 1h30min15min ->1min"), "nq 9->18 1h30min15min ->1min");
+  assert.equal(cleanText("5 > 3 and 2 < 4"), "5 > 3 and 2 < 4");
+  assert.equal(cleanText("café & tea"), "café & tea");
+});
+
+test("cleanText decodes numeric entities", () => {
+  assert.equal(cleanText("&#x1F600; emoji"), "\u{1F600} emoji");
+});
+
+// Decoding is a single pass, so text the user genuinely typed as an entity
+// collapses one level instead of being escaped twice.
+test("cleanText decodes entities exactly one level", () => {
+  assert.equal(cleanText("&amp;amp;"), "&amp;");
+  assert.equal(cleanText("&amp;"), "&");
+  assert.equal(cleanText("&gt;"), ">");
 });
 
 test("cleanText still strips tags", () => {
