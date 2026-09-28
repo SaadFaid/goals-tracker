@@ -127,6 +127,7 @@ model ProgressLog {
   year          Int
   qualityScore  Float
   expectedScore Float
+  resultsScore  Float?   // aggregate results % for the day, if recorded
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

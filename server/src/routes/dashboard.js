@@ -19,8 +19,13 @@ async function loadDashboardForDate(userId, date, monthOffset = 0) {
 }
 
 /** Recompute + upsert today's ProgressLog. Returns dashboard + log. */
-export async function recomputeAndLog(userId, monthOffset = 0, date = new Date()) {
+export async function recomputeAndLog(userId, monthOffset = 0, date = new Date(), { persist = true } = {}) {
   const dashboard = await loadDashboardForDate(userId, date, monthOffset);
+
+  // persist:false returns the same dashboard without touching the daily log. The
+  // sync route uses it when the payload carried its own progressLogs, so a
+  // recomputed score cannot overwrite the values that were just imported.
+  if (!persist) return dashboard;
 
   const targetDate = new Date(date);
   targetDate.setMonth(targetDate.getMonth() + monthOffset);
