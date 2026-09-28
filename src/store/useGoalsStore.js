@@ -196,6 +196,7 @@ const emptyState = () => ({
   progressLogs: [],
   undoStack: [],
   pendingMutations: [],
+  flushing: false,
   editMode: false,
   monthOffset: 0,
   selectedMonth: localMonthKey(),
@@ -625,10 +626,36 @@ export const useGoalsStore = create(
         if (!get().isGuest) get().flush();
       },
 
+      // Actually run the queued mutations. This used to just empty the queue —
+      // a leftover from the frontend-only build — so every edit looked like it
+      // saved and then came back from the server at its old value on the next
+      // load. Now each entry's `execute` is really called, and anything that
+      // fails stays queued for `retryAll` instead of being silently dropped.
       flush: async () => {
-        // No backend in the frontend-only build. Local profiles are fully
-        // local; there is nothing to sync, so drop the pending queue.
-        set({ pendingMutations: [] });
+        const { pendingMutations } = get();
+        if (get().flushing || pendingMutations.length === 0) return;
+        set({ flushing: true });
+        try {
+          for (const m of pendingMutations) {
+            if (typeof m.execute !== "function") continue;
+            try {
+              await m.execute();
+              // Only drop the ones that actually made it.
+              set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== m.id) }));
+            } catch (err) {
+              // A server-backed session needs an access token. A 401/403 means
+              // the session is gone, not that the edit is bad — re-throw so the
+              // caller can re-authenticate rather than retrying into a wall.
+              if (err?.status === 401 || err?.status === 403) {
+                set({ error: "Session expired. Please log in again." });
+                break;
+              }
+              // Leave it queued: offline or a transient 5xx should not lose data.
+            }
+          }
+        } finally {
+          set({ flushing: false });
+        }
       },
 
       retryAll: () => get().flush(),
