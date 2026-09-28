@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useGoalsStore } from "../store/useGoalsStore";
+import ChangePassword from "./ChangePassword";
 import { IconCheck, IconPencil, IconChart, IconPrint } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
@@ -11,6 +13,8 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
   const toggleEditMode = useGoalsStore((s) => s.toggleEditMode);
 
   const signedIn = !!user && !isGuest;
+  const isServerBacked = useGoalsStore((s) => s.isServerBacked === true);
+  const [changingPw, setChangingPw] = useState(false);
 
   // Shared pill style — calm glass when off, mint glow when on.
   const pill = (active) => ({
@@ -67,6 +71,11 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-success)" }} aria-hidden="true" />
                 {user.name || user.email}
               </span>
+              {isServerBacked && (
+                <button onClick={() => setChangingPw(true)} className="nav-btn" style={pill(false)}>
+                  Password
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="nav-btn"
@@ -153,6 +162,8 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
           </div>
         </div>
       </div>
+
+      {changingPw && <ChangePassword onClose={() => setChangingPw(false)} />}
     </>
   );
 }

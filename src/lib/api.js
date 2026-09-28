@@ -48,6 +48,8 @@ export const api = {
   refresh: () => request("POST", "/auth/refresh", undefined, { authed: false }),
   logout: () => request("POST", "/auth/logout"),
   me: () => request("GET", "/auth/me"),
+  changePassword: (currentPassword, newPassword) =>
+    request("POST", "/auth/change-password", { currentPassword, newPassword }),
   forgotPassword: (email) => request("POST", "/auth/forgot-password", { email }, { authed: false }),
   resetPassword: (token, password) => request("POST", "/auth/reset-password", { token, password }, { authed: false }),
 

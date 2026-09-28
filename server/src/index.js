@@ -34,11 +34,16 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Guards against password guessing, so it must only count FAILED attempts.
+// Counting successes as well meant that logging in, logging out and logging
+// back in — or simply retrying because the app had not finished loading — ate
+// the whole budget and locked the real user out of their own account.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: { error: "Too many attempts. Try again later." },
 });
 

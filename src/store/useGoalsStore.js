@@ -478,13 +478,21 @@ export const useGoalsStore = create(
           await get().adoptServerSession(accessToken, user);
           return;
         } catch (err) {
-          // 401 means the server rejected the credentials outright. That is the
-          // authoritative answer, so do not let the local cache second-guess it.
-          if (err?.status === 401 || err?.status === 400) {
-            const msg = "Incorrect email or password.";
+          // The server gave a definitive answer — never let the local cache
+          // contradict it. Falling through here used to turn a rate-limit (429)
+          // or an unreachable API into a misleading "Incorrect password".
+          if (err?.status) {
+            const msg =
+              err.status === 429
+                ? "Too many attempts. Wait 15 minutes, then try again."
+                : err.status === 401 || err.status === 400
+                  ? "Incorrect email or password."
+                  : err.message || "Could not reach the server.";
             set({ error: msg, loading: false });
             throw new Error(msg);
           }
+          // No response at all (API down, offline). Fall back to a local
+          // profile so the guest-first app still works.
         }
         const map = readProfiles();
         const slot = map[email];

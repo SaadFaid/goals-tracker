@@ -194,6 +194,48 @@ router.post("/logout", requireAuth, async (req, res, next) => {
   }
 });
 
+router.post("/change-password", requireAuth, async (req, res, next) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+    if (!currentPassword || !newPassword) {
+      throw createHttpError(400, "Enter your current password and a new one.");
+    }
+    if (!isStrongPassword(newPassword)) {
+      throw createHttpError(
+        400,
+        "New password must be at least 8 characters and include an uppercase letter, a number and a symbol."
+      );
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) throw createHttpError(404, "User not found");
+    // Always verify the current password: without this check, anyone holding a
+    // stolen access token could take the account over permanently.
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      throw createHttpError(401, "Current password is incorrect.");
+    }
+    if (await verifyPassword(newPassword, user.passwordHash)) {
+      throw createHttpError(400, "New password must be different from the current one.");
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(newPassword) },
+    });
+    // Changing the password invalidates every existing session, so anyone who
+    // stole the old token cannot keep using it.
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    const accessToken = signAccessToken(user);
+    const { token: refreshToken, expiresAt } = await issueRefreshToken(user.id);
+    setRefreshCookie(res, refreshToken, expiresAt);
+    return res.json({ ok: true, accessToken });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
