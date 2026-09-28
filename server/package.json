@@ -32,5 +32,8 @@
   },
   "devDependencies": {
     "prisma": "^5.22.0"
+  },
+  "allowScripts": {
+    "prisma@5.22.0": true
   }
 }
