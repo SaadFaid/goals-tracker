@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
 import {
-  cleanText, isDotColor, isWeight, isPositiveNumber, isNonNegativeNumber,
+  cleanText, cleanUnit, isDotColor, isWeight, isPositiveNumber, isNonNegativeNumber,
   isOneOf, isPercent, isMonthKey,
   RESET_TYPES, ACTION_TYPES, THRESHOLD_TYPES, REWARD_PERIODS,
 } from "../validation/validate.js";
@@ -20,6 +20,16 @@ const toDate = (value) => {
 // so every matched/created child is recorded here to let rewards resolve their
 // linkedActionId / linkedResultId against real rows.
 const key = (v) => (typeof v === "string" && v ? v : null);
+
+// When the payload carries ids, match on id and nothing else. Falling back to
+// the label after a failed id lookup made two same-named rewards ("Full day
+// off" weekly + monthly) collapse into one row, with the second overwriting the
+// first. The name/target heuristic only applies to payloads that predate ids,
+// where there is no id to trust.
+const pickExisting = (rows, localId, fallbackMatch) =>
+  key(localId)
+    ? rows.find((x) => x.id === localId) || null
+    : rows.find(fallbackMatch) || null;
 
 /**
  * Merge a full local payload (from guest mode) into the authenticated user's data.
@@ -57,7 +67,7 @@ router.post("/", async (req, res, next) => {
       const name = cleanText(localCat?.name, 100);
       if (!name) { stats.skipped++; continue; }
 
-      let dbCat = existing.find((c) => (key(localCat.id) && c.id === localCat.id) || c.name === name);
+      let dbCat = pickExisting(existing, localCat.id, (c) => c.name === name);
       if (!dbCat) {
         dbCat = await prisma.category.create({
           data: {
@@ -83,18 +93,19 @@ router.post("/", async (req, res, next) => {
       for (const a of localCat.actions || []) {
         const label = cleanText(a?.label, 100);
         if (!label || !isWeight(a.weight) || !isPositiveNumber(a.target)) { stats.skipped++; continue; }
-        const found = dbCat.actions.find(
-          (x) => (key(a.id) && x.id === a.id) || (x.label === label && x.target === a.target)
+        const found = pickExisting(
+          dbCat.actions, a.id, (x) => x.label === label && x.target === a.target
         );
         const fields = {
           current: isNonNegativeNumber(a.current) ? a.current : 0,
           label,
           weight: a.weight,
           target: a.target,
-          unit: cleanText(a.unit, 50) || null,
+          unit: cleanUnit(a.unit, 50) || null,
           incrementBy: isPositiveNumber(a.incrementBy) ? a.incrementBy : 1,
           resetType: isOneOf(a.resetType, RESET_TYPES, "monthly"),
           actionType: isOneOf(a.actionType, ACTION_TYPES, "count"),
+          invert: !!a.invert,
           lastResetAt: toDate(a.lastResetAt),
           sortOrder: found?.sortOrder ?? dbCat.actions.length,
         };
@@ -108,14 +119,20 @@ router.post("/", async (req, res, next) => {
       for (const r of localCat.results || []) {
         const label = cleanText(r?.label, 100);
         if (!label || !isPositiveNumber(r.target)) { stats.skipped++; continue; }
-        const found = dbCat.results.find(
-          (x) => (key(r.id) && x.id === r.id) || (x.label === label && x.target === r.target)
+        const found = pickExisting(
+          dbCat.results, r.id, (x) => x.label === label && x.target === r.target
         );
         const fields = {
           current: isNonNegativeNumber(r.current) ? r.current : 0,
           label,
           target: r.target,
-          unit: cleanText(r.unit, 50) || null,
+          unit: cleanUnit(r.unit, 50) || null,
+          // Results carry a weight just like actions. calc.js folds it into both
+          // the numerator and the denominator, so a missing value here rescales
+          // the whole score rather than just dropping one row.
+          weight: isWeight(r.weight) ? r.weight : 0,
+          invert: !!r.invert,
+          isBadge: !!r.isBadge,
           sortOrder: found?.sortOrder ?? dbCat.results.length,
         };
         const saved = found
@@ -128,9 +145,7 @@ router.post("/", async (req, res, next) => {
       for (const rw of localCat.rewards || []) {
         const rewardName = cleanText(rw?.name, 100);
         if (!rewardName || !isPositiveNumber(rw.cost)) { stats.skipped++; continue; }
-        const found = dbCat.rewards.find(
-          (x) => (key(rw.id) && x.id === rw.id) || x.name === rewardName
-        );
+        const found = pickExisting(dbCat.rewards, rw.id, (x) => x.name === rewardName);
         // Resolve links through the maps so they point at the rows just written.
         const linkedActionId = actionIds.get(rw.linkedActionId) ?? null;
         const linkedResultId = resultIds.get(rw.linkedResultId) ?? null;
@@ -142,6 +157,7 @@ router.post("/", async (req, res, next) => {
           linkedActionId,
           linkedResultId,
           linkedPercent: isPercent(rw.linkedPercent) ? rw.linkedPercent : 100,
+          price: isNonNegativeNumber(rw.price) ? rw.price : null,
           claimed: !!rw.claimed,
           claimedAt: toDate(rw.claimedAt),
         };

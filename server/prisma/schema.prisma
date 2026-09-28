@@ -78,6 +78,7 @@ model Action {
   incrementBy   Float    @default(1)               // how much a single tap adds
   resetType     String   @default("monthly")       // "none" | "daily" | "weekly" | "monthly"
   actionType    String   @default("count")         // "check" | "amount" | "count"
+  invert        Boolean  @default(false)           // counts down instead of up (a habit to break)
   lastResetAt   DateTime?
   sortOrder     Int      @default(0)
 
@@ -93,6 +94,9 @@ model Result {
   current    Float    @default(0)
   target     Float
   unit       String?
+  weight     Int      @default(0)     // share of the score, same role as Action.weight
+  invert     Boolean  @default(false)
+  isBadge    Boolean  @default(false) // render as a done/not-done badge instead of a bar
   sortOrder  Int      @default(0)
 
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -110,6 +114,7 @@ model Reward {
   linkedActionId String?
   linkedResultId String?
   linkedPercent  Float?    @default(100) // unlock when linked task/result hits this %
+  price          Float?    // real cash cost, when it differs from the points cost
   claimed        Boolean   @default(false)
   claimedAt      DateTime?
 

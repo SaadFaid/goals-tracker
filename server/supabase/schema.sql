@@ -63,6 +63,7 @@ CREATE TABLE "Action" (
     "incrementBy" DOUBLE PRECISION NOT NULL DEFAULT 1,
     "resetType"   TEXT NOT NULL DEFAULT 'monthly',
     "actionType"  TEXT NOT NULL DEFAULT 'count',
+    "invert"      BOOLEAN NOT NULL DEFAULT false,
     "lastResetAt" TIMESTAMP(3),
     "sortOrder"   INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT "Action_pkey" PRIMARY KEY ("id")
@@ -75,6 +76,9 @@ CREATE TABLE "Result" (
     "current"    DOUBLE PRECISION NOT NULL DEFAULT 0,
     "target"     DOUBLE PRECISION NOT NULL,
     "unit"       TEXT,
+    "weight"     INTEGER NOT NULL DEFAULT 0,
+    "invert"     BOOLEAN NOT NULL DEFAULT false,
+    "isBadge"    BOOLEAN NOT NULL DEFAULT false,
     "sortOrder"  INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT "Result_pkey" PRIMARY KEY ("id")
 );
@@ -89,6 +93,7 @@ CREATE TABLE "Reward" (
     "linkedActionId" TEXT,
     "linkedResultId" TEXT,
     "linkedPercent"  DOUBLE PRECISION DEFAULT 100,
+    "price"          DOUBLE PRECISION,
     "claimed"        BOOLEAN NOT NULL DEFAULT false,
     "claimedAt"      TIMESTAMP(3),
     CONSTRAINT "Reward_pkey" PRIMARY KEY ("id")
@@ -103,6 +108,7 @@ CREATE TABLE "ProgressLog" (
     "year"          INTEGER NOT NULL,
     "qualityScore"  DOUBLE PRECISION NOT NULL,
     "expectedScore" DOUBLE PRECISION NOT NULL,
+    "resultsScore"  DOUBLE PRECISION,
     CONSTRAINT "ProgressLog_pkey" PRIMARY KEY ("id")
 );
 

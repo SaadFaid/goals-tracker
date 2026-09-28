@@ -19,6 +19,8 @@ Two independent npm packages, **not** a workspace. Run commands from the correct
 - **No IPv6 on this machine** — `db.<ref>.supabase.co` is IPv6-only, so the direct connection is unreachable. Everything must go through the session-mode pooler on port 5432. Do not add `?pgbouncer=true` (that is for transaction mode on 6543).
 - **Never point `--shadow-database-url` at Supabase** — `prisma migrate diff` treats it as a throwaway database and its teardown drops `_prisma_migrations`, which silently un-baselines every migration. Use a real scratch DB for shadow work.
 - **Auth rate limiting** — 5 requests per 15 minutes on `/api/auth/login` and `/api/auth/register`.
+- **`cleanText` must not escape `&`** — `sanitize-html` turns a bare `&` into `&amp;` even with `allowedTags: []`, so every name containing one ("Discipline & Mind") was stored mangled. Both `cleanText` and `cleanUnit` park ampersands behind a sentinel around the call. Nothing here is rendered as HTML, so that escaping was pure data loss. `cleanUnit` additionally skips `.trim()`: units render as `{target}{unit}`, so the leading space in `" sessions"` is what produces "5 sessions".
+- **Sync matches on id, never on label** — when a payload carries ids, `pickExisting` matches on id alone. Falling back to the label after a failed id lookup collapsed two same-named rewards (a weekly and a monthly "Full day off") into one row.
 
 ## Dev commands
 
