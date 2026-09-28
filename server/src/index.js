@@ -25,9 +25,21 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(helmet());
+// Several front ends can legitimately talk to this API: the local Vite dev
+// server, and the GitHub Pages build. A single origin string silently broke
+// whichever one was not listed, so accept a comma-separated list and match it
+// exactly. Origins are matched against the full header value rather than
+// substring-tested, so a hostile host cannot ride in on a shared prefix.
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origin not allowed: ${origin}`));
+    },
     credentials: true,
   })
 );

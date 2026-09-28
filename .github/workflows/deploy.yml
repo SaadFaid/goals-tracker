@@ -28,6 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
+        env:
+          # GitHub Pages serves static files only, so the API base has to be an
+          # absolute URL to a host that runs the Express server. The dev proxy
+          # in vite.config.js does not exist in this static build.
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
