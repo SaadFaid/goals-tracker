@@ -48,7 +48,7 @@ export default function ProgressChart({ logs, dashboard }) {
       results: l.resultsScore,
       dateKey: `${l.year}-${l.month}-${l.dayOfMonth}`,
     }))
-    .filter((p) => (Number(p.dateKey.split("-")[0]) === viewYear && Number(p.dateKey.split("-")[1]) === viewMonth))
+    .filter((p) => (Number(String(p.dateKey || "").split("-")[0]) === viewYear && Number(String(p.dateKey || "").split("-")[1]) === viewMonth))
     .filter((p) => p.day >= 1 && p.day <= totalDays)
     .sort((a, b) => a.day - b.day);
 

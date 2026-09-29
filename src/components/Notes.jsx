@@ -17,7 +17,7 @@ const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const monthKey = (y, m) => `${y}-${String(m).padStart(2, "0")}`;
 const monthDays = (key) => {
-  const [y, m] = key.split("-").map(Number);
+  const [y, m] = String(key || "").split("-").map(Number);
   return y && m ? new Date(y, m, 0).getDate() : 30;
 };
 const dk = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;

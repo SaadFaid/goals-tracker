@@ -8,7 +8,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 const monthDays = (key) => {
-  const [y, m] = key.split("-").map(Number);
+  const [y, m] = String(key || "").split("-").map(Number);
   return y && m ? new Date(y, m, 0).getDate() : 30;
 };
 
