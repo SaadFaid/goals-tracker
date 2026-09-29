@@ -9,6 +9,14 @@ WorkingDirectory=/home/tchizu101/Work/goals-tracker
 ExecStart=/home/tchizu101/Work/goals-tracker/deploy/goals-stack.sh
 Restart=always
 RestartSec=10
+# KillMode=none is wrong here: the script backgrounds its children, so the
+# default control-group kill only reaps what systemd itself spawned. Kill the
+# whole group and add an explicit stop for the ports, since a stray API from
+# another session is not in this cgroup at all.
+KillMode=mixed
+TimeoutStopSec=15
+ExecStop=/usr/bin/pkill -f "cloudflared tunnel"
+ExecStop=/usr/bin/pkill -f "server/src/index.js"
 
 [Install]
 WantedBy=default.target

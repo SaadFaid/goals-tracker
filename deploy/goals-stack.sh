@@ -24,9 +24,35 @@ wait_for() {  # wait_for <port> <label> <tries>
   return 1
 }
 
+# Free the ports before starting anything. systemd only kills the cgroup it
+# created, so an API started from a terminal (or a previous --watch fork) can
+# survive a restart and keep port 4000. A fresh instance then dies with
+# EADDRINUSE while the stale one goes on serving days-old code, which is
+# exactly how an old build kept answering after the source was fixed.
+free_port() {
+  for _ in $(seq 1 10); do
+    local pids
+    pids=$(ss -ltnp 2>/dev/null | grep ":$1 " | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)
+    [ -z "$pids" ] && return 0
+    # shellcheck disable=SC2086
+    kill $pids 2>/dev/null
+    sleep 1
+    pids=$(ss -ltnp 2>/dev/null | grep ":$1 " | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)
+    [ -n "$pids" ] && kill -9 $pids 2>/dev/null
+    sleep 1
+  done
+}
+
+free_port 4000
+free_port 5173
+pkill -f "server/src/index.js" 2>/dev/null
+
 # The API and Vite are children of this unit, so systemd restarts them together.
+# --watch is deliberately not used: it supervises by spawning a detached
+# child that escapes this cgroup, which is how a stale process outlived the
+# unit in the first place. The stack is restarted wholesale instead.
 log "starting API"
-cd "$APP/server" && npm run dev >>"$LOG/api.log" 2>&1 &
+cd "$APP/server" && node src/index.js >>"$LOG/api.log" 2>&1 &
 wait_for 4000 API 40
 
 log "starting Vite"
