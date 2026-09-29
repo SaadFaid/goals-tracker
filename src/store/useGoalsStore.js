@@ -1,13 +1,25 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { categories as seedCategories, generateRewardTiers } from "../data/goals";
 import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
 import { api, setAccessToken } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
-import { setIdentityScope } from "../lib/storageScope";
+import {
+  setIdentityScope,
+  restoreIdentityScope,
+  migrateLegacyBlob,
+  identityStorage,
+} from "../lib/storageScope";
 
 const GUEST_KEY = "august-goals-guest-v2";
 const PROFILES_KEY = "august-goals-profiles";
+
+// Decide which namespace to read before the store is constructed. The legacy
+// unscoped blob is folded into the identity it really belonged to, so the
+// signed-in user's own state survives this change while every other account
+// starts clean.
+const bootIdentity = migrateLegacyBlob(GUEST_KEY) || restoreIdentityScope();
+setIdentityScope(bootIdentity);
 
 // ── Local profiles (frontend-only accounts) ────────────
 // Each user is a profile stored in localStorage on this device:
@@ -122,6 +134,26 @@ const DEFAULT_CAT_COLORS = {
   discipline: "red",
   rewards: "turquoise",
 };
+
+// Older imported data omitted resetType on most actions, so those read back as
+// undefined. Defaulting them to "monthly" is what makes "monthly stays until
+// the month ends" hold: an explicit value, not a missing one.
+function normalizeResetTypes(cats) {
+  let changed = false;
+  const next = cats.map((c) => {
+    if (c.isRewards || !c.actions) return c;
+    let touched = false;
+    const actions = c.actions.map((a) => {
+      if (a.resetType) return a;
+      touched = true;
+      return { ...a, resetType: "monthly" };
+    });
+    if (!touched) return c;
+    changed = true;
+    return { ...c, actions };
+  });
+  return changed ? next : cats;
+}
 
 function migrateDefaultColors(cats) {
   let changed = false;
@@ -350,7 +382,7 @@ export const useGoalsStore = create(
           categories = deepClone(get().liveCategories);
           set({ categories, viewingHistory: false, liveCategories: null });
         }
-        categories = ensureRewardTiers(categories);
+        categories = normalizeResetTypes(ensureRewardTiers(categories));
         // Only seed the synthetic past-month history when nothing has ever been
         // recorded. Recorded days stay frozen — never regenerated after this.
         if ((get().progressLogs || []).length === 0) {
@@ -411,17 +443,45 @@ export const useGoalsStore = create(
       // the local profile slot is only a cache for offline/guest use.
       adoptServerSession: async (accessToken, user) => {
         setAccessToken(accessToken);
-        const dashboard = await api.dashboard();
+        // Switch the persist namespace BEFORE any state is written, otherwise
+        // the first set() after login lands in whichever blob was loaded at boot
+        // and the next reload rehydrates the previous account's data.
+        setIdentityScope(user.email);
+
+        const [dashboard, progress] = await Promise.all([
+          api.dashboard(),
+          api.progress({}).catch(() => ({ logs: [] })),
+        ]);
+        // The server is the source of truth for history. Reusing whatever was
+        // cached in the browser is what let a new account draw a chart built
+        // from someone else's days.
+        const logs = (progress?.logs || []).map((l) => ({
+          year: l.year,
+          month: l.month,
+          dayOfMonth: l.dayOfMonth,
+          qualityScore: l.qualityScore,
+          expectedScore: l.expectedScore,
+          resultsScore: l.resultsScore,
+        }));
+
         set({
           user: { email: user.email, name: user.name },
           isGuest: false,
           isServerBacked: true,
           sessionStarted: true,
           error: null,
-          categories: ensureRewardTiers(deepClone(dashboard.categories || [])),
+          categories: normalizeResetTypes(
+            ensureRewardTiers(deepClone(dashboard.categories || []))
+          ),
+          progressLogs: logs,
+          // Fresh session on another account must not inherit history.
+          viewingHistory: false,
+          selectedMonth: null,
+          liveCategories: null,
+          undoStack: [],
+          pendingMutations: [],
           lastSyncedAt: new Date().toISOString(),
         });
-        setIdentityScope(user.email);
         get().persistLocalProfile();
         const d = calculateDashboardState(get().categories, new Date(), get().monthOffset);
         set({ dashboard: d, bootstrapped: true });
@@ -723,8 +783,14 @@ export const useGoalsStore = create(
           return cat;
         });
         const serverId = action && !String(action.id || "").startsWith("tmp-") ? action.id : null;
+        // A daily action's first increment of the day must also stamp its
+        // window. Without this, lastResetAt stayed at the previous run's date,
+        // so the very next load saw a stale window and reset the edit away —
+        // which looked like the first tap of the day was being rejected.
+        const patch = { current: nextVal };
+        if (action.resetType === "daily") patch.lastResetAt = localMidnightISO(new Date());
         get().commit(next, {
-          apiCall: serverId ? () => api.updateAction(serverId, { current: nextVal }) : undefined,
+          apiCall: serverId ? () => api.updateAction(serverId, patch) : undefined,
         });
       },
 
@@ -1002,16 +1068,32 @@ export const useGoalsStore = create(
         });
       },
 
+      // Zero only what a reset is actually allowed to zero. A monthly counter
+      // is the user's month-to-date progress and must survive a stray reset,
+      // so this respects each action's own resetType instead of flattening
+      // everything the way it used to.
       resetAll: () => {
         get().pushUndo();
+        const resets = [];
         const reset = get().categories.map((cat) => ({
           ...cat,
-          actions: (cat.actions || []).map((a) => ({ ...a, current: 0 })),
+          actions: (cat.actions || []).map((a) => {
+            if (a.current === 0) return a;
+            if (a.resetType && a.resetType !== "monthly") {
+              resets.push({ id: a.id, server: !String(a.id || "").startsWith("tmp-") });
+              return { ...a, current: 0 };
+            }
+            return a;
+          }),
           results: (cat.results || []).map((r) => ({ ...r, current: 0 })),
           rewards: (cat.rewards || []).map((r) => ({ ...r, claimed: false })),
         }));
         set({ categories: reset });
         get().derive();
+        for (const r of resets) {
+          if (!r.server) continue;
+          get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, allowZeroed: true }) });
+        }
       },
 
       // Copy the month before the one currently selected into the selected
@@ -1041,6 +1123,22 @@ export const useGoalsStore = create(
         }
 
         if (!Array.isArray(source) || source.length === 0) return false;
+
+        // This is the dangerous one: it zeroes every action in the target
+        // month. Copying into a PAST month is safe history work, but copying
+        // into the live month mid-progress would wipe the current month, which
+        // is exactly what happened. Refuse rather than destroy, and let the
+        // caller show the reason.
+        if (targetKey === liveKey) {
+          const liveProgress = get().categories.some((c) =>
+            (c.actions || []).some((a) => a.current > 0) ||
+            (c.results || []).some((r) => r.current > 0)
+          );
+          if (liveProgress) {
+            set({ error: "This month already has progress. Reset it from that month's view instead." });
+            return false;
+          }
+        }
 
         // Clone the structure but reset progress for a fresh month.
         const copied = ensureRewardTiers(deepClone(source).map((cat) => ({
@@ -1093,7 +1191,11 @@ export const useGoalsStore = create(
         if (isLive) get().captureSnapshot();
       },
     }),
-{
+    {
+        // Namespaced per identity. Without this every account on the device
+        // shared one blob, which is how a brand new user could see the previous
+        // user's chart, snapshots and daily history.
+        storage: createJSONStorage(() => identityStorage),
         name: GUEST_KEY,
         partialize: (s) => ({
           categories: s.categories,

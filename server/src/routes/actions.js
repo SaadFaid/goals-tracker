@@ -66,6 +66,12 @@ router.patch("/:id", async (req, res, next) => {
     }
     if (req.body.current !== undefined) {
       assert(isNonNegativeNumber(req.body.current), 400, "current must be a non-negative number");
+      // A monthly counter is month-to-date progress. Zeroing it by accident
+      // silently destroyed a month of work, so it now takes an explicit
+      // allowZeroed flag that only the deliberate month-rollover path sends.
+      if (req.body.current === 0 && action.resetType === "monthly" && !req.body.allowZeroed) {
+        assert(false, 400, "Refusing to zero a monthly counter. Pass allowZeroed to confirm.");
+      }
       data.current = req.body.current;
     }
     if (req.body.target !== undefined) {
