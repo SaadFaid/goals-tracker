@@ -94,18 +94,13 @@ while true; do
       exit 1
     fi
   done
-  code=$(curl -s -m 15 -o /dev/null -w '%{http_code}' \
-    -X POST "$URL/api/auth/login" -H 'Content-Type: application/json' \
-    -d '{"email":"healthcheck@invalid.test","password":"healthcheck-only"}' \
-    2>/dev/null)
-  case "$code" in
-    401|429)
-      # The API answered and rejected the fake login, which is exactly right.
-      # This proves the whole path works, not merely that a port is open.
-      ;;
-    *)
-      log "tunnel not serving (got '$code'), exiting so systemd reopens it"
-      exit 1
-      ;;
-  esac
+  # Probe /api/health, never /api/auth/login. The login route is rate limited
+  # and only exempts successful requests, so a bogus login counted as a failed
+  # attempt: five checks exhausted the budget and locked the real user out
+  # within 100 seconds. /api/health is unauthenticated and not limited.
+  code=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$URL/api/health" 2>/dev/null)
+  if [ "$code" != "200" ]; then
+    log "tunnel not serving (got '$code'), exiting so systemd reopens it"
+    exit 1
+  fi
 done
