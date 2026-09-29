@@ -39,8 +39,21 @@ sleep 1
 /tmp/opencode/cloudflared tunnel --url http://localhost:5173 --no-autoupdate \
   >"$LOG/tunnel.log" 2>&1 &
 
+# Wait for the assigned hostname. cloudflared first logs "Requesting new quick
+# Tunnel on api.trycloudflare.com...", and a loose pattern matches that literal
+# api host too, so the wait used to break on the placeholder before the real
+# name was ever printed. The script then probed a URL that does not exist,
+# failed, and systemd restarted the stack - five of sixteen starts ended up
+# this way, thrashing the tunnel and repointing Pages at dead hosts.
+# Quick tunnel hostnames are always three random words joined by dashes, so
+# require that shape and explicitly exclude the api host.
+tunnel_url() {
+  grep -oE "https://[a-z0-9]+(-[a-z0-9]+){2,}\.trycloudflare\.com" "$LOG/tunnel.log" 2>/dev/null \
+    | grep -v "^https://api\." | tail -1
+}
+
 for _ in $(seq 1 45); do
-  URL=$(grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" "$LOG/tunnel.log" 2>/dev/null | tail -1)
+  URL=$(tunnel_url)
   [ -n "$URL" ] && break
   sleep 2
 done
