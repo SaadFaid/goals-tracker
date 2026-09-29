@@ -1,0 +1,111 @@
+#!/bin/bash
+# Boots the whole goals-tracker stack and keeps the GitHub Pages build pointed
+# at whatever URL Cloudflare hands out this time.
+#
+# Quick tunnels get a fresh random hostname every restart, and the frontend has
+# that URL baked in at build time. So the sequence is: start the API and Vite,
+# open the tunnel, then push the new base URL into the repo variable and force
+# a Pages rebuild. Without that last step the site silently points at a tunnel
+# that no longer exists, which looks exactly like a database problem.
+set -u
+APP=/home/tchizu101/Work/goals-tracker
+LOG=/tmp/opencode
+mkdir -p "$LOG"
+URLFILE=$LOG/url.txt
+
+log() { echo "[$(date +%H:%M:%S)] $*"; }
+
+wait_for() {  # wait_for <port> <label> <tries>
+  for _ in $(seq 1 "${3:-30}"); do
+    ss -ltn 2>/dev/null | grep -q ":$1 " && { log "$2 up on $1"; return 0; }
+    sleep 1
+  done
+  log "WARNING $2 never came up on $1"
+  return 1
+}
+
+# The API and Vite are children of this unit, so systemd restarts them together.
+log "starting API"
+cd "$APP/server" && npm run dev >>"$LOG/api.log" 2>&1 &
+wait_for 4000 API 40
+
+log "starting Vite"
+cd "$APP" && npx vite --host --port 5173 --strictPort >>"$LOG/vite.log" 2>&1 &
+wait_for 5173 Vite 60
+
+log "opening tunnel"
+pkill -f "cloudflared tunnel" 2>/dev/null
+sleep 1
+/tmp/opencode/cloudflared tunnel --url http://localhost:5173 --no-autoupdate \
+  >"$LOG/tunnel.log" 2>&1 &
+
+for _ in $(seq 1 45); do
+  URL=$(grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" "$LOG/tunnel.log" 2>/dev/null | tail -1)
+  [ -n "$URL" ] && break
+  sleep 2
+done
+
+if [ -z "${URL:-}" ]; then
+  log "no tunnel URL appeared; the old one may still work, leaving it alone"
+  exit 1
+fi
+
+OLD=$(cat "$URLFILE" 2>/dev/null)
+echo "$URL" > "$URLFILE"
+log "tunnel is $URL"
+
+if [ "$OLD" != "$URL" ]; then
+  log "URL changed from ${OLD:-none}, repointing the Pages build"
+  cd "$APP" || exit 1
+  if gh variable set VITE_API_URL --body "$URL/api" --repo SaadFaid/goals-tracker; then
+    # An empty commit is the only way to re-trigger a workflow that keys off
+    # file changes, since the variable itself lives outside the repo history.
+    git commit -q --allow-empty -m "Repoint the web build at the current API tunnel
+
+The tunnel hostname is chosen by Cloudflare and changes on every restart.
+The frontend reads its API base at build time, so the repo variable moved
+and this no-op commit exists only to trigger the Pages rebuild.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+    if git push -q origin master; then
+      log "pushed; Pages will rebuild in about a minute"
+    else
+      log "push failed - site now points at a dead tunnel"
+    fi
+  else
+    log "could not set the repo variable - site now points at a dead tunnel"
+  fi
+else
+  log "URL unchanged, nothing to redeploy"
+fi
+
+log "ready"
+
+# Watchdog. Exiting is the only way to get systemd to rebuild the stack, so
+# this loop has to notice a dead tunnel by asking the public URL, not by
+# waiting for a process to die. cloudflared does not exit when a quick tunnel
+# is revoked; it logs "Tunnel not found" and retries forever, which is exactly
+# what let a dead URL sit there being served to the public unnoticed.
+while true; do
+  sleep 20
+  for port in 4000 5173; do
+    if ! ss -ltn 2>/dev/null | grep -q ":$port "; then
+      log "port $port is gone, exiting so systemd restarts the stack"
+      exit 1
+    fi
+  done
+  code=$(curl -s -m 15 -o /dev/null -w '%{http_code}' \
+    -X POST "$URL/api/auth/login" -H 'Content-Type: application/json' \
+    -d '{"email":"healthcheck@invalid.test","password":"healthcheck-only"}' \
+    2>/dev/null)
+  case "$code" in
+    401|429)
+      # The API answered and rejected the fake login, which is exactly right.
+      # This proves the whole path works, not merely that a port is open.
+      ;;
+    *)
+      log "tunnel not serving (got '$code'), exiting so systemd reopens it"
+      exit 1
+      ;;
+  esac
+done

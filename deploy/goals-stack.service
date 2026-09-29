@@ -1,0 +1,14 @@
+[Unit]
+Description=Goals tracker: API, Vite and public tunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/tchizu101/Work/goals-tracker
+ExecStart=/home/tchizu101/Work/goals-tracker/deploy/goals-stack.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
