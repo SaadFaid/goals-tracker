@@ -18,11 +18,20 @@ export default function StatsBar({ cats }) {
       (sum, c) => sum + (c.actions || []).filter((a) => !a._deleted).length,
       0
     );
+    // Count actions that have any progress at all, plus the ones already at
+    // target. The old count only included `current >= target`, so a month of
+    // real work (5 of 20, 9 of 20) reported as "0 / 27 actions" and the whole
+    // dashboard read as empty. The subtitle now reflects what it measures.
     const hitCount = actives.reduce(
       (sum, c) =>
         sum +
         (c.actions || [])
-          .filter((a) => !a._deleted && a.target > 0 && a.current >= a.target)
+          .filter(
+            (a) =>
+              !a._deleted &&
+              a.target > 0 &&
+              (a.current >= a.target || a.current > 0)
+          )
           .length,
       0
     );
@@ -47,7 +56,7 @@ export default function StatsBar({ cats }) {
         label: "Execution",
         pct: score,
         center: `${score}%`,
-        sub: `${hitCount} / ${totalActions} actions`,
+        sub: `${hitCount} / ${totalActions} in progress`,
         color: EXECUTION,
         textColor: "#F0829F",
       },

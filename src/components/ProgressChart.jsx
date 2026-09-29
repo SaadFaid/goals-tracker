@@ -71,28 +71,47 @@ export default function ProgressChart({ logs, dashboard }) {
   const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: starts at 0% on day 1 and connects each day progress was
-  // actually made, ending at the last progress day (no carry-forward into gaps).
+  // Execution line: starts at 0% on day 1, then HOLDS the last recorded value
+  // across days with no entry. Previously only days that had a log were
+  // plotted, so a 3-day-old score was drawn as if it belonged to the most
+  // recent log and the line silently dropped to the baseline in the gaps. The
+  // score is cumulative, so a day without progress keeps the previous day's.
   const execByDay = new Map();
   for (const p of points) execByDay.set(p.day, p.value);
   if (showLiveToday) execByDay.set(today, liveScore);
-  const execSteps = [...execByDay]
-    .sort((a, b) => a[0] - b[0])
-    .map(([day, value]) => ({ day, value }));
+  const lastDay = showLiveToday ? Math.max(today, lastLoggedDay ?? 1) : lastLoggedDay;
+  const execSteps = (() => {
+    if (lastDay == null) return [];
+    const out = [];
+    let carried = 0;
+    for (let day = 1; day <= lastDay; day++) {
+      if (execByDay.has(day)) carried = execByDay.get(day);
+      out.push({ day, value: carried });
+    }
+    return out;
+  })();
   const actualPath = `M ${x(1)} ${y(0)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("");
   const areaPath = execSteps.length
     ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
     : "";
 
-  // Results line: same rule — starts at 0% on day 1, only real results days.
+  // Results line: identical carry-forward rule.
   const resByDay = new Map();
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
   }
   if (showLiveToday) resByDay.set(today, resultsPct);
-  const resSteps = [...resByDay]
-    .sort((a, b) => a[0] - b[0])
-    .map(([day, value]) => ({ day, value }));
+  const resSteps = (() => {
+    if (lastDay == null) return [];
+    const out = [];
+    let carried = null;
+    for (let day = 1; day <= lastDay; day++) {
+      if (resByDay.has(day)) carried = resByDay.get(day);
+      if (carried == null) continue; // no results data yet: leave the gap
+      out.push({ day, value: carried });
+    }
+    return out;
+  })();
   const resultsPath = resSteps.length
     ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
     : "";

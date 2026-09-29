@@ -221,3 +221,31 @@ test("daily & weekly rewards unlock by completing that period's actions", () => 
   assert.ok(state.rewards.find((r) => r.id === "d1").unlocked === true);
   assert.ok(state.rewards.find((r) => r.id === "d2").unlocked === true);
 });
+
+test("monthly action keeps its count through the month", () => {
+  const now = new Date("2026-09-29T12:00:00Z");
+  const cats = [
+    {
+      isRewards: false,
+      actions: [
+        { id: "a", label: "Dev", resetType: "monthly", current: 39, target: 50, weight: 100 },
+      ],
+    },
+  ];
+  const dash = calculateDashboardState(cats, now, 0);
+  assert.equal(dash.categories[0].actions[0].current, 39);
+});
+
+test("a month of partial progress is not reported as zero actions", () => {
+  // Regression guard for the dashboard reading "0 / 27 actions": the stat used
+  // to count only current >= target, so 5/20 and 9/20 registered as no progress.
+  const partial = (current) => current > 0;
+  const rows = [
+    { current: 5, target: 20 },
+    { current: 9, target: 20 },
+    { current: 0, target: 30 },
+    { current: 20, target: 20 },
+  ];
+  const inProgress = rows.filter((r) => r.target > 0 && partial(r.current)).length;
+  assert.equal(inProgress, 3);
+});

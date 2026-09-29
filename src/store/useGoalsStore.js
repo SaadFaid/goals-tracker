@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { categories as seedCategories, generateRewardTiers } from "../data/goals";
 import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
-import { api, setAccessToken } from "../lib/api";
+import { api, setAccessToken, getAccessToken } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
 import {
   setIdentityScope,
@@ -90,6 +90,18 @@ function prevMonthKey(key) {
   const [y, m] = String(key || "").split("-").map(Number);
   if (!y || !m) return null;
   return monthKeyOf(new Date(y, m - 2, 1));
+}
+// Padded "YYYY-MM-DD" key for a progress log, preferring the server's own
+// `date` so the day matches what the server recorded.
+function paddedDayKeyOfLog(l) {
+  if (l.date) {
+    const d = new Date(l.date);
+    if (!Number.isNaN(d.getTime())) return paddedDayKey(d);
+  }
+  if (l.year && l.month && l.dayOfMonth) {
+    return `${l.year}-${String(l.month).padStart(2, "0")}-${String(l.dayOfMonth).padStart(2, "0")}`;
+  }
+  return null;
 }
 
 // Targeted immutable update: replace only the matching category (cloned) so the
@@ -222,6 +234,10 @@ const emptyState = () => ({
   isGuest: true,
   sessionStarted: false,
   bootstrapped: false,
+  // True while a rehydrated session is trading its refresh cookie for a fresh
+  // access token. The dashboard waits on this so it never renders data it
+  // cannot save.
+  sessionRestoring: false,
   loading: false,
   error: null,
   lastSyncedAt: null,
@@ -455,13 +471,19 @@ export const useGoalsStore = create(
         // The server is the source of truth for history. Reusing whatever was
         // cached in the browser is what let a new account draw a chart built
         // from someone else's days.
+        // The server sends `date` (an ISO timestamp); the charts filter and
+        // group on `dateKey` ("YYYY-MM-DD"). Dropping it here meant every
+        // server-backed log failed the chart's month filter, so a signed-in
+        // user saw an empty chart while guest mode worked.
         const logs = (progress?.logs || []).map((l) => ({
+          id: l.id,
           year: l.year,
           month: l.month,
           dayOfMonth: l.dayOfMonth,
           qualityScore: l.qualityScore,
           expectedScore: l.expectedScore,
           resultsScore: l.resultsScore,
+          dateKey: l.dateKey || paddedDayKeyOfLog(l),
         }));
 
         set({
@@ -476,7 +498,10 @@ export const useGoalsStore = create(
           progressLogs: logs,
           // Fresh session on another account must not inherit history.
           viewingHistory: false,
-          selectedMonth: null,
+          // The live month, not null: the dashboard reads selectedMonth to
+          // decide what to render, so null left the month picker and every
+          // month-scoped panel with nothing to work from.
+          selectedMonth: localMonthKey(),
           liveCategories: null,
           undoStack: [],
           pendingMutations: [],
@@ -600,6 +625,62 @@ export const useGoalsStore = create(
           pendingMutations: [],
         });
         get().derive();
+      },
+
+      // Called once on boot. A page reload rehydrates a logged-in state from
+      // localStorage, but the access token lived only in a module variable, so
+      // it came back null: the app looked signed in and every write 401'd. The
+      // refresh cookie is still valid, so mint a new access token and, if that
+      // fails, fall back to the honest state instead of pretending to be synced.
+      restoreSession: async () => {
+        const s = get();
+        if (s.isGuest || !s.user?.email) return false;
+        if (getAccessToken()) return true;
+        set({ sessionRestoring: true });
+        try {
+          const { accessToken, user } = await api.refresh();
+          setAccessToken(accessToken);
+          const [dashboard, progress] = await Promise.all([
+            api.dashboard(),
+            api.progress({}).catch(() => ({ logs: [] })),
+          ]);
+          const logs = (progress?.logs || []).map((l) => ({
+            id: l.id,
+            year: l.year,
+            month: l.month,
+            dayOfMonth: l.dayOfMonth,
+            qualityScore: l.qualityScore,
+            expectedScore: l.expectedScore,
+            resultsScore: l.resultsScore,
+            dateKey: l.dateKey || paddedDayKeyOfLog(l),
+          }));
+          set({
+            user: { email: user.email, name: user.name },
+            isGuest: false,
+            isServerBacked: true,
+            sessionStarted: true,
+            error: null,
+            categories: normalizeResetTypes(
+              ensureRewardTiers(deepClone(dashboard.categories || []))
+            ),
+            progressLogs: logs,
+            viewingHistory: false,
+            selectedMonth: s.selectedMonth || localMonthKey(),
+            liveCategories: null,
+            pendingMutations: [],
+            lastSyncedAt: new Date().toISOString(),
+          });
+          get().derive();
+          get().ensureDailyLog(get().categories, get().dashboard);
+          set({ sessionRestoring: false });
+          return true;
+        } catch {
+          // Refresh rejected: the cookie is gone or expired. Do not keep
+          // isServerBacked, or edits would be queued against a dead session.
+          set({ isServerBacked: false, isGuest: true, user: null, sessionStarted: false, sessionRestoring: false, error: "Session expired. Log in again to save changes." });
+          get().derive();
+          return false;
+        }
       },
 
       syncToAccount: async (mode = "merge") => {

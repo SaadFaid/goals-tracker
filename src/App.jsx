@@ -25,6 +25,18 @@ function useDashboard() {
 export default function App() {
   const sessionStarted = useGoalsStore((s) => s.sessionStarted);
   const bootstrapped = useGoalsStore((s) => s.bootstrapped);
+  const isGuest = useGoalsStore((s) => s.isGuest);
+  const userEmail = useGoalsStore((s) => s.user?.email);
+  const restoreSession = useGoalsStore((s) => s.restoreSession);
+
+  // A reload rehydrates "logged in" from localStorage, but the access token
+  // is gone. Re-establish it before the dashboard mounts, otherwise every
+  // edit this session would fail to save. The store owns the flag, so this
+  // only sets state in response to a real network round-trip.
+  const sessionRestoring = useGoalsStore((s) => s.sessionRestoring);
+  useEffect(() => {
+    if (!isGuest && userEmail) restoreSession();
+  }, [isGuest, userEmail, restoreSession]);
 
   if (!bootstrapped) {
     return (
@@ -38,6 +50,18 @@ export default function App() {
     return <AuthScreen />;
   }
 
+  // Holding the dashboard back means the user never sees a populated screen
+  // whose edits are about to fail to save.
+  if (sessionRestoring) {
+    return (
+      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
+        <p className="text-text-tertiary">Loading…</p>
+      </div>
+    );
+  }
+
+  // Holding the dashboard back until the token is back means the user never
+  // sees a populated screen whose edits are about to fail to save.
   return <Dashboard />;
 }
 
