@@ -53,11 +53,21 @@ export async function rotateRefreshToken(oldToken) {
   return { user: found.user, ...next };
 }
 
+// The site is served from a different host than the API (github.io vs the
+// tunnel), which makes every call cross-site. A Lax cookie is withheld from
+// cross-site fetches, so the refresh token never came back on reload and every
+// session looked expired. None requires Secure, which needs real HTTPS - fine
+// in production, and localhost counts as secure for cookies.
+const sameSite = process.env.COOKIE_SAME_SITE || (process.env.NODE_ENV === "production" ? "none" : "lax");
+const secure = process.env.COOKIE_SECURE
+  ? process.env.COOKIE_SECURE === "true"
+  : sameSite === "none";
+
 export function setRefreshCookie(res, token, expiresAt) {
   res.cookie("refreshToken", token, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite,
+    secure,
     path: "/api/auth",
     expires: expiresAt,
   });
@@ -66,8 +76,8 @@ export function setRefreshCookie(res, token, expiresAt) {
 export function clearRefreshCookie(res) {
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite,
+    secure,
     path: "/api/auth",
   });
 }
