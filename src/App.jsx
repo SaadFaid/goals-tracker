@@ -94,6 +94,8 @@ function Dashboard() {
   const updateReward = useGoalsStore((s) => s.updateReward);
   const deleteReward = useGoalsStore((s) => s.deleteReward);
   const moveCategory = useGoalsStore((s) => s.moveCategory);
+  const moveAction = useGoalsStore((s) => s.moveAction);
+  const moveResult = useGoalsStore((s) => s.moveResult);
   const resetAll = useGoalsStore((s) => s.resetAll);
   const copyLastMonth = useGoalsStore((s) => s.copyLastMonth);
   const emptyMonth = useGoalsStore((s) => s.emptyMonth);
@@ -151,6 +153,8 @@ function Dashboard() {
                 category={cat}
                 index={i}
                 onMove={moveCategory}
+                onMoveAction={moveAction}
+                onMoveResult={moveResult}
                 onActionUpdate={updateAction}
                 onActionIncrement={incrementAction}
                 onResultUpdate={updateResult}

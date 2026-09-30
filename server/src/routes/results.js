@@ -7,6 +7,40 @@ import { cleanText, isPositiveNumber, isNonNegativeNumber, assert } from "../val
 const router = Router();
 router.use(requireAuth);
 
+// Persist a drag-reorder of the results inside one category. Scoped to the
+// category for the same reason as the action equivalent: a stale client must not
+// be able to renumber rows it does not own just by knowing their ids.
+//
+// Like the action router this one is mounted twice, so answer only on the
+// canonical /api/results/reorder and pass the other mount through.
+router.post("/reorder", async (req, res, next) => {
+  if (req.baseUrl !== "/api/results") return next("router");
+  try {
+    const { categoryId, resultIds } = req.body || {};
+    if (!categoryId || typeof categoryId !== "string") {
+      assert(false, 400, "categoryId is required");
+    }
+    const category = await assertCategoryOwned(categoryId, req.user.id);
+    const ids = Array.isArray(resultIds) ? resultIds.filter((x) => typeof x === "string") : [];
+    if (ids.length === 0) assert(false, 400, "resultIds must be a non-empty array");
+
+    const owned = await prisma.result.findMany({
+      where: { categoryId: category.id },
+      select: { id: true },
+    });
+    const ownedSet = new Set(owned.map((r) => r.id));
+    const toSet = ids.filter((id) => ownedSet.has(id));
+
+    await prisma.$transaction(
+      toSet.map((id, i) => prisma.result.update({ where: { id }, data: { sortOrder: i } })),
+    );
+    const dashboard = await recomputeAndLog(req.user.id);
+    return res.json({ ok: true, dashboard });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/:catId/results", async (req, res, next) => {
   try {
     const category = await assertCategoryOwned(req.params.catId, req.user.id);

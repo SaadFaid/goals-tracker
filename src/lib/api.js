@@ -68,11 +68,15 @@ export const api = {
   createAction: (catId, body) => request("POST", `/categories/${catId}/actions`, body),
   updateAction: (id, body) => request("PATCH", `/actions/${id}`, body),
   deleteAction: (id) => request("DELETE", `/actions/${id}`),
+  reorderActions: (categoryId, actionIds) =>
+    request("POST", "/actions/reorder", { categoryId, actionIds }),
 
   // Results
   createResult: (catId, body) => request("POST", `/categories/${catId}/results`, body),
   updateResult: (id, body) => request("PATCH", `/results/${id}`, body),
   deleteResult: (id) => request("DELETE", `/results/${id}`),
+  reorderResults: (categoryId, resultIds) =>
+    request("POST", "/results/reorder", { categoryId, resultIds }),
 
   // Rewards
   createReward: (catId, body) => request("POST", `/categories/${catId}/rewards`, body),

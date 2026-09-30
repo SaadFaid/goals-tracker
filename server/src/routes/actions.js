@@ -8,6 +8,42 @@ import { cleanText, isWeight, isPositiveNumber, isNonNegativeNumber, assert } fr
 const router = Router();
 router.use(requireAuth);
 
+// Persist a drag-reorder of the actions inside one category.
+//
+// This router is mounted twice ("/api/categories" for the nested create route
+// and "/api/actions" for the rest), so a bare "/reorder" would also answer on
+// /api/categories/reorder. The client calls /api/actions/reorder, so reject the
+// other mount rather than leave two live URLs for one write.
+router.post("/reorder", async (req, res, next) => {
+  if (req.baseUrl !== "/api/actions") return next("router");
+  try {
+    const { categoryId, actionIds } = req.body || {};
+    if (!categoryId || typeof categoryId !== "string") {
+      assert(false, 400, "categoryId is required");
+    }
+    const category = await assertCategoryOwned(categoryId, req.user.id);
+    const ids = Array.isArray(actionIds) ? actionIds.filter((x) => typeof x === "string") : [];
+    if (ids.length === 0) assert(false, 400, "actionIds must be a non-empty array");
+
+    // Only rows in this category may be renumbered, and only the ones sent, so
+    // a stale client cannot reorder another category's actions by id.
+    const owned = await prisma.action.findMany({
+      where: { categoryId: category.id },
+      select: { id: true },
+    });
+    const ownedSet = new Set(owned.map((a) => a.id));
+    const toSet = ids.filter((id) => ownedSet.has(id));
+
+    await prisma.$transaction(
+      toSet.map((id, i) => prisma.action.update({ where: { id }, data: { sortOrder: i } })),
+    );
+    const dashboard = await recomputeAndLog(req.user.id);
+    return res.json({ ok: true, dashboard });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/:catId/actions", async (req, res, next) => {
   try {
     const category = await assertCategoryOwned(req.params.catId, req.user.id);

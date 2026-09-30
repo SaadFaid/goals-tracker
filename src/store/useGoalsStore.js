@@ -1149,6 +1149,45 @@ export const useGoalsStore = create(
         });
       },
 
+      // Drag-reorder the tasks inside one category. Mirrors moveCategory: the
+      // local array moves immediately, then the new order is written as a single
+      // call so a reload cannot land on a half-applied order. sortOrder is kept
+      // in step locally too, because the category payload is the only place the
+      // client learns an action's position.
+      moveAction: (categoryId, fromIndex, toIndex) => {
+        const cat = get().categories.find((c) => c.id === categoryId);
+        if (!cat) return;
+        const items = [...(cat.actions || [])];
+        if (fromIndex < 0 || fromIndex >= items.length || toIndex < 0 || toIndex >= items.length) return;
+        const [moved] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, moved);
+        const numbered = items.map((a, i) => ({ ...a, sortOrder: i }));
+        const ids = numbered.filter((a) => !String(a.id || "").startsWith("tmp-")).map((a) => a.id);
+        get().commit(
+          get().categories.map((c) => (c.id === categoryId ? { ...c, actions: numbered } : c)),
+          {
+            apiCall: get().isGuest ? undefined : () => api.reorderActions(categoryId, ids),
+          },
+        );
+      },
+
+      moveResult: (categoryId, fromIndex, toIndex) => {
+        const cat = get().categories.find((c) => c.id === categoryId);
+        if (!cat) return;
+        const items = [...(cat.results || [])];
+        if (fromIndex < 0 || fromIndex >= items.length || toIndex < 0 || toIndex >= items.length) return;
+        const [moved] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, moved);
+        const numbered = items.map((r, i) => ({ ...r, sortOrder: i }));
+        const ids = numbered.filter((r) => !String(r.id || "").startsWith("tmp-")).map((r) => r.id);
+        get().commit(
+          get().categories.map((c) => (c.id === categoryId ? { ...c, results: numbered } : c)),
+          {
+            apiCall: get().isGuest ? undefined : () => api.reorderResults(categoryId, ids),
+          },
+        );
+      },
+
       // Zero only what a reset is actually allowed to zero. A monthly counter
       // is the user's month-to-date progress and must survive a stray reset,
       // so this respects each action's own resetType instead of flattening

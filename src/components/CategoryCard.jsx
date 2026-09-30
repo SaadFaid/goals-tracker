@@ -81,8 +81,70 @@ function DragBar({ value, color, label, onChangeFraction }) {
   );
 }
 
-function PencilIcon({ show }) {
+/**
+ * Drag-to-reorder for a single row, used by both the task and the result lists.
+ *
+ * The dragged row carries its own index in the payload and a drop target only
+ * accepts an index from the same list, so a task cannot be dropped onto a result
+ * or across categories. Rows are only draggable while the card is in edit mode,
+ * matching how categories already behave.
+ */
+function useRowDrag({ editable, index, onMove, listId }) {
+  const onDragStart = (e) => {
+    if (!editable || !onMove) { e.preventDefault(); return; }
+    e.dataTransfer.setData("text/plain", JSON.stringify({ listId, index }));
+    e.dataTransfer.effectAllowed = "move";
+    e.currentTarget.classList.add("dragging");
+  };
+
+  const onDragOver = (e) => {
+    if (!editable || !onMove) return;
+    const raw = e.dataTransfer.getData("text/plain");
+    // getData is not readable during dragover in every browser; only guard the
+    // ones we cannot decode rather than blocking a legitimate drop.
+    if (raw) {
+      try {
+        if (JSON.parse(raw).listId !== listId) return;
+      } catch { /* unreadable payload: allow the drop, onDrop validates it */ }
+    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove("dragging");
+    if (!editable || !onMove) return;
+    try {
+      const { listId: fromList, index: from } = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (fromList !== listId) return;
+      if (typeof from === "number" && from !== index) onMove(from, index);
+    } catch { /* nothing parseable was dragged */ }
+  };
+
+  const onDragEnd = (e) => e.currentTarget.classList.remove("dragging");
+
+  return { draggable: !!editable, onDragStart, onDragOver, onDrop, onDragEnd };
+}
+
+function DragGrip({ show }) {
+  if (!show) return null;
   return (
+    <span
+      className="drag-handle shrink-0 cursor-grab text-text-tertiary opacity-50 hover:opacity-100 transition-opacity select-none"
+      title="Drag to reorder"
+      aria-hidden="true"
+    >
+      <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+        <circle cx="2.5" cy="3" r="1.3" /><circle cx="7.5" cy="3" r="1.3" />
+        <circle cx="2.5" cy="7" r="1.3" /><circle cx="7.5" cy="7" r="1.3" />
+        <circle cx="2.5" cy="11" r="1.3" /><circle cx="7.5" cy="11" r="1.3" />
+      </svg>
+    </span>
+  );
+}
+
+function PencilIcon({ show }) {  return (
     <svg
       width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"
       className="pencil-inline inline-block ml-1 text-text-tertiary transition-opacity"
@@ -207,7 +269,7 @@ function EditableText({ value, onChange, ariaLabel }) {
 }
 
 /** Row wrapper with delete confirmation overlay (delete only in edit mode). */
-function ConfirmableRow({ children, onDelete, allowDelete }) {
+function ConfirmableRow({ children, onDelete, allowDelete, dragProps }) {
   const [confirming, setConfirming] = useState(false);
   const timer = useRef(null);
 
@@ -219,7 +281,7 @@ function ConfirmableRow({ children, onDelete, allowDelete }) {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
-    <div className="row-hover relative rounded px-1 py-1 -mx-1 min-h-[44px]" style={{ position: "relative" }}>
+    <div className="row-hover relative rounded px-1 py-1 -mx-1 min-h-[44px]" style={{ position: "relative" }} {...dragProps}>
       {children}
       {allowDelete && (
         !confirming ? (
@@ -383,7 +445,7 @@ function CheckCircle({ pct, done, onTap, onOpenMenu }) {
   );
 }
 
-function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable }) {
+function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(actionPct(item));
   const done = item.current >= safeTarget;
@@ -397,11 +459,14 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const toggleCheck = () => { onIncrement(done ? -item.current : (safeTarget - item.current)); setMenu(false); };
 
   const pctLabel = pct >= 100 ? "done" : `${pct}%`;
+  const listId = `actions:${item.id}`;
+  const dragProps = useRowDrag({ editable, index, onMove, listId });
 
   return (
-    <ConfirmableRow onDelete={onDelete} allowDelete={editable}>
+    <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
       <div className="flex items-center justify-between text-xs mb-1 pr-6">
         <div className="flex items-center gap-2 min-w-0">
+          <DragGrip show={editable} />
           <CheckCircle pct={pct} done={done} onTap={isCheck ? toggleCheck : () => onIncrement()} onOpenMenu={editable ? () => setMenu(true) : undefined} />
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
           <span
@@ -581,7 +646,7 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
   );
 }
 
-function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable }) {
+function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(resultPct(item));
   const isBadge = !!item.isBadge;
@@ -594,11 +659,15 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const reset = () => { onIncrement(-item.current); setMenu(false); };
   const toggleCheck = () => { onUpdate(done ? 0 : safeTarget); setMenu(false); };
 
+  const listId = `results:${item.id}`;
+  const dragProps = useRowDrag({ editable, index, onMove, listId });
+
   return (
-    <ConfirmableRow onDelete={onDelete} allowDelete={editable}>
-      <div className="flex items-center justify-between text-xs mb-1 pr-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+    <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
+        <div className="flex items-center justify-between text-xs mb-1 pr-6">
+          <div className="flex items-center gap-2 min-w-0">
+            <DragGrip show={editable} />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
           <span className="text-muted truncate">
             {editable ? (
               <EditableText value={item.label} onChange={(v) => onFieldChange("label", v)} ariaLabel="Edit result label" />
@@ -1252,9 +1321,9 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
   );
 }
 
-export default memo(function CategoryCard({
-  category, index, onMove,
-  onActionUpdate, onActionIncrement, onResultUpdate, onResultIncrement,
+  export default memo(function CategoryCard({
+    category, index, onMove, onMoveAction, onMoveResult,
+    onActionUpdate, onActionIncrement, onResultUpdate, onResultIncrement,
   onToggle, onAddAction, onDeleteAction, onAddResult, onDeleteResult,
   onUpdateCategory, onDeleteCategory, onClaimReward, onUnclaimReward,
   onAddReward, onUpdateReward, onDeleteReward,
@@ -1514,6 +1583,8 @@ export default memo(function CategoryCard({
                     <div className="flex flex-col gap-0.5">
                       {(category.actions || []).map((item, i) => (
                         <ActionRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
+                          index={i}
+                          onMove={(from, to) => onMoveAction(category.id, from, to)}
                           onUpdate={(v) => onActionUpdate(category.id, i, "current", v)}
                           onFieldChange={(field, value) => onActionUpdate(category.id, i, field, value)}
                           onIncrement={(amt) => onActionIncrement(category.id, i, amt)}
@@ -1542,6 +1613,8 @@ export default memo(function CategoryCard({
                     <div className="flex flex-col gap-0.5">
                       {(category.results || []).map((item, i) => (
                         <ResultRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
+                          index={i}
+                          onMove={(from, to) => onMoveResult(category.id, from, to)}
                           onUpdate={(v) => onResultUpdate(category.id, i, "current", v)}
                           onFieldChange={(field, value) => onResultUpdate(category.id, i, field, value)}
                           onIncrement={(amt) => onResultIncrement && onResultIncrement(category.id, i, amt)}
