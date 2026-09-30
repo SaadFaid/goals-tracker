@@ -88,9 +88,15 @@ function DragBar({ value, color, label, onChangeFraction }) {
  * accepts an index from the same list, so a task cannot be dropped onto a result
  * or across categories. Rows are only draggable while the card is in edit mode,
  * matching how categories already behave.
+ *
+ * A row lives inside a card that is itself draggable, so every handler stops
+ * propagation. Without that the card's own dragstart runs second and overwrites
+ * the row's payload with a bare category index, which then fails to parse and
+ * the drop silently does nothing.
  */
 function useRowDrag({ editable, index, onMove, listId }) {
   const onDragStart = (e) => {
+    e.stopPropagation();
     if (!editable || !onMove) { e.preventDefault(); return; }
     e.dataTransfer.setData("text/plain", JSON.stringify({ listId, index }));
     e.dataTransfer.effectAllowed = "move";
@@ -98,6 +104,7 @@ function useRowDrag({ editable, index, onMove, listId }) {
   };
 
   const onDragOver = (e) => {
+    e.stopPropagation();
     if (!editable || !onMove) return;
     const raw = e.dataTransfer.getData("text/plain");
     // getData is not readable during dragover in every browser; only guard the
@@ -112,6 +119,7 @@ function useRowDrag({ editable, index, onMove, listId }) {
   };
 
   const onDrop = (e) => {
+    e.stopPropagation();
     e.preventDefault();
     e.currentTarget.classList.remove("dragging");
     if (!editable || !onMove) return;
@@ -122,7 +130,10 @@ function useRowDrag({ editable, index, onMove, listId }) {
     } catch { /* nothing parseable was dragged */ }
   };
 
-  const onDragEnd = (e) => e.currentTarget.classList.remove("dragging");
+  const onDragEnd = (e) => {
+    e.stopPropagation();
+    e.currentTarget.classList.remove("dragging");
+  };
 
   return { draggable: !!editable, onDragStart, onDragOver, onDrop, onDragEnd };
 }
