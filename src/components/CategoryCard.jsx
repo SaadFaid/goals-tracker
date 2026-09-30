@@ -456,7 +456,7 @@ function CheckCircle({ pct, done, onTap, onOpenMenu }) {
   );
 }
 
-function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove }) {
+function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(actionPct(item));
   const done = item.current >= safeTarget;
@@ -470,7 +470,6 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const toggleCheck = () => { onIncrement(done ? -item.current : (safeTarget - item.current)); setMenu(false); };
 
   const pctLabel = pct >= 100 ? "done" : `${pct}%`;
-  const listId = `actions:${item.id}`;
   const dragProps = useRowDrag({ editable, index, onMove, listId });
 
   return (
@@ -657,7 +656,7 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
   );
 }
 
-function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove }) {
+function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(resultPct(item));
   const isBadge = !!item.isBadge;
@@ -669,10 +668,7 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const markDone = () => { onIncrement(safeTarget - item.current); setMenu(false); };
   const reset = () => { onIncrement(-item.current); setMenu(false); };
   const toggleCheck = () => { onUpdate(done ? 0 : safeTarget); setMenu(false); };
-
-  const listId = `results:${item.id}`;
   const dragProps = useRowDrag({ editable, index, onMove, listId });
-
   return (
     <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
         <div className="flex items-center justify-between text-xs mb-1 pr-6">
@@ -1595,6 +1591,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                       {(category.actions || []).map((item, i) => (
                         <ActionRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
                           index={i}
+                          listId={`actions:${category.id}`}
                           onMove={(from, to) => onMoveAction(category.id, from, to)}
                           onUpdate={(v) => onActionUpdate(category.id, i, "current", v)}
                           onFieldChange={(field, value) => onActionUpdate(category.id, i, field, value)}
@@ -1625,6 +1622,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                       {(category.results || []).map((item, i) => (
                         <ResultRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
                           index={i}
+                          listId={`results:${category.id}`}
                           onMove={(from, to) => onMoveResult(category.id, from, to)}
                           onUpdate={(v) => onResultUpdate(category.id, i, "current", v)}
                           onFieldChange={(field, value) => onResultUpdate(category.id, i, field, value)}
