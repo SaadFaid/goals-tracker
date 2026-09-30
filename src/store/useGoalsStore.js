@@ -772,26 +772,37 @@ export const useGoalsStore = create(
       // saved and then came back from the server at its old value on the next
       // load. Now each entry's `execute` is really called, and anything that
       // fails stays queued for `retryAll` instead of being silently dropped.
+      //
+      // The queue is drained from the head rather than from a snapshot taken
+      // before the loop. A snapshot missed anything queued while an execute was
+      // in flight: flush was already running, so the new entry's own flush call
+      // returned early, and nothing ever came back for it. Dragging two rows in
+      // quick succession is enough to hit that, and the second move was lost.
       flush: async () => {
-        const { pendingMutations } = get();
-        if (get().flushing || pendingMutations.length === 0) return;
+        if (get().flushing) return;
         set({ flushing: true });
         try {
-          for (const m of pendingMutations) {
-            if (typeof m.execute !== "function") continue;
+          for (;;) {
+            const next = get().pendingMutations[0];
+            if (!next) break;
+            const drop = () => set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== next.id) }));
+            if (typeof next.execute !== "function") { drop(); continue; }
             try {
-              await m.execute();
+              await next.execute();
               // Only drop the ones that actually made it.
-              set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== m.id) }));
+              drop();
             } catch (err) {
               // A server-backed session needs an access token. A 401/403 means
-              // the session is gone, not that the edit is bad — re-throw so the
-              // caller can re-authenticate rather than retrying into a wall.
+              // the session is gone, not that the edit is bad — stop and surface
+              // it rather than retrying into a wall.
               if (err?.status === 401 || err?.status === 403) {
                 set({ error: "Session expired. Please log in again." });
                 break;
               }
               // Leave it queued: offline or a transient 5xx should not lose data.
+              // Stop here so a failing head cannot spin the loop; the next
+              // enqueue (or retryAll) starts a fresh pass.
+              break;
             }
           }
         } finally {
