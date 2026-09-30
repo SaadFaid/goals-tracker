@@ -125,6 +125,8 @@ log "ready"
 # waiting for a process to die. cloudflared does not exit when a quick tunnel
 # is revoked; it logs "Tunnel not found" and retries forever, which is exactly
 # what let a dead URL sit there being served to the public unnoticed.
+WARMUP_FAILS=6
+fails=0
 while true; do
   sleep 20
   for port in 4000 5173; do
@@ -138,8 +140,22 @@ while true; do
   # attempt: five checks exhausted the budget and locked the real user out
   # within 100 seconds. /api/health is unauthenticated and not limited.
   code=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$URL/api/health" 2>/dev/null)
-  if [ "$code" != "200" ]; then
-    log "tunnel not serving (got '$code'), exiting so systemd reopens it"
-    exit 1
+  if [ "$code" = "200" ]; then
+    fails=0
+    continue
   fi
+  # A quick tunnel needs time to propagate through Cloudflare's edge before it
+  # answers, and the edge itself drops the occasional request. Probing ~20s after
+  # the tunnel opened and tearing the whole stack down on a single 000 turned a
+  # slow edge into a restart loop: every cycle burned a new tunnel URL, a repoint
+  # commit and a Pages rebuild, and the site was down more than it was up. So a
+  # failure has to repeat before it counts, and a freshly opened tunnel gets a
+  # grace period to come up first.
+  fails=$((fails + 1))
+  if [ "$fails" -lt "$WARMUP_FAILS" ]; then
+    log "tunnel not answering yet ($fails/$WARMUP_FAILS, got '$code')"
+    continue
+  fi
+  log "tunnel not serving after $fails attempts (got '$code'), exiting so systemd reopens it"
+  exit 1
 done

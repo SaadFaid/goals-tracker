@@ -211,6 +211,12 @@ export function calculateDashboardState(categories, date = new Date(), monthOffs
       id: cat.id,
       name: cat.name,
       dotColor: cat.dotColor || "turquoise",
+      // Categories are built from an explicit field list, so anything not named
+      // here is dropped. sortOrder used to be missing, which left the client
+      // with no way to know a category's place or to persist a drag-reorder -
+      // the order only survived because the server happened to send the rows
+      // already sorted. Actions and results kept theirs via the spread above.
+      sortOrder: cat.sortOrder ?? 0,
       percent,
       statusColor: cat.isRewards ? "turquoise" : statusColor(percent, expected),
       expanded: cat.expanded !== false,

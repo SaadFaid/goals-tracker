@@ -7,6 +7,33 @@ Two independent npm packages, **not** a workspace. Run commands from the correct
 - **Frontend** (repo root): Vite + React 19 + Tailwind v4 + Zustand
 - **Server** (`server/`): Express + Prisma on Postgres
 
+## Git remotes — two, and both get pushed
+
+- `origin` → `SaadFaid/goals-tracker` (**public**). GitHub Pages serves the built
+  bundle from here, and `deploy/goals-stack.sh` auto-pushes to it whenever the
+  quick-tunnel URL changes, rewriting the API base in the bundle.
+- `private` → `SaadFaid/august-goals` (**private**). This is the real source of
+  truth and the repo to clone from.
+
+**Always push to both**: `git push origin master && git push private master`.
+Pushing only `origin` leaves the private repo stale, which is the one you would
+clone next.
+
+## Secrets never enter the repo — not even a private one
+
+`server/.env` is gitignored by `server/.gitignore`. It holds the Supabase
+connection string and both JWT secrets, and it stays that way. GitHub scans
+every push, and "private" still means visible to collaborators, org admins and
+anyone you later grant access.
+
+`server/.env.example` is the committed template and documents every key, including
+`COOKIE_SAME_SITE` / `COOKIE_SECURE`. On a deploy host, keep the real values
+outside the working tree and point systemd at them:
+
+```ini
+EnvironmentFile=/etc/goals-tracker/secrets.env
+```
+
 ## Key gotchas
 
 - **No ESLint** — linter is `oxlint` (React plugin). `npm run lint` from root.
@@ -53,3 +80,13 @@ npm test               # unit tests (node:test, no DB)
 - **Auth is not Supabase Auth** — the app does its own bcrypt + JWT. There is no `auth.users` link and RLS is deliberately off, because Prisma connects as `postgres` (BYPASSRLS) and the API layer does all authorization. Enabling RLS without policies will silently break every query.
 - **Frontend API base**: `VITE_API_URL || http://localhost:4000/api`
 - **CORS origin**: `CLIENT_ORIGIN` env var (default `http://localhost:5173`)
+- **`sortOrder` is dropped for categories** — `calculateDashboardState` builds each
+  category from an explicit field list, so a field not named there is lost.
+  `sortOrder` was missing, which left the client with no way to know a category's
+  place or to persist a drag-reorder. Actions and results kept theirs via a `...a`
+  spread. Keep new ordering fields out of the blind spot.
+- **The tunnel watchdog must not tear down on one failed probe** — a quick tunnel
+  needs time to propagate through Cloudflare's edge, and the edge drops the odd
+  request. A single `000` used to exit, which became a restart loop that burned a
+  new URL, a repoint commit and a Pages rebuild every cycle and left the site down
+  more than up. It now needs `WARMUP_FAILS` consecutive failures.

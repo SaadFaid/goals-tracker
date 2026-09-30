@@ -16,7 +16,8 @@
     "seed": "node src/seed/index.js",
     "add-rewards": "node src/seed/addRewards.js",
     "studio": "prisma studio",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "backfill-sort-order": "node src/seed/backfillSortOrder.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

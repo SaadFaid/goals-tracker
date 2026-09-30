@@ -249,3 +249,24 @@ test("a month of partial progress is not reported as zero actions", () => {
   const inProgress = rows.filter((r) => r.target > 0 && partial(r.current)).length;
   assert.equal(inProgress, 3);
 });
+
+test("dashboard output carries category sortOrder", () => {
+  // Categories are serialized from an explicit field list, so a field that is
+  // not named there is dropped. Losing sortOrder left the client unable to
+  // place or reorder a category.
+  const cats = [
+    { id: "c0", name: "First", dotColor: "red", sortOrder: 0, isRewards: false, actions: [], results: [] },
+    { id: "c1", name: "Second", dotColor: "blue", sortOrder: 1, isRewards: false, actions: [], results: [] },
+  ];
+  const out = calculateDashboardState(cats, new Date("2026-09-15T12:00:00Z"), 0);
+  assert.deepEqual(out.categories.map((c) => c.sortOrder), [0, 1]);
+  assert.deepEqual(out.categories.map((c) => c.name), ["First", "Second"]);
+});
+
+test("a category with no sortOrder still reports a number", () => {
+  const out = calculateDashboardState(
+    [{ id: "c0", name: "Legacy", isRewards: false, actions: [], results: [] }],
+    new Date("2026-09-15T12:00:00Z"), 0,
+  );
+  assert.equal(out.categories[0].sortOrder, 0);
+});
