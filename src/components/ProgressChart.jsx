@@ -53,16 +53,23 @@ export default function ProgressChart({ logs, dashboard }) {
     .sort((a, b) => a.day - b.day);
 
   // Live "today" point: use the real quality score from dashboard, not synthetic logs.
-  // At 00:00 the new day has no progress yet, so the live point is hidden.
+  // Today only counts when it actually moved the score. A carried-over value is
+  // not progress, so a day with no task done shows no point at all; the line
+  // simply continues from the last day that did progress.
   const now = new Date();
   const isLiveMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1;
   const atMidnight = now.getHours() === 0 && now.getMinutes() === 0;
-  const showLiveToday = isLiveMonth && !atMidnight;
+  const liveScore = dashboard?.stats?.qualityPercent ?? (points.length ? points[points.length - 1].value : 0);
+  const historicalPoints = points.filter((p) => !(isLiveMonth && p.day === now.getDate()));
+  const lastHistoricalVal = historicalPoints.length
+    ? historicalPoints[historicalPoints.length - 1].value
+    : 0;
+  const progressedToday = isLiveMonth && !atMidnight && liveScore > lastHistoricalVal + 0.05;
+  const showLiveToday = progressedToday;
   // The chart runs to the last day progress was actually made; a live point
   // extends it to today only while the current day is still in progress.
   const lastLoggedDay = points.length ? points[points.length - 1].day : null;
   const today = showLiveToday ? now.getDate() : lastLoggedDay ?? 1;
-  const liveScore = dashboard?.stats?.qualityPercent ?? (points.length ? points[points.length - 1].value : 0);
 
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
@@ -236,26 +243,38 @@ export default function ProgressChart({ logs, dashboard }) {
             <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
 
-          {/* Execution dots: day-1 start point + days progress was actually made */}
+          {/* Execution dots: only on days the score actually moved. A day that
+              merely carries the previous value is not progress, so it gets no
+              dot; the line already shows the carried level through the gap. */}
           {(() => {
             const dotDays = new Map();
+            let prev = 0;
             for (const p of points) {
               if (showLiveToday && p.day === today) continue;
-              dotDays.set(p.day, p.value);
+              if (p.value > prev) dotDays.set(p.day, p.value);
+              prev = p.value;
             }
-            const day1Val = points.find((p) => p.day === 1)?.value ?? 0;
-            if (!dotDays.has(1)) dotDays.set(1, day1Val);
             return [...dotDays].map(([day, val]) => (
               <circle key={`e-${day}`} cx={x(day)} cy={y(val)} r="1.8" fill={PINK} stroke="#0E1817" strokeWidth="1" />
             ));
           })()}
 
-          {/* Results dots: only on days a result was actually logged */}
-          {points
-            .filter((p) => typeof p.results === "number" && !(showLiveToday && p.day === today))
-            .map((p) => (
-              <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="1.8" fill={RESULT} stroke="#0E1817" strokeWidth="1" />
-            ))}
+          {/* Results dots: only on days a result was actually logged (moved) */}
+          {(() => {
+            const out = [];
+            let prev = 0;
+            for (const p of points) {
+              if (typeof p.results !== "number") continue;
+              if (showLiveToday && p.day === today) continue;
+              if (p.results > prev) {
+                out.push(
+                  <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="1.8" fill={RESULT} stroke="#0E1817" strokeWidth="1" />,
+                );
+              }
+              prev = p.results;
+            }
+            return out;
+          })()}
 
           {/* Today's live points: only while the current day is in progress */}
           {showLiveToday ? (

@@ -43,7 +43,8 @@ router.patch("/:id", async (req, res, next) => {
       assert(isDotColor(req.body.dotColor), 400, `dotColor must be one of: turquoise, white, pink, purple, blue, orange, green, red, grey, black, yellow`);
       data.dotColor = req.body.dotColor;
     }
-    if (req.body.expanded !== undefined) data.expanded = !!req.body.expanded;
+      if (req.body.expanded !== undefined) data.expanded = !!req.body.expanded;
+      if (req.body.fullWidth !== undefined) data.fullWidth = !!req.body.fullWidth;
     if (req.body.sortOrder !== undefined) {
       assert(isNonNegativeNumber(req.body.sortOrder), 400, "sortOrder must be a non-negative number");
       data.sortOrder = req.body.sortOrder;

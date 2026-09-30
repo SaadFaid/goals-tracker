@@ -50,6 +50,7 @@ CREATE TABLE "Category" (
     "dotColor"  TEXT NOT NULL DEFAULT 'turquoise',
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
     "expanded"  BOOLEAN NOT NULL DEFAULT true,
+    "fullWidth" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );

@@ -81,6 +81,7 @@ router.post("/", async (req, res, next) => {
             dotColor: isDotColor(localCat.dotColor) ? localCat.dotColor : "turquoise",
             sortOrder: sortOrder++,
             expanded: localCat.expanded !== false,
+            fullWidth: localCat.fullWidth === true,
           },
         });
         // dbCat is the working copy below, so seed its child collections before

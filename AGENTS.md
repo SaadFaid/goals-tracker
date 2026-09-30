@@ -84,7 +84,9 @@ npm test               # unit tests (node:test, no DB)
   category from an explicit field list, so a field not named there is lost.
   `sortOrder` was missing, which left the client with no way to know a category's
   place or to persist a drag-reorder. Actions and results kept theirs via a `...a`
-  spread. Keep new ordering fields out of the blind spot.
+  spread. Keep new ordering fields out of the blind spot. `fullWidth` (the
+  full/half placement toggle) is in the same blind spot and must be named in
+  **both** `server/src/lib/calc.js` and `src/lib/score.js`.
 - **The tunnel watchdog must not tear down on one failed probe** — a quick tunnel
   needs time to propagate through Cloudflare's edge, and the edge drops the odd
   request. A single `000` used to exit, which became a restart loop that burned a

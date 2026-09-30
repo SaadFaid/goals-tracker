@@ -220,6 +220,7 @@ export function calculateDashboardState(categories, date = new Date(), monthOffs
       percent,
       statusColor: cat.isRewards ? "turquoise" : statusColor(percent, expected),
       expanded: cat.expanded !== false,
+      fullWidth: cat.fullWidth === true,
       isRewards: !!cat.isRewards || cat.name?.toLowerCase() === "rewards",
       actions,
       results,

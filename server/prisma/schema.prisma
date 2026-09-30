@@ -64,6 +64,7 @@ model Category {
   dotColor  String    @default("turquoise") // turquoise | white | pink | purple | blue | orange | green | red | grey | black | yellow
   sortOrder Int       @default(0)
   expanded  Boolean   @default(true)
+  fullWidth Boolean   @default(false) // card spans both grid columns
   createdAt DateTime  @default(now())
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
