@@ -181,4 +181,21 @@ router.post("/:id/claim", async (req, res, next) => {
   }
 });
 
+// Month rollover re-opens a claimed reward so it can be earned again next
+// month. Claiming is one-way elsewhere (claim 409s when already claimed), so
+// the deliberate reset needs its own path rather than a PATCH.
+router.post("/:id/unclaim", async (req, res, next) => {
+  try {
+    const reward = await assertOwned("reward", req.params.id, req.user.id);
+    const updated = await prisma.reward.update({
+      where: { id: reward.id },
+      data: { claimed: false, claimedAt: null },
+    });
+    const dashboard = await recomputeAndLog(req.user.id);
+    return res.json({ reward: updated, dashboard });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

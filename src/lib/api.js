@@ -81,6 +81,7 @@ export const api = {
   // Rewards
   createReward: (catId, body) => request("POST", `/categories/${catId}/rewards`, body),
   claimReward: (id) => request("POST", `/rewards/${id}/claim`),
+  unclaimReward: (id) => request("POST", `/rewards/${id}/unclaim`),
   deleteReward: (id) => request("DELETE", `/rewards/${id}`),
 
   // Sync
