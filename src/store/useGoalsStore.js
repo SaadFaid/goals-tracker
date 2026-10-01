@@ -9,6 +9,9 @@ import {
   restoreIdentityScope,
   migrateLegacyBlob,
   identityStorage,
+  setStoredRefreshToken,
+  getStoredRefreshToken,
+  clearStoredRefreshToken,
 } from "../lib/storageScope";
 
 const GUEST_KEY = "august-goals-guest-v2";
@@ -35,6 +38,14 @@ function readProfiles() {
 function writeProfiles(map) {
   localStorage.setItem(PROFILES_KEY, JSON.stringify(map));
 }
+
+// The refresh token is persisted per identity outside the state blob. The server
+// sends it in auth responses so session restore no longer depends on the
+// cross-site httpOnly cookie, which browsers drop when the app and API are on
+// different sites.
+const saveRefreshToken = setStoredRefreshToken;
+const readRefreshToken = getStoredRefreshToken;
+const clearRefreshToken = clearStoredRefreshToken;
 
 async function hashPassword(pw) {
   const data = new TextEncoder().encode("august-goals::" + pw);
@@ -537,8 +548,9 @@ export const useGoalsStore = create(
           throw new Error("Password must be at least 4 characters");
         }
         try {
-          const { accessToken, user } = await api.register({ email, password, name });
+          const { accessToken, user, refreshToken } = await api.register({ email, password, name });
           await get().adoptServerSession(accessToken, user);
+          saveRefreshToken(refreshToken);
           return;
         } catch (err) {
           // The server already knows this email, or is unreachable. A local-only
@@ -570,8 +582,9 @@ export const useGoalsStore = create(
           throw new Error("Enter your email and password");
         }
         try {
-          const { accessToken, user } = await api.login({ email, password });
+          const { accessToken, user, refreshToken } = await api.login({ email, password });
           await get().adoptServerSession(accessToken, user);
+          saveRefreshToken(refreshToken);
           return;
         } catch (err) {
           // The server gave a definitive answer — never let the local cache
@@ -611,8 +624,9 @@ export const useGoalsStore = create(
       // bounce the user back to the auth screen.
       resumeServerSession: async () => {
         try {
-          const { accessToken, user } = await api.refresh();
+          const { accessToken, user, refreshToken } = await api.refresh(readRefreshToken());
           await get().adoptServerSession(accessToken, user);
+          saveRefreshToken(refreshToken);
           return true;
         } catch {
           setAccessToken(null);
@@ -621,7 +635,10 @@ export const useGoalsStore = create(
       },
 
       logout: () => {
-        if (get().isServerBacked) api.logout().catch(() => {});
+        if (get().isServerBacked) api.logout(readRefreshToken()).catch(() => {});
+        // Clear while the scope still points at this account (before user:null
+        // switches the identity scope back to guest).
+        clearRefreshToken();
         setAccessToken(null);
         get().persistLocalProfile();
         set({
@@ -648,8 +665,9 @@ export const useGoalsStore = create(
         if (getAccessToken()) return true;
         set({ sessionRestoring: true });
         try {
-          const { accessToken, user } = await api.refresh();
+          const { accessToken, user, refreshToken } = await api.refresh(readRefreshToken());
           setAccessToken(accessToken);
+          saveRefreshToken(refreshToken);
           const [dashboard, progress] = await Promise.all([
             api.dashboard(),
             api.progress({}).catch(() => ({ logs: [] })),
@@ -685,9 +703,11 @@ export const useGoalsStore = create(
           get().ensureDailyLog(get().categories, get().dashboard);
           set({ sessionRestoring: false });
           return true;
-        } catch {
-          // Refresh rejected: the cookie is gone or expired. Do not keep
-          // isServerBacked, or edits would be queued against a dead session.
+        } catch (err) {
+          // Refresh rejected: the token is gone or expired. Only forget it when
+          // the server actually rejected it, not on a transient network error.
+          if (err?.status === 401) clearRefreshToken();
+          // Do not keep isServerBacked, or edits would be queued against a dead session.
           set({ isServerBacked: false, isGuest: true, user: null, sessionStarted: false, sessionRestoring: false, error: "Session expired. Log in again to save changes." });
           get().derive();
           return false;

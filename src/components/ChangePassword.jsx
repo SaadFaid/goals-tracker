@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, setAccessToken } from "../lib/api";
+import { setStoredRefreshToken } from "../lib/storageScope";
 
 export default function ChangePassword({ onClose }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -18,11 +19,12 @@ export default function ChangePassword({ onClose }) {
     }
     setBusy(true);
     try {
-      const { accessToken } = await api.changePassword(currentPassword, newPassword);
+      const { accessToken, refreshToken } = await api.changePassword(currentPassword, newPassword);
       // The server drops every refresh token on a password change and hands
       // back a fresh access token, so keep this session alive rather than
       // dropping the user back on the login screen.
       if (accessToken) setAccessToken(accessToken);
+      setStoredRefreshToken(refreshToken);
       setDone(true);
       setCurrentPassword("");
       setNewPassword("");

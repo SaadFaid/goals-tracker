@@ -61,8 +61,13 @@ router.post("/register", async (req, res, next) => {
 
     const dashboard = await loadDashboard(user.id);
 
+    // The refresh token also travels in the body: when the app is served from a
+    // different site than the API (GitHub Pages -> quick tunnel), the httpOnly
+    // cookie is a third-party cookie and modern browsers drop it, which silently
+    // broke session restore. The client persists this and sends it back.
     return res.status(201).json({
       accessToken,
+      refreshToken,
       user: serializeUser(user),
       dashboard,
       isGuest: false,
@@ -90,6 +95,7 @@ router.post("/login", async (req, res, next) => {
 
     return res.json({
       accessToken,
+      refreshToken,
       user: serializeUser(user),
       dashboard,
       isGuest: false,
@@ -101,7 +107,9 @@ router.post("/login", async (req, res, next) => {
 
 router.post("/refresh", async (req, res, next) => {
   try {
-    const oldToken = req.cookies?.refreshToken;
+    // Prefer the cookie when the browser keeps it; fall back to the token the
+    // client persisted, which is the only path that works cross-site.
+    const oldToken = req.cookies?.refreshToken || req.body?.refreshToken;
     if (!oldToken) throw createHttpError(401, "No refresh token");
     const rotated = await rotateRefreshToken(oldToken);
     if (!rotated) throw createHttpError(401, "Invalid or expired refresh token");
@@ -113,6 +121,7 @@ router.post("/refresh", async (req, res, next) => {
 
     return res.json({
       accessToken,
+      refreshToken: token,
       user: serializeUser(user),
       dashboard,
       isGuest: false,
@@ -183,7 +192,7 @@ router.post("/reset-password", async (req, res, next) => {
 
 router.post("/logout", requireAuth, async (req, res, next) => {
   try {
-    const oldToken = req.cookies?.refreshToken;
+    const oldToken = req.cookies?.refreshToken || req.body?.refreshToken;
     if (oldToken) {
       await prisma.refreshToken.deleteMany({ where: { token: oldToken, userId: req.user.id } });
     }
@@ -230,7 +239,7 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
     const accessToken = signAccessToken(user);
     const { token: refreshToken, expiresAt } = await issueRefreshToken(user.id);
     setRefreshCookie(res, refreshToken, expiresAt);
-    return res.json({ ok: true, accessToken });
+    return res.json({ ok: true, accessToken, refreshToken });
   } catch (err) {
     next(err);
   }

@@ -45,8 +45,12 @@ export const api = {
   // Auth
   register: (body) => request("POST", "/auth/register", body, { authed: false }),
   login: (body) => request("POST", "/auth/login", body, { authed: false }),
-  refresh: () => request("POST", "/auth/refresh", undefined, { authed: false }),
-  logout: () => request("POST", "/auth/logout"),
+  // The refresh token can arrive as a third-party cookie (dropped cross-site) or
+  // as a body token the client persisted; the server accepts either.
+  refresh: (refreshToken) =>
+    request("POST", "/auth/refresh", refreshToken ? { refreshToken } : undefined, { authed: false }),
+  logout: (refreshToken) =>
+    request("POST", "/auth/logout", refreshToken ? { refreshToken } : undefined),
   me: () => request("GET", "/auth/me"),
   changePassword: (currentPassword, newPassword) =>
     request("POST", "/auth/change-password", { currentPassword, newPassword }),

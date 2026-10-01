@@ -77,6 +77,22 @@ export function getIdentityScope() {
     return identity;
   }
 
+// The refresh token is kept per identity, outside the persisted state blob. The
+// server returns it in auth responses because the httpOnly refresh cookie is a
+// third-party cookie when the app (GitHub Pages) and API (quick tunnel) are on
+// different sites, and browsers drop those.
+const REFRESH_TOKEN_KEY = "august-goals-refresh-token";
+
+export function setStoredRefreshToken(token) {
+  if (token) identityStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+export function getStoredRefreshToken() {
+  return identityStorage.getItem(REFRESH_TOKEN_KEY) || null;
+}
+export function clearStoredRefreshToken() {
+  identityStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
 // zustand persist adapter that namespaces the persisted blob per identity.
 // Reuses the plain localStorage stores but with identity-scoped keys.
 export const identityStorage = {
