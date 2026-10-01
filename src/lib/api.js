@@ -55,6 +55,7 @@ export const api = {
 
   // Dashboard
   dashboard: (date) => request("GET", `/dashboard${date ? `?date=${date}` : ""}`),
+  rollover: (from, to) => request("POST", "/dashboard/rollover", { from, to }),
   progress: (params) =>
     request("GET", `/progress?${new URLSearchParams(params).toString()}`),
 

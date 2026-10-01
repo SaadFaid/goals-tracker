@@ -517,7 +517,9 @@ export const useGoalsStore = create(
         get().persistLocalProfile();
         const d = calculateDashboardState(get().categories, new Date(), get().monthOffset);
         set({ dashboard: d, bootstrapped: true });
-        get().checkMonthRollover();
+        // A guest bootstrap has already stamped lastMonthKey with the current
+        // month before login, so trust the server's own history here instead.
+        get().checkMonthRollover({ ignoreStored: true });
         get().derive();
         get().ensureDailyLog(get().categories, get().dashboard);
       },
@@ -943,25 +945,39 @@ export const useGoalsStore = create(
       // archived to history and the new live month starts at zero: every task,
       // result and reward claim resets, but the goals structure carries over.
       // "Today" is the DEVICE's month, so this never fires early on a UTC flip.
-      checkMonthRollover: () => {
+      checkMonthRollover: (opts = {}) => {
         const s = get();
         const currentKey = localMonthKey();
 
-        // Which month does the live data belong to? Prefer the recorded
-        // lastMonthKey; when it is unset (first run after this shipped) infer it
-        // from the newest history so an upgrade does not leave last month's
-        // progress sitting in the new month.
-        let prevKey = s.lastMonthKey;
+        const liveSrc = s.liveCategories || s.categories;
+        const hasProgress = (liveSrc || []).some(
+          (c) =>
+            (c.actions || []).some((a) => a.current > 0) ||
+            (c.results || []).some((r) => r.current > 0) ||
+            (c.rewards || []).some((r) => r.claimed)
+        );
+
+        // Which month does the live data belong to? Normally the recorded
+        // lastMonthKey, but when there is none — the first run after this
+        // shipped, or a fresh login where bootstrap() already stamped the
+        // current month before any account data had loaded — infer it from the
+        // newest month with recorded days. The live month's own snapshot is
+        // written on every edit, so only the log history can answer this.
+        let prevKey = opts.ignoreStored ? null : s.lastMonthKey;
         if (!prevKey) {
-          const candidates = [];
+          const logMonths = [];
           for (const l of s.progressLogs || []) {
             if (l?.year && l?.month) {
-              candidates.push(`${l.year}-${String(l.month).padStart(2, "0")}`);
+              logMonths.push(`${l.year}-${String(l.month).padStart(2, "0")}`);
             }
           }
-          for (const k of Object.keys(s.monthlySnapshots || {})) candidates.push(k);
-          candidates.sort();
-          prevKey = candidates.length ? candidates[candidates.length - 1] : currentKey;
+          logMonths.sort();
+          const latest = logMonths.length ? logMonths[logMonths.length - 1] : null;
+          // Only roll over when there is progress to clear and the newest
+          // recorded day belongs to an earlier month. Requiring progress means
+          // a second pass over an already-zeroed month is a no-op, so a reload
+          // can never overwrite the finished month's archive with blank data.
+          prevKey = hasProgress && latest && latest < currentKey ? latest : currentKey;
         }
 
         if (!prevKey || prevKey >= currentKey) {
@@ -969,58 +985,77 @@ export const useGoalsStore = create(
           return;
         }
 
-        // Archive the finished month as it stands, then build the new month from
-        // the same goals with all progress cleared.
-        const live = deepClone(s.liveCategories || s.categories);
-        set((st) => ({
-          monthlySnapshots: { ...st.monthlySnapshots, [prevKey]: deepClone(live) },
-        }));
-        if (!get().isGuest) api.saveSnapshot(prevKey, deepClone(live)).catch(() => {});
+        // A server-backed month must reset atomically. The per-row queue used to
+        // stop at the first rejected row and leave the rest of the month sitting
+        // at last month's numbers, so the server archives, clears and re-snapshots
+        // the whole month in one transaction and hands back the fresh one.
+        if (get().isServerBacked) {
+          // Claim the month now so a reload mid-request cannot start a second
+          // pass; put it back on failure so the rollover retries on next load.
+          set({ lastMonthKey: currentKey });
+          get().persistLocalProfile();
+          api
+            .rollover(prevKey, currentKey)
+            .then((serverDashboard) => {
+              const categories = normalizeResetTypes(
+                ensureRewardTiers(deepClone(serverDashboard.categories || []))
+              );
+              const dashboard = calculateDashboardState(categories, new Date(), 0);
+              set({
+                categories,
+                monthlySnapshots: { ...get().monthlySnapshots, [currentKey]: deepClone(categories) },
+                liveCategories: null,
+                viewingHistory: false,
+                selectedMonth: currentKey,
+                monthOffset: 0,
+                lastMonthKey: currentKey,
+                dashboard,
+                bootstrapped: true,
+                lastSyncedAt: new Date().toISOString(),
+              });
+              get().persistLocalProfile();
+              get().derive();
+              // Correct today's log, which was written against the un-cleared
+              // month before this resolved.
+              get().ensureDailyLog(categories, dashboard);
+            })
+            .catch(() => {
+              set({ lastMonthKey: prevKey });
+              get().persistLocalProfile();
+            });
+          return;
+        }
 
-        const resets = [];
+        // Guest/local month: reset in place from the same goals.
+        const live = deepClone(s.liveCategories || s.categories);
         const next = live.map((cat) => ({
           ...cat,
           expanded: true,
-          actions: (cat.actions || []).map((a) => {
-            if (!a.current) return a;
-            resets.push({ kind: "action", id: a.id });
-            return { ...a, current: 0, lastResetAt: localMidnightISO(new Date()) };
-          }),
-          results: (cat.results || []).map((r) => {
-            if (!r.current) return r;
-            resets.push({ kind: "result", id: r.id });
-            return { ...r, current: 0 };
-          }),
-          rewards: (cat.rewards || []).map((r) => {
-            if (!r.claimed) return r;
-            resets.push({ kind: "reward", id: r.id });
-            return { ...r, claimed: false, claimedAt: null };
-          }),
+          actions: (cat.actions || []).map((a) =>
+            a.current ? { ...a, current: 0, lastResetAt: localMidnightISO(new Date()) } : a
+          ),
+          results: (cat.results || []).map((r) => (r.current ? { ...r, current: 0 } : r)),
+          rewards: (cat.rewards || []).map((r) =>
+            r.claimed ? { ...r, claimed: false, claimedAt: null } : r
+          ),
         }));
 
-        set({
+        set((st) => ({
+          monthlySnapshots: {
+            ...st.monthlySnapshots,
+            [prevKey]: deepClone(live),
+            [currentKey]: deepClone(next),
+          },
           categories: next,
           liveCategories: null,
           viewingHistory: false,
           selectedMonth: currentKey,
           lastMonthKey: currentKey,
           monthOffset: 0,
-        });
+        }));
         const dashboard = calculateDashboardState(next, new Date(), 0);
         set({ dashboard, bootstrapped: true, lastSyncedAt: new Date().toISOString() });
-
-        if (!get().isGuest) {
-          for (const r of resets) {
-            if (String(r.id || "").startsWith("tmp-")) continue;
-            if (r.kind === "action") {
-              get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, allowZeroed: true }) });
-            } else if (r.kind === "result") {
-              get().enqueue({ execute: () => api.updateResult(r.id, { current: 0 }) });
-            } else if (r.kind === "reward") {
-              get().enqueue({ execute: () => api.unclaimReward(r.id) });
-            }
-          }
-        }
+        get().persistLocalProfile();
       },
 
       updateResult: (catId, idx, field, value) => {

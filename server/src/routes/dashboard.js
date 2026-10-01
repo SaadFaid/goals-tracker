@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { calculateDashboardState } from "../lib/calc.js";
 import { requireAuth } from "../middleware/auth.js";
+import { createHttpError } from "../validation/validate.js";
 
 const router = Router();
 
@@ -62,6 +63,70 @@ router.get("/", async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { monthOffset: true } });
     const monthOffset = user?.monthOffset || 0;
     const dashboard = await loadDashboardForDate(req.user.id, date, monthOffset);
+    return res.json(dashboard);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Month rollover, done as ONE transaction so a month is never left half-cleared
+// — the client used to send a reset per row, and a single rejected row stopped
+// the queue and left the rest of the month sitting at last month's numbers.
+// `from` is the month the live data belongs to (the client's local calendar),
+// `to` is the new live month. The finished month is archived first, counters
+// and claims are cleared, and the fresh month is snapshotted and returned.
+router.post("/rollover", async (req, res, next) => {
+  try {
+    const from = String(req.body?.from || "");
+    const to = String(req.body?.to || "");
+    if (!/^\d{4}-\d{2}$/.test(from) || !/^\d{4}-\d{2}$/.test(to)) {
+      throw createHttpError(400, "from and to must be YYYY-MM");
+    }
+    if (from >= to) throw createHttpError(400, "from must be an earlier month than to");
+
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { monthOffset: true } });
+    const monthOffset = user?.monthOffset || 0;
+
+    const categories = await prisma.category.findMany({
+      where: { userId },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        actions: { orderBy: { sortOrder: "asc" } },
+        results: { orderBy: { sortOrder: "asc" } },
+        rewards: true,
+      },
+    });
+    const categoryIds = categories.map((c) => c.id);
+
+    // Archive the finished month as it stands, but never overwrite an existing
+    // snapshot: one written while that month was live is already the finished
+    // data, and a retry after a partial failure must not bury it under a
+    // half-reset month.
+    const archived = calculateDashboardState(categories, new Date(), monthOffset).categories;
+    const existing = await prisma.monthlySnapshot.findUnique({
+      where: { userId_month: { userId, month: from } },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.monthlySnapshot.create({ data: { userId, month: from, data: archived } });
+    }
+
+    await prisma.$transaction([
+      prisma.action.updateMany({ where: { categoryId: { in: categoryIds } }, data: { current: 0 } }),
+      prisma.result.updateMany({ where: { categoryId: { in: categoryIds } }, data: { current: 0 } }),
+      prisma.reward.updateMany({
+        where: { categoryId: { in: categoryIds } },
+        data: { claimed: false, claimedAt: null },
+      }),
+    ]);
+
+    const dashboard = await loadDashboardForDate(userId, new Date(), monthOffset);
+    await prisma.monthlySnapshot.upsert({
+      where: { userId_month: { userId, month: to } },
+      create: { userId, month: to, data: dashboard.categories },
+      update: { data: dashboard.categories },
+    });
     return res.json(dashboard);
   } catch (err) {
     next(err);
