@@ -706,9 +706,24 @@ export const useGoalsStore = create(
         } catch (err) {
           // Refresh rejected: the token is gone or expired. Only forget it when
           // the server actually rejected it, not on a transient network error.
-          if (err?.status === 401) clearRefreshToken();
-          // Do not keep isServerBacked, or edits would be queued against a dead session.
-          set({ isServerBacked: false, isGuest: true, user: null, sessionStarted: false, sessionRestoring: false, error: "Session expired. Log in again to save changes." });
+          //
+          // The message has to distinguish those two cases. A dead API (the
+          // stack was down, the tunnel URL rotated away) is not an expired
+          // session, and telling the user to log in again sent them off to
+          // reset a password that was always fine. No status means the request
+          // never reached the server at all.
+          const rejected = err?.status === 401;
+          if (rejected) clearRefreshToken();
+          set({
+            isServerBacked: false,
+            isGuest: true,
+            user: null,
+            sessionStarted: false,
+            sessionRestoring: false,
+            error: rejected
+              ? "Session expired. Log in again to save changes."
+              : "Can't reach the server. Your changes are saved on this device — try again when it's back.",
+          });
           get().derive();
           return false;
         }

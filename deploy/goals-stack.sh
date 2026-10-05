@@ -62,7 +62,17 @@ wait_for 5173 Vite 60
 log "opening tunnel"
 pkill -f "cloudflared tunnel" 2>/dev/null
 sleep 1
-/tmp/opencode/cloudflared tunnel --url http://localhost:5173 --no-autoupdate \
+# The binary lives in ~/.local/bin, NOT /tmp/opencode: /tmp is cleared on every
+# reboot, and a missing cloudflared meant no tunnel URL ever appeared, so the
+# script exited 1 and systemd thrashed while the site kept serving a dead API.
+CLOUDFLARED=$(command -v cloudflared || echo "$HOME/.local/bin/cloudflared")
+if [ ! -x "$CLOUDFLARED" ]; then
+  log "cloudflared not found - no public tunnel, local :5173 still works"
+  CLOUDFLARED=""
+fi
+
+[ -n "$CLOUDFLARED" ] && \
+"$CLOUDFLARED" tunnel --url http://localhost:5173 --no-autoupdate \
   >"$LOG/tunnel.log" 2>&1 &
 
 # Wait for the assigned hostname. cloudflared first logs "Requesting new quick
