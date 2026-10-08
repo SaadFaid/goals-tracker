@@ -695,12 +695,17 @@ export const useGoalsStore = create(
             viewingHistory: false,
             selectedMonth: s.selectedMonth || localMonthKey(),
             liveCategories: null,
-            pendingMutations: [],
+            // Keep the pending mutation queue: edits queued while the server
+            // was unreachable are flushed below, and wiping them here would
+            // lose every offline change made during the outage.
             lastSyncedAt: new Date().toISOString(),
           });
           get().checkMonthRollover();
           get().derive();
           get().ensureDailyLog(get().categories, get().dashboard);
+          // The session may have come back while edits queued against a dead
+          // server; push them now that a token exists.
+          get().flush();
           set({ sessionRestoring: false });
           return true;
         } catch (err) {
@@ -713,17 +718,27 @@ export const useGoalsStore = create(
           // reset a password that was always fine. No status means the request
           // never reached the server at all.
           const rejected = err?.status === 401;
-          if (rejected) clearRefreshToken();
-          set({
-            isServerBacked: false,
-            isGuest: true,
-            user: null,
-            sessionStarted: false,
-            sessionRestoring: false,
-            error: rejected
-              ? "Session expired. Log in again to save changes."
-              : "Can't reach the server. Your changes are saved on this device — try again when it's back.",
-          });
+          if (rejected) {
+            clearRefreshToken();
+            set({
+              isServerBacked: false,
+              isGuest: true,
+              user: null,
+              sessionStarted: false,
+              sessionRestoring: false,
+              error: "Session expired. Log in again to save changes.",
+            });
+          } else {
+            // The server is unreachable or misrouted (tunnel rotated, API down).
+            // That is not an expired session: keep the signed-in identity and the
+            // locally edited categories, stop outgoing API calls, and let the
+            // reconnect loop in App bring the session back without a login flash.
+            set({
+              isServerBacked: false,
+              sessionRestoring: false,
+              error: "Can't reach the server. Changes are saved on this device and will sync when it's back.",
+            });
+          }
           get().derive();
           return false;
         }
@@ -810,7 +825,11 @@ export const useGoalsStore = create(
         set((s) => ({
           pendingMutations: [...s.pendingMutations, { id: uid(), timestamp: Date.now(), ...entry }],
         }));
-        if (!get().isGuest) get().flush();
+        // Only flush when there is actually a token: an offline-but-signed-in
+        // session would otherwise hit 401 and scream "Session expired" while
+        // the server is merely unreachable. The queue stays put and flushes on
+        // reconnect.
+        if (!get().isGuest && getAccessToken()) get().flush();
       },
 
       // Actually run the queued mutations. This used to just empty the queue —

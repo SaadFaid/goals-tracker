@@ -64,6 +64,15 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
         <div className="flex items-center gap-2 shrink-0">
           {signedIn ? (
             <>
+              {!isServerBacked && (
+                <span
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full"
+                  style={{ background: "rgba(245, 158, 11, 0.15)", color: "#FBBF24", border: "1px solid rgba(245, 158, 11, 0.35)" }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#FBBF24" }} aria-hidden="true" />
+                  Offline · saving on device
+                </span>
+              )}
               <span
                 className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full"
                 style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}

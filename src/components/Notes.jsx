@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../lib/api";
+import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconClose } from "./Icons";
 import { scopeKey } from "../lib/storageScope";
@@ -126,7 +126,7 @@ export default function Notes() {
   useEffect(() => {
     latestNotes.current = notes;
     localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
-    if (isServerBacked) {
+    if (isServerBacked && getAccessToken()) {
       api.saveNotes({ mode: "merge", notes }).catch(() => {});
     }
   }, [notes, isServerBacked]);
@@ -151,7 +151,7 @@ export default function Notes() {
 
   useEffect(() => {
     localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
-    if (isServerBacked) {
+    if (isServerBacked && getAccessToken()) {
       api
         .saveNotes({ mode: "merge", days: dayRec?.map || {}, lastDay: dayRec?.lastDay })
         .catch(() => {});
@@ -163,9 +163,12 @@ export default function Notes() {
   }, [open, view]);
 
   // A server-backed session loads the account's notes from the API rather than
-  // from this device's cache.
+  // from this device's cache. The access token only exists once
+  // restoreSession/app adoption has run, so wait for sessionRestoring to clear
+  // before firing: the first mount on a reload has the flag and no token yet.
+  const sessionRestoring = useGoalsStore((st) => st.sessionRestoring);
   useEffect(() => {
-    if (!isServerBacked) return;
+    if (!isServerBacked || !getAccessToken() || sessionRestoring) return;
     api
       .getNotes()
       .then((res) => {
@@ -179,9 +182,10 @@ export default function Notes() {
         }
       })
       .catch(() => {});
-    // Runs once per mount: later edits flow through the save effects above.
+    // Runs once per successful restore; later edits flow through the save
+    // effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isServerBacked]);
+  }, [isServerBacked, sessionRestoring]);
 
   const addNote = () => {
     const text = draft.trim();

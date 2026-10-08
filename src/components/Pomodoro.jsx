@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import FlipClock from "./FlipClock";
 import { scopeKey } from "../lib/storageScope";
-import { api } from "../lib/api";
+import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 
 const STORAGE_BASE = "august-goals-pomodoro";
@@ -146,7 +146,7 @@ export default function Pomodoro() {
   useEffect(() => {
     const settings = { workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold };
     localStorage.setItem(scopeKey(STORAGE_BASE), JSON.stringify(settings));
-    if (isServerBacked) api.savePomodoro(settings).catch(() => {});
+    if (isServerBacked && getAccessToken()) api.savePomodoro(settings).catch(() => {});
   }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold, isServerBacked]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
@@ -161,9 +161,12 @@ export default function Pomodoro() {
   const tTotal = (tH * 3600 + tM * 60 + tS) * 1000;
   const tRemaining = tRunning && tEndAt ? Math.max(0, tEndAt - tNow) : tHold > 0 ? tHold : tTotal;
 
-  // Ticks while a timer is live.
+  // Pull the server's saved timer/settings once a session is live. The access
+  // token exists only after restore/adoption, so wait for sessionRestoring to
+  // clear before firing (a reload's first mount has the flag, no token yet).
+  const sessionRestoring = useGoalsStore((st) => st.sessionRestoring);
   useEffect(() => {
-    if (!isServerBacked) return;
+    if (!isServerBacked || !getAccessToken() || sessionRestoring) return;
     api
       .getPomodoro()
       .then((remote) => {
@@ -187,9 +190,10 @@ export default function Pomodoro() {
         setTHold(r.tHold ?? 0);
       })
       .catch(() => {});
-    // Runs once per mount: later edits flow through the persist effect above.
+    // Runs once per successful restore; later edits flow through the persist
+    // effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isServerBacked]);
+  }, [isServerBacked, sessionRestoring]);
 
   useEffect(() => {
     if (!running) return;

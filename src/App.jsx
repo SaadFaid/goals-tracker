@@ -27,16 +27,32 @@ export default function App() {
   const bootstrapped = useGoalsStore((s) => s.bootstrapped);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const userEmail = useGoalsStore((s) => s.user?.email);
+  const sessionRestoring = useGoalsStore((s) => s.sessionRestoring);
+  const isServerBacked = useGoalsStore((s) => s.isServerBacked === true);
   const restoreSession = useGoalsStore((s) => s.restoreSession);
 
-  // A reload rehydrates "logged in" from localStorage, but the access token
-  // is gone. Re-establish it before the dashboard mounts, otherwise every
-  // edit this session would fail to save. The store owns the flag, so this
-  // only sets state in response to a real network round-trip.
-  const sessionRestoring = useGoalsStore((s) => s.sessionRestoring);
+  // A reload rehydrates "logged in" from localStorage, but the access token is
+  // gone. Re-establish it on mount, otherwise every edit this session would
+  // fail to save.
   useEffect(() => {
     if (!isGuest && userEmail) restoreSession();
   }, [isGuest, userEmail, restoreSession]);
+
+  // Signed in but the server dropped us (tunnel rotation, API restart). Bring
+  // the session back the moment the network returns, without a login flash:
+  // the refresh token is still valid, so restoreSession just mints a new
+  // access token and flushes the queued edits.
+  useEffect(() => {
+    if (isGuest || !userEmail || isServerBacked) return;
+    const attempt = () => restoreSession();
+    const onOnline = () => attempt();
+    window.addEventListener("online", onOnline);
+    const id = setInterval(attempt, 15000);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      clearInterval(id);
+    };
+  }, [isGuest, userEmail, isServerBacked, restoreSession]);
 
   if (!bootstrapped) {
     return (

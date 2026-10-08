@@ -99,12 +99,12 @@ export default function StatsBar({ cats }) {
         border: "1px solid var(--color-border-active)",
       }}
     >
-      {stats.map((s) => (
+      {stats.map(({ key, ...ring }) => (
         <StatRing
-          key={s.key}
-          {...s}
+          key={key}
+          {...ring}
           masked={moneyHidden}
-          onToggleMask={s.maskable ? () => setMoneyHidden((v) => !v) : undefined}
+          onToggleMask={ring.maskable ? () => setMoneyHidden((v) => !v) : undefined}
         />
       ))}
     </div>
