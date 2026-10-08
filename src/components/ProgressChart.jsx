@@ -78,21 +78,24 @@ export default function ProgressChart({ logs, dashboard }) {
   const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: starts at 0% on day 1, then HOLDS the last recorded value
-  // across days with no entry. Previously only days that had a log were
-  // plotted, so a 3-day-old score was drawn as if it belonged to the most
-  // recent log and the line silently dropped to the baseline in the gaps. The
-  // score is cumulative, so a day without progress keeps the previous day's.
+  // Execution line: identical carry-forward rule to the Results line below.
+  // A day with no log keeps the previous value; days before the month's first
+  // logged day leave a gap instead of a fabricated 0-baseline. The score is
+  // cumulative, so a day without progress holds the last recorded level.
   const execByDay = new Map();
-  for (const p of points) execByDay.set(p.day, p.value);
+  for (const p of points) {
+    if (typeof p.value !== "number") continue;
+    execByDay.set(p.day, p.value);
+  }
   if (showLiveToday) execByDay.set(today, liveScore);
   const lastDay = showLiveToday ? Math.max(today, lastLoggedDay ?? 1) : lastLoggedDay;
   const execSteps = (() => {
     if (lastDay == null) return [];
     const out = [];
-    let carried = 0;
+    let carried = null;
     for (let day = 1; day <= lastDay; day++) {
       if (execByDay.has(day)) carried = execByDay.get(day);
+      if (carried == null) continue; // no execution data yet: leave the gap
       out.push({ day, value: carried });
     }
     return out;

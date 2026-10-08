@@ -92,6 +92,29 @@ export function categoryWeightsSum(category) {
   return (category.actions || []).reduce((sum, a) => sum + (a.weight || 0), 0);
 }
 
+/**
+ * Weighted aggregate of every result across all non-rewards categories.
+ * Mirrors src/lib/score.js aggregateResultsPct so the stored daily log matches
+ * the ring the client draws. Deliberately ignores allowed `invert` here to keep
+ * client and server producing the identical number.
+ */
+export function aggregateResultsPct(categories) {
+  const all = (categories || []).filter((c) => !c.isRewards);
+  let totalWeight = 0;
+  let weightedSum = 0;
+  for (const cat of all) {
+    for (const r of cat.results || []) {
+      if (r.target > 0) {
+        const w = r.weight || 0;
+        totalWeight += w;
+        const pct = Math.min((r.current / r.target) * 100, 100);
+        weightedSum += pct * w;
+      }
+    }
+  }
+  return totalWeight > 0 ? weightedSum / totalWeight : 0;
+}
+
 function financeRevenue(state) {
   const finance = (state.categories || []).find((c) =>
     c.name?.toLowerCase().includes("finance")

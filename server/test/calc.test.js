@@ -4,6 +4,7 @@ import {
   calculateActionPercent,
   calculateCategoryPercent,
   calculateOverallQuality,
+  aggregateResultsPct,
   getExpectedPercent,
   getDaysLeft,
   getDaysInMonth,
@@ -47,6 +48,29 @@ test("expected percent and days left align", () => {
   assert.equal(getDaysLeft(date), 3);
   const exp = getExpectedPercent(date);
   assert.ok(Math.abs(exp - (28 / 31) * 100) < 0.001);
+});
+
+test("aggregate results percent is weight-based across categories", () => {
+  const cats = [
+    { isRewards: false, results: [
+      { current: 25, target: 50, weight: 100 }, // 50
+      { current: 10, target: 10, weight: 100 }, // 100
+      { target: 0, weight: 100 },               // no target -> skipped
+    ]},
+    { isRewards: false, results: [
+      { current: 3, target: 12, weight: 50 },   // 25
+    ]},
+    { isRewards: true, results: [
+      { current: 100, target: 100, weight: 100 }, // rewards ignored
+    ]},
+  ];
+  // (50*100 + 100*100 + 25*50) / (100 + 100 + 50) = (5000 + 10000 + 1250) / 250
+  assert.equal(aggregateResultsPct(cats), 65);
+});
+
+test("aggregate results percent is zero when nothing qualifies", () => {
+  assert.equal(aggregateResultsPct([]), 0);
+  assert.equal(aggregateResultsPct([{ results: [{ target: 0, weight: 50 }] }]), 0);
 });
 
 test("status thresholds", () => {

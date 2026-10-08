@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { calculateDashboardState } from "../lib/calc.js";
+import { aggregateResultsPct, calculateDashboardState } from "../lib/calc.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createHttpError } from "../validation/validate.js";
 
@@ -31,6 +31,7 @@ export async function recomputeAndLog(userId, monthOffset = 0, date = new Date()
   const targetDate = new Date(date);
   targetDate.setMonth(targetDate.getMonth() + monthOffset);
   const d = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
+  const resultsScore = Math.round(aggregateResultsPct(dashboard.categories) * 10) / 10;
 
   await prisma.progressLog.upsert({
     where: { userId_date: { userId, date: d } },
@@ -42,6 +43,7 @@ export async function recomputeAndLog(userId, monthOffset = 0, date = new Date()
       year: targetDate.getFullYear(),
       qualityScore: dashboard.stats.qualityPercent,
       expectedScore: dashboard.stats.expectedPercent,
+      resultsScore,
     },
     update: {
       dayOfMonth: dashboard.meta.dayOfMonth,
@@ -49,6 +51,7 @@ export async function recomputeAndLog(userId, monthOffset = 0, date = new Date()
       year: targetDate.getFullYear(),
       qualityScore: dashboard.stats.qualityPercent,
       expectedScore: dashboard.stats.expectedPercent,
+      resultsScore,
     },
   });
 
