@@ -14,7 +14,10 @@ function sanitizeNote(raw, where) {
   const id = typeof raw.id === "string" && raw.id ? raw.id : null;
   if (!id) throw createHttpError(400, "Note needs an id");
   const text = cleanText(raw.text, MAX_TEXT);
-  if (!text) throw createHttpError(400, `Note ${id} is empty`);
+  // Empty text means the client is clearing a list or dropping a row while a
+  // full-list batch is in flight. Skipping it (not 400ing the whole request)
+  // keeps one stale/empty row from wedging every save on the account.
+  if (!text) return null;
   return {
     id,
     ...where,
@@ -74,10 +77,16 @@ router.put("/", async (req, res, next) => {
     // display order and every note arrives with sortOrder 0, so without this the
     // order Postgres returns ties in is arbitrary and the list reshuffles
     // between requests.
-    const notes = rawNotes.map((raw, i) => ({
-      ...sanitizeNote(raw, { userId }),
-      sortOrder: raw?.sortOrder == null ? i : isInt(raw.sortOrder) ? raw.sortOrder : i,
-    }));
+    const notes = rawNotes
+      .map((raw, i) => {
+        const clean = sanitizeNote(raw, { userId });
+        if (!clean) return null;
+        return {
+          ...clean,
+          sortOrder: raw?.sortOrder == null ? i : isInt(raw.sortOrder) ? raw.sortOrder : i,
+        };
+      })
+      .filter(Boolean);
 
     const dayRows = [];
     if (rawMap) {
@@ -87,8 +96,9 @@ router.put("/", async (req, res, next) => {
         if (list.length > 200) throw createHttpError(400, `Too many notes on ${date}`);
         const seen = new Set();
         list.forEach((raw, i) => {
-          const row = sanitizeNote(raw, { userId, date });
-          row.sortOrder = raw?.sortOrder == null ? i : isInt(raw.sortOrder) ? raw.sortOrder : i;
+          const clean = sanitizeNote(raw, { userId, date });
+          if (!clean) return; // empty text: drop from the batch
+          const row = { ...clean, sortOrder: raw?.sortOrder == null ? i : isInt(raw.sortOrder) ? raw.sortOrder : i };
           if (seen.has(row.id)) throw createHttpError(400, `Duplicate note id ${row.id} on ${date}`);
           seen.add(row.id);
           // NoteDay has its own row uuid plus noteId, which is the note's client
@@ -155,11 +165,23 @@ router.post("/", async (req, res, next) => {
   try {
     const { id: userId } = req.user;  // req.user is { id, email }
     const note = sanitizeNote(req.body, { userId });
+    if (!note) throw createHttpError(400, "Note is empty");
     const exists = await prisma.note.findFirst({ where: { id: note.id, userId }, select: { id: true } });
     const saved = exists
       ? await prisma.note.update({ where: { id: note.id }, data: note })
       : await prisma.note.create({ data: { ...note, user: { connect: { id: userId } } } });
     return res.status(exists ? 200 : 201).json({ note: saved });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Clear the standing checklist for the account. Day history (noteDay) stays. */
+router.delete("/", async (req, res, next) => {
+  try {
+    const { id: userId } = req.user;  // req.user is { id, email }
+    const { count } = await prisma.note.deleteMany({ where: { userId } });
+    return res.json({ deleted: count });
   } catch (err) {
     next(err);
   }

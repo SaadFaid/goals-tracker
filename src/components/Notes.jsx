@@ -122,23 +122,21 @@ export default function Notes() {
   const dragId = useRef(null);
   const justDragged = useRef(false);
   const latestNotes = useRef(notes);
-
+  const dayRecRef = useRef(dayRec);
   useEffect(() => {
-    latestNotes.current = notes;
-    localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
-    if (isServerBacked && getAccessToken()) {
-      api.saveNotes({ mode: "merge", notes }).catch(() => {});
-    }
-  }, [notes, isServerBacked]);
+    dayRecRef.current = dayRec;
+  }, [dayRec]);
 
-  // Archive the previous day's checklist on day rollover (on open/mount, like
-  // the store's daily reset). The current day's list is saved under its own
-  // date the next time a new day is opened — starts saving from today.
-  useEffect(() => {
+  // A new day (midnight) starts with an empty checklist: yesterday's list is
+  // frozen into that day's history so it lives "only for that day", and the
+  // standing list clears. Carry yesterday's tasks back with the button below.
+  const rollToToday = () => {
     const tk = todayKeyOf();
+    const prevLast = dayRecRef.current?.lastDay;
+    if (!prevLast || prevLast === tk) return false;
     setDayRec((prev) => {
       const map = { ...(prev?.map || {}) };
-      if (prev?.lastDay && prev.lastDay !== tk && !map[prev.lastDay]) {
+      if (!map[prev.lastDay] && latestNotes.current.length > 0) {
         map[prev.lastDay] = latestNotes.current.map((n) => ({
           id: n.id,
           text: n.text,
@@ -147,7 +145,37 @@ export default function Notes() {
       }
       return { lastDay: tk, map, seeded: prev?.seeded === true };
     });
+    if (latestNotes.current.length > 0) setNotes([]);
+    return true;
+  };
+
+  // Run the rollover on mount, whenever the checklist opens/closes (the old
+  // "archive the previous day" hook), and on a minute tick so a tab that stays
+  // open past midnight still clears without a reload.
+  useEffect(() => {
+    rollToToday();
   }, [open]);
+  useEffect(() => {
+    rollToToday();
+    const id = setInterval(() => {
+      if (dayRecRef.current?.lastDay !== todayKeyOf()) rollToToday();
+    }, 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    latestNotes.current = notes;
+    localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
+    if (isServerBacked && getAccessToken()) {
+      if (notes.length === 0) {
+        // A cleared checklist means the standing list on the server goes too;
+        // merge mode only upserts and would resurrect the old rows on reload.
+        api.clearNotes().catch(() => {});
+      } else {
+        api.saveNotes({ mode: "merge", notes }).catch(() => {});
+      }
+    }
+  }, [notes, isServerBacked]);
 
   useEffect(() => {
     localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
@@ -179,6 +207,25 @@ export default function Notes() {
             map: res.days.map || {},
             seeded: prev?.seeded === true,
           }));
+        }
+        // The server snapshot may be from yesterday (a morning reload, or the
+        // last visit was the day before). Roll it forward the same way the
+        // rollover hook does: freeze the fetched list into its day, clear the
+        // standing list. The day-history save effect below persists it.
+        const tk = todayKeyOf();
+        if (res?.days?.lastDay && res.days.lastDay !== tk) {
+          setDayRec((prev) => {
+            const map = { ...(prev?.map || {}) };
+            if (!map[res.days.lastDay] && Array.isArray(res.notes) && res.notes.length) {
+              map[res.days.lastDay] = res.notes.map((n) => ({
+                id: n.id,
+                text: n.text,
+                done: !!n.done,
+              }));
+            }
+            return { lastDay: tk, map, seeded: prev?.seeded === true };
+          });
+          setNotes([]);
         }
       })
       .catch(() => {});
@@ -278,6 +325,15 @@ export default function Notes() {
     const idx = dayKeys.indexOf(active);
     const nxt = Math.max(0, Math.min(dayKeys.length - 1, idx + dir));
     if (dayKeys[nxt]) setActiveDay(dayKeys[nxt]);
+  };
+
+  // Carry-forward: the most recent saved day older than today, to pull back
+  // into today's (normally empty) checklist with the button in the list view.
+  const carryDay = dayKeys.find((k) => k < todayKey) || null;
+  const carryTasks = carryDay ? dayMap[carryDay] || [] : [];
+  const carryLastDay = () => {
+    if (!carryTasks.length) return;
+    setNotes(carryTasks.map((n) => ({ id: n.id, text: n.text, done: false })));
   };
 
   return (
@@ -560,6 +616,23 @@ export default function Notes() {
               style={{ paddingLeft: 28, paddingRight: 22, paddingTop: 0, paddingBottom: 6 }}
             >
               <div style={{ paddingRight: 10 }}>
+              {view === "list" && carryTasks.length > 0 && (
+                <div className="mb-2 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={carryLastDay}
+                    title={`Copy ${dayLabel(carryDay)}'s ${carryTasks.length} tasks in, unchecked`}
+                    className="px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors"
+                    style={{
+                      color: "#0E7A6B",
+                      background: "#EDF6F3",
+                      border: "1px solid #0E7A6B",
+                    }}
+                  >
+                    Bring last day's tasks
+                  </button>
+                </div>
+              )}
               {notes.length === 0 ? (
                 <p className="text-sm" style={{ color: "#A1998A", height: ROW_H, lineHeight: `${ROW_H - 3}px`, paddingBottom: 2 }}>
                   Add a task below — a new line appears on the paper.

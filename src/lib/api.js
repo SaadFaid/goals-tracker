@@ -103,6 +103,7 @@ export const api = {
   saveNotes: (body) => request("PUT", "/notes", body),
   createNote: (body) => request("POST", "/notes", body),
   deleteNote: (id) => request("DELETE", `/notes/${id}`),
+  clearNotes: () => request("DELETE", "/notes"),
 
   // Pomodoro
   getPomodoro: () => request("GET", "/pomodoro"),
