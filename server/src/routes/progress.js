@@ -32,9 +32,9 @@ router.get("/export", async (req, res, next) => {
     });
 
     if (format === "csv") {
-      const header = "date,dayOfMonth,month,year,qualityScore,expectedScore";
+      const header = "date,dayOfMonth,month,year,qualityScore,expectedScore,resultsScore";
       const rows = logs.map((l) =>
-        `${l.date.toISOString().slice(0, 10)},${l.dayOfMonth},${l.month},${l.year},${l.qualityScore},${l.expectedScore}`
+        `${l.date.toISOString().slice(0, 10)},${l.dayOfMonth},${l.month},${l.year},${l.qualityScore},${l.expectedScore},${l.resultsScore ?? ""}`
       );
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", "attachment; filename=progress.csv");
