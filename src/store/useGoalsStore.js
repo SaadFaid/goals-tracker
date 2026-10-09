@@ -8,6 +8,7 @@ import {
   setIdentityScope,
   restoreIdentityScope,
   migrateLegacyBlob,
+  scopeKey,
   identityStorage,
   setStoredRefreshToken,
   getStoredRefreshToken,
@@ -454,14 +455,62 @@ export const useGoalsStore = create(
         get().ensureDailyLog(get().categories, get().dashboard);
       },
 
-      startGuest: () => {
-        if ((get().progressLogs || []).length === 0) {
-          set({ progressLogs: generateGuestLogs() });
+      // Switch to the guest identity. Guest is its OWN namespace: every field
+      // derived from the signed-in account (chart history, snapshots, the month
+      // being viewed) has to be cleared, or the account's progress shows up in
+      // guest mode. Then rehydrate the guest slot so a guest who had their own
+      // data before logging in gets it back.
+      enterGuest: ({ error = null, sessionStarted = true } = {}) => {
+        setIdentityScope(null);
+        // A guest blob that carries a signed-in identity is really account
+        // state written here before the scope switched (the persist subscriber
+        // ran after the write). Showing it would resurrect the account as
+        // "guest", so drop it.
+        try {
+          const key = scopeKey(GUEST_KEY, "guest");
+          const raw = localStorage.getItem(key);
+          const st = raw ? JSON.parse(raw)?.state : null;
+          if (st && (st.isServerBacked === true || st.user?.email)) {
+            localStorage.removeItem(key);
+          }
+        } catch {
+          /* storage unavailable */
         }
-        set({ user: null, isGuest: true, sessionStarted: true });
-        get().derive();
-        get().ensureDailyLog();
-        get().captureSnapshot();
+        set({
+          isServerBacked: false,
+          isGuest: true,
+          user: null,
+          error,
+          categories: seedClone(),
+          progressLogs: generateGuestLogs(),
+          monthlySnapshots: {},
+          serverSnapshotMonths: [],
+          dailySnapshots: {},
+          liveCategories: null,
+          viewingHistory: false,
+          selectedMonth: localMonthKey(),
+          monthOffset: 0,
+          lastDayKey: null,
+          lastMonthKey: null,
+          undoStack: [],
+          pendingMutations: [],
+          lastSyncedAt: null,
+        });
+        // Layer the guest identity's own persisted data over the clean
+        // baseline; this also runs bootstrap() to seed/derive normally. Set the
+        // session flags after, so a stale flag in the guest blob cannot decide
+        // whether the auth screen shows.
+        const settled = useGoalsStore.persist.rehydrate();
+        const finalize = () => {
+          set({ isGuest: true, user: null, isServerBacked: false, sessionStarted, error });
+          get().derive();
+        };
+        if (settled && typeof settled.finally === "function") settled.finally(finalize);
+        else finalize();
+      },
+
+      startGuest: () => {
+        get().enterGuest({ sessionStarted: true });
       },
 
       openAuth: () => {
@@ -485,14 +534,17 @@ export const useGoalsStore = create(
       },
 
       applyLocalProfile: (email, { name = "User" } = {}) => {
-        if ((get().progressLogs || []).length === 0) {
-          set({ progressLogs: generateGuestLogs() });
-        }
+        // Bind the namespace to this account before any state is written, so
+        // its blob cannot land in the guest slot.
+        setIdentityScope(email);
         set({
           user: { email, name },
           isGuest: false,
           sessionStarted: true,
           error: null,
+          // A local profile carries no chart history, and the previous
+          // identity's days must not follow us into this account.
+          progressLogs: [],
           lastSyncedAt: new Date().toISOString(),
         });
         get().derive();
@@ -663,22 +715,13 @@ export const useGoalsStore = create(
 
       logout: () => {
         if (get().isServerBacked) api.logout(readRefreshToken()).catch(() => {});
-        // Clear while the scope still points at this account (before user:null
-        // switches the identity scope back to guest).
+        // Save the account's own categories and clear its token while the
+        // identity scope still points at this account; enterGuest then flips to
+        // the guest namespace and clears the account-derived state.
+        get().persistLocalProfile();
         clearRefreshToken();
         setAccessToken(null);
-        get().persistLocalProfile();
-        set({
-          isServerBacked: false,
-          user: null,
-          isGuest: true,
-          sessionStarted: false,
-          categories: seedClone(),
-          lastSyncedAt: null,
-          undoStack: [],
-          pendingMutations: [],
-        });
-        get().derive();
+        get().enterGuest({ sessionStarted: false });
       },
 
       // Called once on boot. A page reload rehydrates a logged-in state from
@@ -762,14 +805,12 @@ export const useGoalsStore = create(
           const rejected = err?.status === 401;
           if (rejected) {
             clearRefreshToken();
-            set({
-              isServerBacked: false,
-              isGuest: true,
-              user: null,
+            setAccessToken(null);
+            get().enterGuest({
               sessionStarted: false,
-              sessionRestoring: false,
               error: "Session expired. Log in again to save changes.",
             });
+            set({ sessionRestoring: false });
           } else {
             // The server is unreachable or misrouted (tunnel rotated, API down).
             // That is not an expired session: keep the signed-in identity and the
@@ -1651,23 +1692,31 @@ export const useGoalsStore = create(
         // user's chart, snapshots and daily history.
         storage: createJSONStorage(() => identityStorage),
         name: GUEST_KEY,
-        partialize: (s) => ({
-          categories: s.categories,
-          progressLogs: s.progressLogs,
-          user: s.user,
-          isGuest: s.isGuest,
-          isServerBacked: s.isServerBacked,
-          sessionStarted: s.sessionStarted,
-          monthOffset: s.monthOffset,
-          selectedMonth: s.selectedMonth,
-          viewingHistory: s.viewingHistory,
-          liveCategories: s.liveCategories,
-          monthlySnapshots: s.monthlySnapshots,
-          dailySnapshots: s.dailySnapshots,
-          lastDayKey: s.lastDayKey,
-          lastMonthKey: s.lastMonthKey,
-          pendingMutations: s.pendingMutations,
-        }),
+        partialize: (s) => {
+          // Write the blob into the namespace the state actually belongs to.
+          // The scope used to be switched by a separate subscriber that ran
+          // AFTER this write, so the first write under a new identity landed in
+          // the previous identity's slot — which is how a signed-in account's
+          // progress ended up stored under guest.
+          setIdentityScope(s.isGuest || !s.user?.email ? null : s.user.email);
+          return {
+            categories: s.categories,
+            progressLogs: s.progressLogs,
+            user: s.user,
+            isGuest: s.isGuest,
+            isServerBacked: s.isServerBacked,
+            sessionStarted: s.sessionStarted,
+            monthOffset: s.monthOffset,
+            selectedMonth: s.selectedMonth,
+            viewingHistory: s.viewingHistory,
+            liveCategories: s.liveCategories,
+            monthlySnapshots: s.monthlySnapshots,
+            dailySnapshots: s.dailySnapshots,
+            lastDayKey: s.lastDayKey,
+            lastMonthKey: s.lastMonthKey,
+            pendingMutations: s.pendingMutations,
+          };
+        },
         onRehydrateStorage: () => (state) => {
           if (!state) return;
           state.bootstrap();
