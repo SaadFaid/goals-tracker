@@ -203,13 +203,32 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
 
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
+  const origin = { day: 0, value: 0 };
+
+  // Same rule as the dashboard chart: no fabricated 0 baseline before the
+  // first real value — the day-0 origin is the only thing marking the 0 level.
+  const stepsFrom = (byDay) => {
+    const out = [];
+    let carried = null;
+    let started = false;
+    for (let day = 1; day <= totalDays; day++) {
+      if (byDay.has(day)) carried = byDay.get(day);
+      if (carried == null) continue;
+      if (!started && carried <= 0.0001) continue;
+      started = true;
+      out.push({ day, value: carried });
+    }
+    return out;
+  };
 
   const execByDay = new Map();
-  for (const p of points) execByDay.set(p.day, p.value);
-  const execSteps = [...execByDay]
-    .sort((a, b) => a[0] - b[0])
-    .map(([day, value]) => ({ day, value }));
-  const actualPath = `M ${x(1)} ${y(0)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("");
+  for (const p of points) {
+    if (typeof p.value === "number") execByDay.set(p.day, p.value);
+  }
+  const execSteps = stepsFrom(execByDay);
+  const actualPath = execSteps.length
+    ? `M ${x(origin.day)} ${y(origin.value)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    : "";
   const areaPath = execSteps.length
     ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
     : "";
@@ -218,11 +237,9 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
   }
-  const resSteps = [...resByDay]
-    .sort((a, b) => a[0] - b[0])
-    .map(([day, value]) => ({ day, value }));
+  const resSteps = stepsFrom(resByDay);
   const resultsPath = resSteps.length
-    ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    ? `M ${x(origin.day)} ${y(origin.value)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
     : "";
 
   const gridLines = [25, 50, 75, 100];
@@ -255,6 +272,8 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
 
         <path d={areaPath} fill="rgba(219,96,136,0.08)" />
 
+        <circle cx={x(origin.day)} cy={y(origin.value)} r="2" fill="#9CA3AF" stroke="#fff" strokeWidth="1" />
+
         <path
           d={expectedPath}
           stroke={RING_DAYS}
@@ -274,11 +293,20 @@ function PaperChart({ logs, dashboard, selectedMonth }) {
           <path d={actualPath} stroke={RING_EXEC} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         )}
 
-        {execSteps.map((p) => (
-          <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2" fill={RING_EXEC} stroke="#fff" strokeWidth="1" />
-        ))}
+        {(() => {
+          const dots = [];
+          let prev = 0;
+          for (const p of points) {
+            if (typeof p.value !== "number") continue;
+            if (p.value > prev && p.value > 0) dots.push({ day: p.day, value: p.value });
+            prev = p.value;
+          }
+          return dots.map((p) => (
+            <circle key={`e-${p.day}`} cx={x(p.day)} cy={y(p.value)} r="2" fill={RING_EXEC} stroke="#fff" strokeWidth="1" />
+          ));
+        })()}
         {points
-          .filter((p) => typeof p.results === "number")
+          .filter((p) => typeof p.results === "number" && p.results > 0)
           .map((p) => (
             <circle key={`r-${p.day}`} cx={x(p.day)} cy={y(p.results)} r="2" fill={RING_RESULTS} stroke="#fff" strokeWidth="1" />
           ))}

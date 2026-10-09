@@ -60,16 +60,15 @@ export default function ProgressChart({ logs, dashboard }) {
   const isLiveMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth() + 1;
   const atMidnight = now.getHours() === 0 && now.getMinutes() === 0;
   const liveScore = dashboard?.stats?.qualityPercent ?? (points.length ? points[points.length - 1].value : 0);
-  const historicalPoints = points.filter((p) => !(isLiveMonth && p.day === now.getDate()));
-  const lastHistoricalVal = historicalPoints.length
-    ? historicalPoints[historicalPoints.length - 1].value
-    : 0;
-  const progressedToday = isLiveMonth && !atMidnight && liveScore > lastHistoricalVal + 0.05;
-  const showLiveToday = progressedToday;
-  // The chart runs to the last day progress was actually made; a live point
-  // extends it to today only while the current day is still in progress.
   const lastLoggedDay = points.length ? points[points.length - 1].day : null;
-  const today = showLiveToday ? now.getDate() : lastLoggedDay ?? 1;
+
+  // Day 0 origin: the "nothing done yet" anchor the line always starts from.
+  // It takes the place of a fabricated flat 0 across the early days. Today's
+  // point is attached in the live month so the line ends on the current day;
+  // past months end on their last real data day.
+  const showLiveToday = isLiveMonth && !atMidnight;
+  const today = showLiveToday ? now.getDate() : (lastLoggedDay ?? 1);
+  const origin = { day: 0, value: 0 };
 
   const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
@@ -78,52 +77,50 @@ export default function ProgressChart({ logs, dashboard }) {
   const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
   const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
-  // Execution line: identical carry-forward rule to the Results line below.
-  // A day with no log keeps the previous value; days before the month's first
-  // logged day leave a gap instead of a fabricated 0-baseline. The score is
-  // cumulative, so a day without progress holds the last recorded level.
+  // Shared line builder for Execution and Results. Same rule for both:
+  //  - no fabricated 0 baseline: days before the first real value stay empty;
+  //    the day-0 origin is the only thing marking the 0 level;
+  //  - after the first progress the previous level carries forward so the line
+  //    is continuous (a genuine drop to 0 after a reset still moves it);
+  //  - in the live month today's live point is always attached, so the line
+  //    starts at the origin and ends at the current day.
+  const stepsFrom = (byDay) => {
+    const out = [];
+    let carried = null;
+    let started = false;
+    const dayMax = showLiveToday ? now.getDate() : lastLoggedDay;
+    for (let day = 1; day <= (dayMax ?? 0); day++) {
+      if (byDay.has(day)) carried = byDay.get(day);
+      if (carried == null) continue; // no data for this day yet: leave the gap
+      if (!started && carried <= 0.0001) continue; // leading zeros: not started yet
+      started = true;
+      out.push({ day, value: carried });
+    }
+    return out;
+  };
+
   const execByDay = new Map();
   for (const p of points) {
     if (typeof p.value !== "number") continue;
     execByDay.set(p.day, p.value);
   }
-  if (showLiveToday) execByDay.set(today, liveScore);
-  const lastDay = showLiveToday ? Math.max(today, lastLoggedDay ?? 1) : lastLoggedDay;
-  const execSteps = (() => {
-    if (lastDay == null) return [];
-    const out = [];
-    let carried = null;
-    for (let day = 1; day <= lastDay; day++) {
-      if (execByDay.has(day)) carried = execByDay.get(day);
-      if (carried == null) continue; // no execution data yet: leave the gap
-      out.push({ day, value: carried });
-    }
-    return out;
-  })();
-  const actualPath = `M ${x(1)} ${y(0)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("");
+  if (showLiveToday) execByDay.set(now.getDate(), Number(liveScore) || 0);
+  const execSteps = stepsFrom(execByDay);
+  const actualPath = execSteps.length
+    ? `M ${x(origin.day)} ${y(origin.value)}` + execSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    : "";
   const areaPath = execSteps.length
     ? `${actualPath} L ${x(execSteps[execSteps.length - 1].day)} ${y(0)} Z`
     : "";
 
-  // Results line: identical carry-forward rule.
   const resByDay = new Map();
   for (const p of points) {
     if (typeof p.results === "number") resByDay.set(p.day, p.results);
   }
-  if (showLiveToday) resByDay.set(today, resultsPct);
-  const resSteps = (() => {
-    if (lastDay == null) return [];
-    const out = [];
-    let carried = null;
-    for (let day = 1; day <= lastDay; day++) {
-      if (resByDay.has(day)) carried = resByDay.get(day);
-      if (carried == null) continue; // no results data yet: leave the gap
-      out.push({ day, value: carried });
-    }
-    return out;
-  })();
+  if (showLiveToday) resByDay.set(now.getDate(), resultsPct);
+  const resSteps = stepsFrom(resByDay);
   const resultsPath = resSteps.length
-    ? `M ${x(1)} ${y(0)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
+    ? `M ${x(origin.day)} ${y(origin.value)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
     : "";
 
   const ticks = [5, 10, 15, 20, 25, 30];
@@ -155,7 +152,7 @@ export default function ProgressChart({ logs, dashboard }) {
           expected,
           actual,
           hasLog: hoverDay === today || !!logForDay(hoverDay),
-          results: hoverDay >= today ? resultsPct : 0,
+          results: hoverDay === today ? resultsPct : (logForDay(hoverDay)?.results ?? null),
         };
       })()
     : null;
@@ -235,6 +232,9 @@ export default function ProgressChart({ logs, dashboard }) {
           {/* Area fill under the actual/executed line */}
           <path d={areaPath} fill="rgba(219,96,136,0.10)" />
 
+          {/* Day 0 origin: the "haven't started" anchor at 0% */}
+          <circle cx={x(origin.day)} cy={y(origin.value)} r="2" fill={EXPECTED} stroke="#0E1817" strokeWidth="0.8" />
+
           {/* Should be: dashed grey, straight 0% → 100% pace */}
           <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
 
@@ -304,7 +304,7 @@ export default function ProgressChart({ logs, dashboard }) {
             const rows = [
               { label: "Should be", value: `${tooltip.expected}%`, color: EXPECTED },
               { label: "Execution", value: tooltip.hasLog && tooltip.actual != null ? `${Math.round(tooltip.actual)}%` : "—", color: PINK },
-              { label: "Results", value: `${tooltip.results}%`, color: RESULT },
+              { label: "Results", value: tooltip.results != null ? `${Math.round(tooltip.results)}%` : "—", color: RESULT },
             ];
             const tx = Math.min(Math.max(x(d), 60), w - 78);
             const ty = 6;
