@@ -1300,8 +1300,14 @@ export const useGoalsStore = create(
       addAction: (catId, data) => {
         const cats = get().categories;
         const actionId = uid();
+        // Leaving the weight or target blank sends NaN (parseInt/parseFloat of
+        // an empty string). NaN survives `?? 50`, feeds the weight sums as a
+        // falsy 0, and the action silently stops counting — or, with a NaN
+        // target, never completes. Fall back to a real weight and target here.
+        const weight = Number.isFinite(data.weight) ? data.weight : 50;
+        const target = Number.isFinite(data.target) && data.target > 0 ? data.target : 1;
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.actions.push({ id: actionId, label: data.label, weight: data.weight, current: 0, target: data.target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") });
+          cat.actions.push({ id: actionId, label: data.label, weight, current: 0, target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") });
           return cat;
         });
         if (next === cats) return;
@@ -1312,8 +1318,8 @@ export const useGoalsStore = create(
             body: {
               id: actionId,
               label: data.label,
-              weight: data.weight,
-              target: data.target,
+              weight,
+              target,
               unit: data.unit,
               incrementBy: data.incrementBy ?? 1,
               resetType: data.resetType ?? "monthly",
@@ -1342,8 +1348,14 @@ export const useGoalsStore = create(
         const cats = get().categories;
         const resultId = uid();
         const invert = (data.resultType || "count") === "check";
+        // Same NaN trap as addAction: a blank weight or target must not reach
+        // the weight sums or the aggregate (a 0-weight or 0-target result is
+        // silently invisible, so the results line stayed pinned at 0 no matter
+        // how much progress the user made).
+        const weight = Number.isFinite(data.weight) ? data.weight : 50;
+        const target = Number.isFinite(data.target) && data.target > 0 ? data.target : 1;
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.results.push({ id: resultId, label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", invert, isBadge: !!data.isBadge, incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
+          cat.results.push({ id: resultId, label: data.label, current: 0, target, unit: data.unit || "", resultType: data.resultType || "count", invert, isBadge: !!data.isBadge, incrementBy: data.incrementBy ?? 1, weight });
           return cat;
         });
         if (next === cats) return;
@@ -1354,7 +1366,7 @@ export const useGoalsStore = create(
             // weight/invert/isBadge were missing here, so a result created with
             // a weight or as a check/badge fell back to the server defaults on
             // the next load.
-            body: { id: resultId, label: data.label, target: data.target, unit: data.unit, weight: data.weight ?? 50, invert, isBadge: !!data.isBadge },
+            body: { id: resultId, label: data.label, target, unit: data.unit, weight, invert, isBadge: !!data.isBadge },
           },
         });
       },
