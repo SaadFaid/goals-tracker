@@ -695,6 +695,21 @@ export const useGoalsStore = create(
           const { accessToken, user, refreshToken } = await api.refresh(readRefreshToken());
           setAccessToken(accessToken);
           saveRefreshToken(refreshToken);
+          // Drain edits queued while the session was gone BEFORE pulling the
+          // dashboard. When the fetch ran first it painted the server's
+          // pre-queue numbers over the locally-correct ones, so a refresh
+          // showed the right values for the ~2s the request took and then
+          // appeared to undo them. Awaiting the push means the fetched
+          // dashboard already reflects every queued edit.
+          if (get().pendingMutations.length > 0) {
+            // Never let a stalled server hold the dashboard hostage: give the
+            // queue a few seconds, then load anyway. Anything still queued
+            // keeps retrying in the background.
+            await Promise.race([
+              get().flush(),
+              new Promise((resolve) => setTimeout(resolve, 5000)),
+            ]);
+          }
           const [dashboard, progress] = await Promise.all([
             api.dashboard(),
             api.progress({}).catch(() => ({ logs: [] })),

@@ -91,6 +91,24 @@ router.post("/rollover", async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { monthOffset: true } });
     const monthOffset = user?.monthOffset || 0;
 
+    // Idempotency guard. A client whose stored lastMonthKey fell behind (or a
+    // rollover response that never reached it) replays this route on every
+    // boot, and re-running the reset would wipe progress made in the month the
+    // user is actively using. Once the target month has its own progress log it
+    // is already live, so a rollover is no longer meaningful: hand back the
+    // current dashboard untouched instead of clearing it. Biased deliberately
+    // toward keeping data — a stuck counter is recoverable, a cleared month is
+    // not.
+    const [toYear, toMonth] = to.split("-").map(Number);
+    const alreadyLive = await prisma.progressLog.findFirst({
+      where: { userId, year: toYear, month: toMonth },
+      select: { id: true },
+    });
+    if (alreadyLive) {
+      const dashboard = await loadDashboardForDate(userId, new Date(), monthOffset);
+      return res.json(dashboard);
+    }
+
     const categories = await prisma.category.findMany({
       where: { userId },
       orderBy: { sortOrder: "asc" },
