@@ -48,6 +48,7 @@ EnvironmentFile=/etc/goals-tracker/secrets.env
 - **Auth rate limiting** — 5 requests per 15 minutes on `/api/auth/login` and `/api/auth/register`.
 - **`cleanText` must not escape `&`** — `sanitize-html` turns a bare `&` into `&amp;` even with `allowedTags: []`, so every name containing one ("Discipline & Mind") was stored mangled. Both `cleanText` and `cleanUnit` park ampersands behind a sentinel around the call. Nothing here is rendered as HTML, so that escaping was pure data loss. `cleanUnit` additionally skips `.trim()`: units render as `{target}{unit}`, so the leading space in `" sessions"` is what produces "5 sessions".
 - **Sync matches on id, never on label** — when a payload carries ids, `pickExisting` matches on id alone. Falling back to the label after a failed id lookup collapsed two same-named rewards (a weekly and a monthly "Full day off") into one row.
+- **A 0-weight result is invisible to the score** — `aggregateResultsPct`/`calculateResultPercent` sum only `target > 0` rows with `weight || 0`, and every sum divides by the total weight, so a result with weight 0 or a non-finite (NaN) target/weight silently contributes nothing. The results chart line looked "stuck at 0". The client sanitizes blanks (NaN → weight 50 / target 1) in `addResult`/`addAction` and `repairBrokenRows` repairs old NaN rows on load. One-time backfill already run: all `result.weight = 0` rows → 50. Server POST now defaults a missing weight to 50 (it used to default 0). Do not reintroduce a 0 default.
 
 ## Dev commands
 

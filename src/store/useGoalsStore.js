@@ -219,6 +219,40 @@ function migrateDefaultColors(cats) {
   return changed ? next : cats;
 }
 
+// NaN weight/target only reach the store through the old add forms (and get
+// persisted from there), so a 0-weight or 0-target row can exist purely as a
+// botched default. A result with a 0 weight or target is invisible to every
+// aggregate — the results line stayed pinned at 0. Repair only the broken
+// defaults here; an explicit 0 (the user's own edit) is left alone.
+function repairBrokenRows(cats) {
+  const repairRow = (row) => {
+    const weight = Number.isFinite(row.weight) ? row.weight : 50;
+    const target = Number.isFinite(row.target) && row.target > 0 ? row.target : 1;
+    if (weight !== row.weight || target !== row.target) {
+      return { ...row, weight, target };
+    }
+    return row;
+  };
+  let changed = false;
+  const next = cats.map((c) => {
+    let touched = false;
+    const results = (c.results || []).map((r) => {
+      const fixed = repairRow(r);
+      if (fixed !== r) touched = true;
+      return fixed;
+    });
+    const actions = (c.actions || []).map((a) => {
+      const fixed = repairRow(a);
+      if (fixed !== a) touched = true;
+      return fixed;
+    });
+    if (!touched) return c;
+    changed = true;
+    return { ...c, results, actions };
+  });
+  return changed ? next : cats;
+}
+
 // Normalize a category into the schema shape used everywhere.
 function seedClone() {
   return deepClone(seedCategories).map((c) => {
@@ -309,10 +343,12 @@ export const useGoalsStore = create(
       categories: seedClone(),
 
       derive() {
-        const cats = get().categories;
+        let cats = get().categories;
         const migrated = migrateDefaultColors(cats);
         if (migrated !== cats) set({ categories: migrated });
-        const dashboard = calculateDashboardState(migrated, new Date(), get().monthOffset);
+        cats = repairBrokenRows(migrated);
+        if (cats !== migrated) set({ categories: cats });
+        const dashboard = calculateDashboardState(cats, new Date(), get().monthOffset);
         set({ dashboard, bootstrapped: true });
         return dashboard;
       },
@@ -442,6 +478,7 @@ export const useGoalsStore = create(
           set({ categories, viewingHistory: false, liveCategories: null });
         }
         categories = normalizeResetTypes(ensureRewardTiers(categories));
+        categories = repairBrokenRows(categories);
         // Only seed the synthetic past-month history when nothing has ever been
         // recorded. Recorded days stay frozen — never regenerated after this.
         if ((get().progressLogs || []).length === 0) {

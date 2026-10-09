@@ -55,7 +55,10 @@ router.post("/:catId/results", async (req, res, next) => {
     // weight/invert/isBadge are real columns but were never read here, so a
     // result created with a weight or as a check/badge came back with the
     // server defaults on the next load and looked like the edit was lost.
-    const weight = isWeight(req.body.weight) ? req.body.weight : 0;
+    // A missing weight defaulted to 0, which makes the result invisible to the
+    // weighted aggregates; the client always sends one (blanks default to 50),
+    // so defaulting the same way here just makes the API behave the same.
+    const weight = isWeight(req.body.weight) ? req.body.weight : 50;
     const invert = req.body.invert === true;
     const isBadge = req.body.isBadge === true;
 
