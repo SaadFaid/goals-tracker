@@ -498,6 +498,16 @@ html, body {
   100% { transform: rotate(45deg) translateX(0); }
 }
 
+/* ── Phone layout ──────────────────────────────────────────
+   Bigger touch targets and no clipped text on narrow screens.
+   `hover: none` covers touch-only devices regardless of width;
+   the max-width arm also lifts hybrid laptops folded to small.  */
+@media (hover: none), (max-width: 640px) {
+  .stepper-btn { width: 32px; height: 32px; border-radius: 9px; }
+  .nav-btn { height: 34px; padding: 0 14px; }
+  .check-circle { width: 30px !important; height: 30px !important; }
+}
+
 /* Animations for enhanced components */
 @keyframes glowMove {
   0% { transform: rotate(45deg) translateX(0); }

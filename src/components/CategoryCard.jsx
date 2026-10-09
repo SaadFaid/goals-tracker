@@ -430,7 +430,7 @@ function CheckCircle({ pct, done, onTap, onOpenMenu }) {
       onContextMenu={(e) => { e.preventDefault(); if (onOpenMenu) onOpenMenu(); }}
       aria-label={done ? "Action complete" : pctClamped > 0 ? "Action in progress" : "Action not started"}
       title="Tap to check off. Long-press for options."
-      className="check-circle shrink-0 cursor-pointer relative"
+      className="check-circle shrink-0 cursor-pointer relative grid place-items-center"
       style={{ width: 24, height: 24, padding: 0, background: "transparent", border: "none", outline: "none" }}
     >
       {done ? (
@@ -474,13 +474,13 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
 
   return (
     <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
-      <div className="flex items-center justify-between text-xs mb-1 pr-6">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs mb-1 pr-6">
+        <div className="flex items-center gap-2 min-w-0 flex-1 basis-[200px]">
           <DragGrip show={editable} />
           <CheckCircle pct={pct} done={done} onTap={isCheck ? toggleCheck : () => onIncrement()} onOpenMenu={editable ? () => setMenu(true) : undefined} />
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
           <span
-            className="text-muted truncate transition-all"
+            className="text-muted break-words min-w-0 flex-1 transition-all"
             style={done ? { opacity: 0.6, textDecoration: "line-through" } : undefined}
           >
             {editable ? (
@@ -671,11 +671,11 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const dragProps = useRowDrag({ editable, index, onMove, listId });
   return (
     <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
-        <div className="flex items-center justify-between text-xs mb-1 pr-6">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs mb-1 pr-6">
+          <div className="flex items-center gap-2 min-w-0 flex-1 basis-[200px]">
             <DragGrip show={editable} />
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-          <span className="text-muted truncate">
+          <span className="text-muted break-words min-w-0 flex-1">
             {editable ? (
               <EditableText value={item.label} onChange={(v) => onFieldChange("label", v)} ariaLabel="Edit result label" />
             ) : (
@@ -1203,7 +1203,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-3">
               {g.items.map((r) => {
                 const unlocked = checkRewardUnlock(r, { categories: allCategories, stats: { qualityPercent } });
                 const editing = editingId === r.id;
@@ -1406,13 +1406,13 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
       borderLeftStyle: 'solid',
       cursor: editMode ? "grab" : undefined,
     }}>
-      <div className="w-full flex items-center justify-between px-4 py-3.5" style={{
+      <div className="w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-4 py-3.5" style={{
         backgroundColor: headerColor === "#ffffff" || headerColor === CATEGORY_COLORS.turquoise.hex ? "var(--color-sunken)" : "var(--color-elevated)"
       }}>
         {editMode && (
           <span className="drag-handle shrink-0 cursor-grab text-text-tertiary select-none" title="Drag to reorder" style={{ marginRight: 4 }}>⠿</span>
         )}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0 flex-1">
           <span className="w-3 h-3 rounded-full shrink-0" style={{ background: headerColor }} />
           {editName ? (
             <input
@@ -1428,7 +1428,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
               aria-label="Edit category name"
             />
           ) : (
-            <span className="text-heading font-semibold text-sm truncate">{category.name}</span>
+            <span className="text-heading font-semibold text-sm break-words min-w-0">{category.name}</span>
           )}
           {!editName && editMode ? (
             <button onClick={() => { setNameDraft(category.name); setEditName(true); }} aria-label="Edit category name" className="cursor-pointer pencil-hover-parent">
