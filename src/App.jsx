@@ -67,8 +67,10 @@ export default function App() {
   }
 
   // Holding the dashboard back means the user never sees a populated screen
-  // whose edits are about to fail to save.
-  if (sessionRestoring) {
+  // whose edits are about to fail to save. This is only meaningful at boot: a
+  // mid-session restore (reconnect probe while signed in) must not blank the
+  // populated dashboard for a second on every 15s attempt.
+  if (sessionRestoring && !sessionStarted) {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
         <p className="text-text-tertiary">Loading…</p>

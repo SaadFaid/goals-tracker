@@ -862,8 +862,17 @@ export const useGoalsStore = create(
       // Actually run the queued mutations. This used to just empty the queue —
       // a leftover from the frontend-only build — so every edit looked like it
       // saved and then came back from the server at its old value on the next
-      // load. Now each entry's `execute` is really called, and anything that
-      // fails stays queued for `retryAll` instead of being silently dropped.
+      // load. Now each entry's `op` is really executed, and failures are
+      // classified instead of stopping the whole burst:
+      //   - 401/403: the access token expired mid-session (15 min TTL). Mint a
+      //     fresh one from the refresh token and retry the same op; the queue
+      //     used to wedge here and wait for a manual reload.
+      //   - other 4xx: the server owns the truth (row deleted elsewhere,
+      //     business rule rejected it). Drop the op and keep going so one dead
+      //     head can't stall the other nine taps.
+      //   - network/5xx: transient. Rotate the op to the back and drain the
+      //     rest; it gets another chance on the next flush instead of blocking
+      //     everything behind it forever.
       //
       // The queue is drained from the head rather than from a snapshot taken
       // before the loop. A snapshot missed anything queued while an execute was
@@ -873,29 +882,70 @@ export const useGoalsStore = create(
       flush: async () => {
         if (get().flushing) return;
         set({ flushing: true });
+        let reauthed = false;
+        let passes = 0;
         try {
           for (;;) {
+            if (++passes > 200) {
+              // A companion bug used to make this loop spin forever (calling a
+              // promise as if it were a function). Cap the pass count so a
+              // regression can never wedge the whole tab again.
+              break;
+            }
             const next = get().pendingMutations[0];
             if (!next) break;
             const drop = () => set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== next.id) }));
-            const call = mutationCall(next.op, next.args) || (typeof next.execute === "function" ? next.execute : null);
+            // mutationCall INVOKES the api method and returns its promise;
+            // legacy queued entries carry their own `execute` function. Accept
+            // either shape instead of assuming one.
+            const dispatched = mutationCall(next.op, next.args);
+            const call =
+              typeof dispatched === "function"
+                ? dispatched
+                : dispatched && typeof dispatched.then === "function"
+                  ? () => dispatched
+                  : typeof next.execute === "function"
+                    ? next.execute
+                    : null;
             if (!call) { drop(); continue; }
             try {
               await call();
               // Only drop the ones that actually made it.
               drop();
             } catch (err) {
-              // A server-backed session needs an access token. A 401/403 means
-              // the session is gone, not that the edit is bad — stop and surface
-              // it rather than retrying into a wall.
-              if (err?.status === 401 || err?.status === 403) {
-                set({ error: "Session expired. Please log in again." });
-                break;
+              const status = err?.status;
+              if (status === 401 || status === 403) {
+                // Minted at most once per pass: a second 401 right after a
+                // fresh token means the row itself is gone, not the session.
+                if (reauthed) {
+                  break;
+                }
+                try {
+                  const { accessToken, refreshToken } = await api.refresh(readRefreshToken());
+                  setAccessToken(accessToken);
+                  saveRefreshToken(refreshToken);
+                  reauthed = true;
+                  set({ error: null });
+                  continue; // retry the same op with the fresh token
+                } catch (reauthErr) {
+                  if (reauthErr?.status === 401 || reauthErr?.status === 403) {
+                    clearRefreshToken();
+                    set({ isServerBacked: false, error: "Session expired. Log in again to save changes." });
+                  }
+                  break;
+                }
               }
-              // Leave it queued: offline or a transient 5xx should not lose data.
-              // Stop here so a failing head cannot spin the loop; the next
-              // enqueue (or retryAll) starts a fresh pass.
-              break;
+              // A definitive rejection is the server saying "that row is gone
+              // or that edit is invalid" — no retry will fix it. Dropping it
+              // keeps the burst alive; the server state is the truth here.
+              if (typeof status === "number" && status < 500 && status !== 429) { drop(); continue; }
+              // Offline or a transient 5xx should not lose data, but it must
+              // not spin the loop either. Park the failed head at the back,
+              // drain the edits behind it, and let a later flush (or the next
+              // edit, or a reconnect) give it another pass.
+              const rest = get().pendingMutations.filter((x) => x.id !== next.id);
+              if (rest.length === 0) break;
+              set({ pendingMutations: [...rest, next] });
             }
           }
         } finally {
