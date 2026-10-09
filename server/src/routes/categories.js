@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, assertCategoryOwned } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
-import { cleanText, isDotColor, assert, isNonNegativeNumber } from "../validation/validate.js";
+import { cleanText, isDotColor, assert, isNonNegativeNumber, createHttpError } from "../validation/validate.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -13,6 +13,21 @@ router.post("/", async (req, res, next) => {
     const dotColor = isDotColor(req.body.dotColor) ? req.body.dotColor : "turquoise";
     assert(name, 400, "Category name is required");
 
+    // The client generates the id for a brand-new category so it can edit it
+    // optimistically before the create lands. Accept that id: an edit targeting
+    // the client uuid would otherwise 404 because the server minted its own,
+    // and the whole category looked unsaved. The check makes a retry idempotent
+    // instead of duplicating the row when the first response was lost.
+    const id = typeof req.body.id === "string" && req.body.id && req.body.id.length <= 100 ? req.body.id : null;
+    if (id) {
+      const existing = await prisma.category.findUnique({ where: { id } });
+      if (existing) {
+        if (existing.userId !== req.user.id) throw createHttpError(409, "Category id already in use");
+        const dashboard = await recomputeAndLog(req.user.id);
+        return res.status(201).json({ category: existing, dashboard });
+      }
+    }
+
     const max = await prisma.category.aggregate({
       where: { userId: req.user.id },
       _max: { sortOrder: true },
@@ -20,7 +35,7 @@ router.post("/", async (req, res, next) => {
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const category = await prisma.category.create({
-      data: { userId: req.user.id, name, dotColor, sortOrder },
+      data: { ...(id ? { id } : {}), userId: req.user.id, name, dotColor, sortOrder },
     });
 
     const dashboard = await recomputeAndLog(req.user.id);

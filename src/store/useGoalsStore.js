@@ -1151,13 +1151,14 @@ export const useGoalsStore = create(
 
       addAction: (catId, data) => {
         const cats = get().categories;
+        const actionId = uid();
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.actions.push({ id: uid(), label: data.label, weight: data.weight, current: 0, target: data.target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") });
+          cat.actions.push({ id: actionId, label: data.label, weight: data.weight, current: 0, target: data.target, unit: data.unit || "", incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") });
           return cat;
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createAction(catId, { label: data.label, weight: data.weight, target: data.target, unit: data.unit, incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") }),
+          apiCall: () => api.createAction(catId, { id: actionId, label: data.label, weight: data.weight, target: data.target, unit: data.unit, incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") }),
         });
       },
 
@@ -1177,13 +1178,14 @@ export const useGoalsStore = create(
 
       addResult: (catId, data) => {
         const cats = get().categories;
+        const resultId = uid();
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.results.push({ id: uid(), label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
+          cat.results.push({ id: resultId, label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
           return cat;
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createResult(catId, { label: data.label, target: data.target, unit: data.unit }),
+          apiCall: () => api.createResult(catId, { id: resultId, label: data.label, target: data.target, unit: data.unit }),
         });
       },
 
@@ -1206,7 +1208,7 @@ export const useGoalsStore = create(
         const cat = { id: uid(), name: data.name, dotColor: data.dotColor, expanded: true, isRewards: false, actions: [], results: [], rewards: [] };
         const next = [...cats, cat];
         get().commit(next, {
-          apiCall: () => api.createCategory({ name: cat.name, dotColor: cat.dotColor }),
+          apiCall: () => api.createCategory({ id: cat.id, name: cat.name, dotColor: cat.dotColor }),
         });
       },
 
@@ -1282,9 +1284,10 @@ export const useGoalsStore = create(
 
       addReward: (catId, data) => {
         const cats = get().categories;
+        const rewardId = uid();
         const next = replaceCategory(cats, catId, (cat) => {
           cat.rewards.push({
-            id: uid(),
+            id: rewardId,
             name: data.name,
             cost: data.cost,
             threshold: data.cost,
@@ -1300,7 +1303,7 @@ export const useGoalsStore = create(
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createReward(catId, data),
+          apiCall: () => api.createReward(catId, { ...data, id: rewardId }),
         });
       },
 

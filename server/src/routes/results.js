@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, assertCategoryOwned, assertOwned } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
-import { cleanText, isPositiveNumber, isNonNegativeNumber, assert } from "../validation/validate.js";
+import { cleanText, isPositiveNumber, isNonNegativeNumber, assert, createHttpError } from "../validation/validate.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -53,6 +53,17 @@ router.post("/:catId/results", async (req, res, next) => {
     const current = isNonNegativeNumber(req.body.current) ? req.body.current : 0;
     const unit = cleanText(req.body.unit, 50) || null;
 
+    // Client-minted id so later edits by that id hit the real row (see actions).
+    const id = typeof req.body.id === "string" && req.body.id && req.body.id.length <= 100 ? req.body.id : null;
+    if (id) {
+      const existing = await prisma.result.findUnique({ where: { id } });
+      if (existing) {
+        if (existing.categoryId !== category.id) throw createHttpError(400, "Result id already in use");
+        const dashboard = await recomputeAndLog(req.user.id);
+        return res.status(201).json({ result: existing, dashboard });
+      }
+    }
+
     const max = await prisma.result.aggregate({
       where: { categoryId: category.id },
       _max: { sortOrder: true },
@@ -60,7 +71,7 @@ router.post("/:catId/results", async (req, res, next) => {
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const result = await prisma.result.create({
-      data: { categoryId: category.id, label, current, target, unit, sortOrder },
+      data: { ...(id ? { id } : {}), categoryId: category.id, label, current, target, unit, sortOrder },
     });
 
     const dashboard = await recomputeAndLog(req.user.id);

@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, assertCategoryOwned, assertOwned } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
 import { calculateDashboardState } from "../lib/calc.js";
-import { cleanText, isPositiveNumber, assert } from "../validation/validate.js";
+import { cleanText, isPositiveNumber, assert, createHttpError } from "../validation/validate.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -38,8 +38,19 @@ router.post("/:catId/rewards", async (req, res, next) => {
     if (req.body.linkedActionId) thresholdType = (thresholdType === "score" || req.body.thresholdType == null) ? "action" : thresholdType;
     if (req.body.linkedResultId) thresholdType = thresholdType === "score" ? "result" : thresholdType;
 
+    const id = typeof req.body.id === "string" && req.body.id && req.body.id.length <= 100 ? req.body.id : null;
+    if (id) {
+      const existing = await prisma.reward.findUnique({ where: { id } });
+      if (existing) {
+        if (existing.categoryId !== category.id) throw createHttpError(400, "Reward id already in use");
+        const dashboard = await recomputeAndLog(req.user.id);
+        return res.status(201).json({ reward: existing, dashboard });
+      }
+    }
+
     const reward = await prisma.reward.create({
       data: {
+        ...(id ? { id } : {}),
         categoryId: category.id,
         name,
         cost,

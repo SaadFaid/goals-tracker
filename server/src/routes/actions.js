@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, assertCategoryOwned, assertOwned } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
 import { ensureWeightsSum100 } from "../lib/weights.js";
-import { cleanText, isWeight, isPositiveNumber, isNonNegativeNumber, assert } from "../validation/validate.js";
+import { cleanText, isWeight, isPositiveNumber, isNonNegativeNumber, assert, createHttpError } from "../validation/validate.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -63,6 +63,20 @@ router.post("/:catId/actions", async (req, res, next) => {
       : "monthly";
     const actionType = ["check", "amount", "count"].includes(req.body.actionType) ? req.body.actionType : "count";
 
+    // Same convention as categories/notes: the client mints the id so later
+    // edits by that id keep hitting the real row. A retry of a create that
+    // already landed returns the existing row instead of duplicating it.
+    const id = typeof req.body.id === "string" && req.body.id && req.body.id.length <= 100 ? req.body.id : null;
+    if (id) {
+      const existing = await prisma.action.findUnique({ where: { id } });
+      if (existing) {
+        if (existing.categoryId !== category.id) throw createHttpError(409, "Action id already in use");
+        await ensureWeightsSum100(category.id, { autoNormalize: req.body.autoNormalize === true });
+        const dashboard = await recomputeAndLog(req.user.id);
+        return res.status(201).json({ action: existing, dashboard });
+      }
+    }
+
     const max = await prisma.action.aggregate({
       where: { categoryId: category.id },
       _max: { sortOrder: true },
@@ -70,7 +84,7 @@ router.post("/:catId/actions", async (req, res, next) => {
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const action = await prisma.action.create({
-      data: { categoryId: category.id, label, weight, current, target, unit, incrementBy, resetType, actionType, sortOrder },
+      data: { ...(id ? { id } : {}), categoryId: category.id, label, weight, current, target, unit, incrementBy, resetType, actionType, sortOrder },
     });
 
     // Re-validate weights (allow autoNormalize to fix drift)
