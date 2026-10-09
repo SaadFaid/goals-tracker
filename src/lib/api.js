@@ -1,4 +1,51 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+// The Published bundle used to freeze the API base at build time. Quick-tunnel
+// hostnames change on every restart, so after a rotation the site talked to a
+// dead URL until a fresh build shipped — and browsers kept the old bundle long
+// enough that "offline" stuck around long after the rebuild. The runtime config
+// file (public/api-config.json, rewritten by deploy/goals-stack.sh) is now the
+// primary source, so every reload and every reconnect re-resolves the current
+// tunnel. A network failure also drops the cache so the reconnect loop picks up
+// a repointed config instead of retrying a dead host forever.
+const BAKED_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+
+let apiBase = null;
+let resolvingBase = null;
+
+async function resolveApiBase() {
+  if (apiBase) return apiBase;
+  if (import.meta.env.DEV) {
+    apiBase = BAKED_API_BASE;
+    return apiBase;
+  }
+  if (resolvingBase) return resolvingBase;
+  resolvingBase = (async () => {
+    try {
+      const url = `${location.origin}${import.meta.env.BASE_URL}api-config.json?t=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const cfg = await res.json();
+        const base = cfg?.apiBase;
+        if (typeof base === "string" && base) {
+          apiBase = base.replace(/\/+$/, "");
+          return apiBase;
+        }
+      }
+    } catch {
+      // config unreachable (e.g. served under a different origin); fall back
+    }
+    apiBase = BAKED_API_BASE;
+    return apiBase;
+  })();
+  return resolvingBase;
+}
+
+// A request that dies on the network must not leave the next retry pinned to
+// the same base. The tunnel may have been repointed; drop the cache so the
+// reconnect loop re-reads api-config.json.
+export function resetApiBase() {
+  apiBase = null;
+  resolvingBase = null;
+}
 
 let accessToken = null;
 
@@ -15,12 +62,20 @@ async function request(method, path, body, { authed = true } = {}) {
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (authed && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    credentials: "include",
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const base = await resolveApiBase();
+
+  let res;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method,
+      headers,
+      credentials: "include",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    resetApiBase();
+    throw err;
+  }
 
   let data = null;
   const text = await res.text();

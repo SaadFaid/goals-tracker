@@ -106,24 +106,26 @@ log "tunnel is $URL"
 if [ "$OLD" != "$URL" ]; then
   log "URL changed from ${OLD:-none}, repointing the Pages build"
   cd "$APP" || exit 1
-  if gh variable set VITE_API_URL --body "$URL/api" --repo SaadFaid/goals-tracker; then
-    # An empty commit is the only way to re-trigger a workflow that keys off
-    # file changes, since the variable itself lives outside the repo history.
-    git commit -q --allow-empty -m "Repoint the web build at the current API tunnel
+  # Write the runtime config FIRST: the client reads api-config.json at
+  # load/reconnect time instead of trusting a build-time snapshot, so every
+  # browser (and every reload after the tunnel rotates) resolves the CURRENT
+  # host instead of a stale one frozen into the bundle. This file change is
+  # also the commit that retriggers Pages.
+  printf '{"apiBase": "%s/api"}\n' "$URL" > public/api-config.json
+  git add public/api-config.json 2>/dev/null || true
+  git commit -q --allow-empty -m "Repoint the web build at the current API tunnel
 
 The tunnel hostname is chosen by Cloudflare and changes on every restart.
-The frontend reads its API base at build time, so the repo variable moved
-and this no-op commit exists only to trigger the Pages rebuild.
+public/api-config.json carries the live API base the client resolves at
+runtime; the build-time fallback is kept in step below.
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
-    if git push -q origin master; then
-      log "pushed; Pages will rebuild in about a minute"
-    else
-      log "push failed - site now points at a dead tunnel"
-    fi
-  else
-    log "could not set the repo variable - site now points at a dead tunnel"
-  fi
+  git push -q origin master && log "pushed; Pages will rebuild in about a minute" \
+    || log "push failed - site now points at a dead tunnel"
+  # Secondary fallback inside the bundle. The runtime config is the real fix;
+  # this just keeps the VITE_API_URL build variable honest.
+  gh variable set VITE_API_URL --body "$URL/api" --repo SaadFaid/goals-tracker \
+    && log "build variable updated" || log "could not set the build variable"
 else
   log "URL unchanged, nothing to redeploy"
 fi

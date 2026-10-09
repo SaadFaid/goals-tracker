@@ -64,6 +64,33 @@ function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
+// Replayable mutation journal. Every queued edit is a plain {op, args} record
+// (never a closure) so the queue survives a reload and flushes to the server
+// after the session comes back. Without this, "saving on this device" while
+// offline was a lie: the queue lived in memory, vanished on reload, and the tap
+// was gone forever.
+function mutationCall(op, args) {
+  switch (op) {
+    case "category/create": return api.createCategory(args.body);
+    case "category/update": return api.updateCategory(args.id, args.body);
+    case "category/delete": return api.deleteCategory(args.id);
+    case "category/reorder": return api.reorderCategories(args.ids);
+    case "action/create": return api.createAction(args.catId, args.body);
+    case "action/update": return api.updateAction(args.id, args.body);
+    case "action/delete": return api.deleteAction(args.id);
+    case "action/reorder": return api.reorderActions(args.catId, args.ids);
+    case "result/create": return api.createResult(args.catId, args.body);
+    case "result/update": return api.updateResult(args.id, args.body);
+    case "result/delete": return api.deleteResult(args.id);
+    case "result/reorder": return api.reorderResults(args.catId, args.ids);
+    case "reward/create": return api.createReward(args.catId, args.body);
+    case "reward/update": return api.updateReward(args.id, args.body);
+    case "reward/delete": return api.deleteReward(args.id);
+    case "reward/claim": return api.claimReward(args.id);
+    default: return null;
+  }
+}
+
 // "YYYY-MM" key for a Date's month (current real month by default).
 function monthKeyOf(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -754,11 +781,11 @@ export const useGoalsStore = create(
         get().ensureDailyLog(get().categories, d);
       },
 
-      // ── Generic persist+sync after a local mutation ────
-      commit: (nextCategories, { apiCall } = {}) => {
+      // ── Generic persist+sync after a local mutation ──
+      commit: (nextCategories, { op, args } = {}) => {
         const act = () => {
           set({ categories: nextCategories });
-          if (apiCall) get().enqueue({ execute: apiCall });
+          if (op) get().enqueue({ op, args });
           get().persistLocalProfile();
           const dashboard = calculateDashboardState(nextCategories, new Date(), get().monthOffset);
           set({
@@ -851,9 +878,10 @@ export const useGoalsStore = create(
             const next = get().pendingMutations[0];
             if (!next) break;
             const drop = () => set((s) => ({ pendingMutations: s.pendingMutations.filter((x) => x.id !== next.id) }));
-            if (typeof next.execute !== "function") { drop(); continue; }
+            const call = mutationCall(next.op, next.args) || (typeof next.execute === "function" ? next.execute : null);
+            if (!call) { drop(); continue; }
             try {
-              await next.execute();
+              await call();
               // Only drop the ones that actually made it.
               drop();
             } catch (err) {
@@ -919,12 +947,16 @@ export const useGoalsStore = create(
         const serverId = action && !String(action.id || "").startsWith("tmp-") ? action.id : null;
         const newValue = next.find((c) => c.id === catId)?.actions?.[idx]?.[field];
         get().commit(next, {
-          apiCall: serverId
-            ? () => api.updateAction(serverId, {
-                [field]: newValue,
-                ...(field === "weight" ? { autoNormalize: true } : {}),
-              })
-            : undefined,
+          op: serverId ? "action/update" : null,
+          args: serverId
+            ? {
+                id: serverId,
+                body: {
+                  [field]: newValue,
+                  ...(field === "weight" ? { autoNormalize: true } : {}),
+                },
+              }
+            : null,
         });
       },
 
@@ -947,7 +979,8 @@ export const useGoalsStore = create(
         const patch = { current: nextVal };
         if (action.resetType === "daily") patch.lastResetAt = localMidnightISO(new Date());
         get().commit(next, {
-          apiCall: serverId ? () => api.updateAction(serverId, patch) : undefined,
+          op: serverId ? "action/update" : null,
+          args: serverId ? { id: serverId, body: patch } : null,
         });
       },
 
@@ -990,7 +1023,7 @@ export const useGoalsStore = create(
         get().commit(next);
         for (const r of resets) {
           if (!r.server) continue;
-          get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, lastResetAt: localMidnightISO(today) }) });
+          get().enqueue({ op: "action/update", args: { id: r.id, body: { current: 0, lastResetAt: localMidnightISO(today) } } });
         }
       },
 
@@ -1124,9 +1157,8 @@ export const useGoalsStore = create(
         const serverId = result && !String(result.id || "").startsWith("tmp-") ? result.id : null;
         const newValue = next.find((c) => c.id === catId)?.results?.[idx]?.[field];
         get().commit(next, {
-          apiCall: serverId
-            ? () => api.updateResult(serverId, { [field]: newValue })
-            : undefined,
+          op: serverId ? "result/update" : null,
+          args: serverId ? { id: serverId, body: { [field]: newValue } } : null,
         });
       },
 
@@ -1145,7 +1177,8 @@ export const useGoalsStore = create(
         });
         const serverId = result && !String(result.id || "").startsWith("tmp-") ? result.id : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.updateResult(serverId, { current: nextVal }) : undefined,
+          op: serverId ? "result/update" : null,
+          args: serverId ? { id: serverId, body: { current: nextVal } } : null,
         });
       },
 
@@ -1158,7 +1191,20 @@ export const useGoalsStore = create(
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createAction(catId, { id: actionId, label: data.label, weight: data.weight, target: data.target, unit: data.unit, incrementBy: data.incrementBy ?? 1, resetType: data.resetType ?? "monthly", actionType: data.actionType || (data.unit ? "amount" : "count") }),
+          op: "action/create",
+          args: {
+            catId,
+            body: {
+              id: actionId,
+              label: data.label,
+              weight: data.weight,
+              target: data.target,
+              unit: data.unit,
+              incrementBy: data.incrementBy ?? 1,
+              resetType: data.resetType ?? "monthly",
+              actionType: data.actionType || (data.unit ? "amount" : "count"),
+            },
+          },
         });
       },
 
@@ -1172,7 +1218,8 @@ export const useGoalsStore = create(
         });
         const serverId = !String(action.id || "").startsWith("tmp-") ? action.id : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.deleteAction(serverId) : undefined,
+          op: serverId ? "action/delete" : null,
+          args: serverId ? { id: serverId } : null,
         });
       },
 
@@ -1185,7 +1232,11 @@ export const useGoalsStore = create(
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createResult(catId, { id: resultId, label: data.label, target: data.target, unit: data.unit }),
+          op: "result/create",
+          args: {
+            catId,
+            body: { id: resultId, label: data.label, target: data.target, unit: data.unit },
+          },
         });
       },
 
@@ -1199,7 +1250,8 @@ export const useGoalsStore = create(
         });
         const serverId = !String(result.id || "").startsWith("tmp-") ? result.id : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.deleteResult(serverId) : undefined,
+          op: serverId ? "result/delete" : null,
+          args: serverId ? { id: serverId } : null,
         });
       },
 
@@ -1208,7 +1260,8 @@ export const useGoalsStore = create(
         const cat = { id: uid(), name: data.name, dotColor: data.dotColor, expanded: true, isRewards: false, actions: [], results: [], rewards: [] };
         const next = [...cats, cat];
         get().commit(next, {
-          apiCall: () => api.createCategory({ id: cat.id, name: cat.name, dotColor: cat.dotColor }),
+          op: "category/create",
+          args: { body: { id: cat.id, name: cat.name, dotColor: cat.dotColor } },
         });
       },
 
@@ -1222,7 +1275,8 @@ export const useGoalsStore = create(
         if (!cat) return;
         const serverId = !String(cat.id || "").startsWith("tmp-") ? cat.id : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.updateCategory(serverId, data) : undefined,
+          op: serverId ? "category/update" : null,
+          args: serverId ? { id: serverId, body: data } : null,
         });
       },
 
@@ -1241,7 +1295,8 @@ export const useGoalsStore = create(
         const serverId = !String(cat.id || "").startsWith("tmp-") ? cat.id : null;
         const next = cats.filter((c) => c.id !== catId);
         get().commit(next, {
-          apiCall: serverId ? () => api.deleteCategory(serverId) : undefined,
+          op: serverId ? "category/delete" : null,
+          args: serverId ? { id: serverId } : null,
         });
       },
 
@@ -1263,7 +1318,8 @@ export const useGoalsStore = create(
         });
         const serverId = !String(rewardId || "").startsWith("tmp-") ? rewardId : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.claimReward(serverId) : undefined,
+          op: serverId ? "reward/claim" : null,
+          args: serverId ? { id: serverId } : null,
         });
       },
 
@@ -1303,7 +1359,8 @@ export const useGoalsStore = create(
         });
         if (next === cats) return;
         get().commit(next, {
-          apiCall: () => api.createReward(catId, { ...data, id: rewardId }),
+          op: "reward/create",
+          args: { catId, body: { ...data, id: rewardId } },
         });
       },
 
@@ -1318,7 +1375,8 @@ export const useGoalsStore = create(
         if (next === cats) return;
         const serverId = !String(rewardId || "").startsWith("tmp-") ? rewardId : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.updateReward(serverId, data) : undefined,
+          op: serverId ? "reward/update" : null,
+          args: serverId ? { id: serverId, body: data } : null,
         });
       },
 
@@ -1331,7 +1389,8 @@ export const useGoalsStore = create(
         if (next === cats) return;
         const serverId = !String(rewardId || "").startsWith("tmp-") ? rewardId : null;
         get().commit(next, {
-          apiCall: serverId ? () => api.deleteReward(serverId) : undefined,
+          op: serverId ? "reward/delete" : null,
+          args: serverId ? { id: serverId } : null,
         });
       },
 
@@ -1341,9 +1400,9 @@ export const useGoalsStore = create(
         const [moved] = cats.splice(fromIndex, 1);
         cats.splice(toIndex, 0, moved);
         const ids = cats.filter((c) => !String(c.id || "").startsWith("tmp-")).map((c) => c.id);
-        get().commit(cats, {
-          apiCall: get().isGuest ? undefined : () => api.reorderCategories(ids),
-        });
+        get().commit(cats, get().isGuest
+          ? {}
+          : { op: "category/reorder", args: { ids } });
       },
 
       // Drag-reorder the tasks inside one category. Mirrors moveCategory: the
@@ -1362,9 +1421,9 @@ export const useGoalsStore = create(
         const ids = numbered.filter((a) => !String(a.id || "").startsWith("tmp-")).map((a) => a.id);
         get().commit(
           get().categories.map((c) => (c.id === categoryId ? { ...c, actions: numbered } : c)),
-          {
-            apiCall: get().isGuest ? undefined : () => api.reorderActions(categoryId, ids),
-          },
+          get().isGuest
+            ? {}
+            : { op: "action/reorder", args: { catId: categoryId, ids } },
         );
       },
 
@@ -1379,9 +1438,9 @@ export const useGoalsStore = create(
         const ids = numbered.filter((r) => !String(r.id || "").startsWith("tmp-")).map((r) => r.id);
         get().commit(
           get().categories.map((c) => (c.id === categoryId ? { ...c, results: numbered } : c)),
-          {
-            apiCall: get().isGuest ? undefined : () => api.reorderResults(categoryId, ids),
-          },
+          get().isGuest
+            ? {}
+            : { op: "result/reorder", args: { catId: categoryId, ids } },
         );
       },
 
@@ -1409,7 +1468,7 @@ export const useGoalsStore = create(
         get().derive();
         for (const r of resets) {
           if (!r.server) continue;
-          get().enqueue({ execute: () => api.updateAction(r.id, { current: 0, allowZeroed: true }) });
+          get().enqueue({ op: "action/update", args: { id: r.id, body: { current: 0, allowZeroed: true } } });
         }
       },
 
@@ -1529,6 +1588,7 @@ export const useGoalsStore = create(
           dailySnapshots: s.dailySnapshots,
           lastDayKey: s.lastDayKey,
           lastMonthKey: s.lastMonthKey,
+          pendingMutations: s.pendingMutations,
         }),
         onRehydrateStorage: () => (state) => {
           if (!state) return;
