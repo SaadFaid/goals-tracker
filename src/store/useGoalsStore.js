@@ -1019,6 +1019,10 @@ export const useGoalsStore = create(
                 body: {
                   [field]: newValue,
                   ...(field === "weight" ? { autoNormalize: true } : {}),
+                  // A deliberate edit that puts a monthly counter back to 0 is
+                  // legitimate; the server rejects a bare 0 so a buggy client
+                  // cannot wipe a month, and this is the client asking for it.
+                  ...(field === "current" ? { allowZeroed: true } : {}),
                 },
               }
             : null,
@@ -1221,9 +1225,14 @@ export const useGoalsStore = create(
         const result = cats.find((c) => c.id === catId)?.results?.[idx];
         const serverId = result && !String(result.id || "").startsWith("tmp-") ? result.id : null;
         const newValue = next.find((c) => c.id === catId)?.results?.[idx]?.[field];
+        const body = { [field]: newValue };
+        // resultType ("check"/"count") has no server column; the check state is
+        // persisted through `invert`, which the UI already reads as its alias.
+        // Without this the toggle reverted on the next load.
+        if (field === "resultType") body.invert = newValue === "check";
         get().commit(next, {
           op: serverId ? "result/update" : null,
-          args: serverId ? { id: serverId, body: { [field]: newValue } } : null,
+          args: serverId ? { id: serverId, body } : null,
         });
       },
 
@@ -1291,8 +1300,9 @@ export const useGoalsStore = create(
       addResult: (catId, data) => {
         const cats = get().categories;
         const resultId = uid();
+        const invert = (data.resultType || "count") === "check";
         const next = replaceCategory(cats, catId, (cat) => {
-          cat.results.push({ id: resultId, label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
+          cat.results.push({ id: resultId, label: data.label, current: 0, target: data.target, unit: data.unit || "", resultType: data.resultType || "count", invert, isBadge: !!data.isBadge, incrementBy: data.incrementBy ?? 1, weight: data.weight ?? 50 });
           return cat;
         });
         if (next === cats) return;
@@ -1300,7 +1310,10 @@ export const useGoalsStore = create(
           op: "result/create",
           args: {
             catId,
-            body: { id: resultId, label: data.label, target: data.target, unit: data.unit },
+            // weight/invert/isBadge were missing here, so a result created with
+            // a weight or as a check/badge fell back to the server defaults on
+            // the next load.
+            body: { id: resultId, label: data.label, target: data.target, unit: data.unit, weight: data.weight ?? 50, invert, isBadge: !!data.isBadge },
           },
         });
       },

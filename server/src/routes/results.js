@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, assertCategoryOwned, assertOwned } from "../middleware/auth.js";
 import { recomputeAndLog } from "./dashboard.js";
-import { cleanText, isPositiveNumber, isNonNegativeNumber, assert, createHttpError } from "../validation/validate.js";
+import { cleanText, isPositiveNumber, isNonNegativeNumber, isWeight, assert, createHttpError } from "../validation/validate.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -52,6 +52,12 @@ router.post("/:catId/results", async (req, res, next) => {
 
     const current = isNonNegativeNumber(req.body.current) ? req.body.current : 0;
     const unit = cleanText(req.body.unit, 50) || null;
+    // weight/invert/isBadge are real columns but were never read here, so a
+    // result created with a weight or as a check/badge came back with the
+    // server defaults on the next load and looked like the edit was lost.
+    const weight = isWeight(req.body.weight) ? req.body.weight : 0;
+    const invert = req.body.invert === true;
+    const isBadge = req.body.isBadge === true;
 
     // Client-minted id so later edits by that id hit the real row (see actions).
     const id = typeof req.body.id === "string" && req.body.id && req.body.id.length <= 100 ? req.body.id : null;
@@ -71,7 +77,7 @@ router.post("/:catId/results", async (req, res, next) => {
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const result = await prisma.result.create({
-      data: { ...(id ? { id } : {}), categoryId: category.id, label, current, target, unit, sortOrder },
+      data: { ...(id ? { id } : {}), categoryId: category.id, label, current, target, unit, weight, invert, isBadge, sortOrder },
     });
 
     const dashboard = await recomputeAndLog(req.user.id);
@@ -99,6 +105,12 @@ router.patch("/:id", async (req, res, next) => {
       data.target = req.body.target;
     }
     if (req.body.unit !== undefined) data.unit = cleanText(req.body.unit, 50) || null;
+    if (req.body.weight !== undefined) {
+      assert(isWeight(req.body.weight), 400, "Result weight must be an integer 0-100");
+      data.weight = req.body.weight;
+    }
+    if (req.body.invert !== undefined) data.invert = !!req.body.invert;
+    if (req.body.isBadge !== undefined) data.isBadge = !!req.body.isBadge;
     if (req.body.sortOrder !== undefined) {
       assert(isNonNegativeNumber(req.body.sortOrder), 400, "sortOrder must be non-negative");
       data.sortOrder = req.body.sortOrder;
