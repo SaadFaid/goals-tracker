@@ -164,9 +164,9 @@ function Dashboard() {
           <MonthEndAnalysis cats={categories || []} onClose={() => setShowAnalysis(false)} />
         )}
 
-        <section aria-label="Your categories" className="cats-grid grid gap-4 md:grid-cols-2">
+        <section aria-label="Your categories" className="cats-grid grid grid-cols-1 gap-4 lg:grid-cols-2">
           {categories.map((cat, i) => (
-            <div key={cat.id} className={cat.fullWidth ? "col-span-2" : ""}>
+            <div key={cat.id} className={"min-w-0" + (cat.fullWidth ? " lg:col-span-2" : "")}>
               <CategoryCard
                 category={cat}
                 index={i}

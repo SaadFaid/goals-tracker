@@ -506,6 +506,13 @@ html, body {
   .stepper-btn { width: 32px; height: 32px; border-radius: 9px; }
   .nav-btn { height: 34px; padding: 0 14px; }
   .check-circle { width: 30px !important; height: 30px !important; }
+
+  /* Control deck: month on its own line, then a tidy 2×2 button grid
+     instead of the ragged wrap (Print/Analysis/Plan then a lone Edit). */
+  .controls-card { flex-direction: column; }
+  .controls-card .nav-divider { display: none; }
+  .controls-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .controls-actions .nav-btn { width: 100%; }
 }
 
 /* Animations for enhanced components */

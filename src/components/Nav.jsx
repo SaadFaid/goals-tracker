@@ -118,7 +118,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
         <div className="controls-card mx-auto max-w-[1100px] rounded-2xl flex items-center justify-center gap-2 flex-wrap px-3 py-2">
           <MonthPicker />
           <span className="nav-divider" aria-hidden="true" />
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap justify-end controls-actions">
             <button
               type="button"
               onClick={() => onPrint?.()}
