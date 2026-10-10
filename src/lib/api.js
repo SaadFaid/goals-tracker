@@ -6,6 +6,8 @@
 // primary source, so every reload and every reconnect re-resolves the current
 // tunnel. A network failure also drops the cache so the reconnect loop picks up
 // a repointed config instead of retrying a dead host forever.
+import { getStoredRefreshToken, setStoredRefreshToken } from "./storageScope";
+
 const BAKED_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 let apiBase = null;
@@ -57,7 +59,37 @@ export function getAccessToken() {
   return accessToken;
 }
 
-async function request(method, path, body, { authed = true } = {}) {
+// The access token has a 15-minute TTL, but the dashboard's store only refreshes
+// it when a queued dashboard mutation flushes. Any other caller that talks to
+// the API directly — the checklist (saveNotes) and the timer (savePomodoro) both
+// do, swallowing errors with .catch(() => {}) — would keep using a dead token:
+// the write silently failed, and the next reload's GET returned the account's old
+// data over the top of the local edit, so it looked "never saved". Refresh here,
+// once per expiry, for every authed request.
+//
+// A single in-flight promise is shared so a burst of concurrent 401s (the
+// checklist fires a notes and a days save together) mints one token, not several
+// — the server rotates the refresh token, so two racing refreshes would
+// invalidate each other.
+let refreshInFlight = null;
+function refreshAccessToken() {
+  if (refreshInFlight) return refreshInFlight;
+  const rt = getStoredRefreshToken();
+  refreshInFlight = request("POST", "/auth/refresh", rt ? { refreshToken: rt } : undefined, {
+    authed: false,
+  })
+    .then((data) => {
+      setAccessToken(data.accessToken);
+      setStoredRefreshToken(data.refreshToken);
+      return data.accessToken;
+    })
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
+
+async function request(method, path, body, { authed = true, retried = false } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (authed && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -84,6 +116,18 @@ async function request(method, path, body, { authed = true } = {}) {
       data = JSON.parse(text);
     } catch {
       data = { error: text };
+    }
+  }
+
+  // A mid-session 401 on an authed call means the 15-minute token expired. Mint a
+  // fresh one and retry the same request exactly once; if the refresh itself is
+  // rejected the original 401 propagates so the caller can sign the user out.
+  if (res.status === 401 && authed && accessToken && !retried) {
+    try {
+      await refreshAccessToken();
+      return request(method, path, body, { authed, retried: true });
+    } catch {
+      /* refresh rejected — fall through and surface the 401 below */
     }
   }
 
