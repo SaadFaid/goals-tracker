@@ -32,7 +32,7 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-40 flex items-center gap-2">
+      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 sm:flex-row sm:items-center">
         <button
           onClick={scrollToTop}
           aria-label="Back to top"

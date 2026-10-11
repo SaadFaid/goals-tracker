@@ -37,7 +37,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
   return (
     <>
       {/* Row 1 — brand + account. In normal flow, scrolls away. */}
-      <header className="mx-auto max-w-[1100px] px-3 sm:px-5 pt-2 pb-2 flex items-center justify-between gap-3"
+      <header className="mx-auto max-w-[1100px] px-3 sm:px-5 pt-2 pb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
         <div className="flex items-center gap-2.5 min-w-0">
           <span
@@ -54,7 +54,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
               <circle cx="12" cy="12" r="3" />
             </svg>
           </span>
-          <span className="brand text-sm text-heading leading-none">Tchizu Goal Tracker</span>
+          <span className="brand text-sm text-heading leading-none hidden sm:inline">Tchizu Goal Tracker</span>
           <span className="relative flex w-2.5 h-2.5 shrink-0" aria-hidden="true">
             <span className="absolute inline-flex h-full w-full rounded-full opacity-70" style={{ background: "var(--color-accent)", animation: "brandPulse 2.4s ease-in-out infinite" }} />
             <span className="relative inline-flex rounded-full" style={{ width: 8, height: 8, margin: "auto", background: "var(--color-accent)" }} />
@@ -74,11 +74,11 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
                 </span>
               )}
               <span
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full"
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full max-w-[50vw] sm:max-w-none min-w-0"
                 style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-success)" }} aria-hidden="true" />
-                {user.name || user.email}
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-success)" }} aria-hidden="true" />
+                <span className="truncate">{user.name || user.email}</span>
               </span>
               {isServerBacked && (
                 <button onClick={() => setChangingPw(true)} className="nav-btn" style={pill(false)}>
