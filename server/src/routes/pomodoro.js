@@ -24,9 +24,9 @@ const toStamp = (v) => {
 const shape = (row) => (row ? {
   workM: row.workM, breakM: row.breakM, soundId: row.soundId, phase: row.phase,
   pomodoros: row.pomodoros, repeat: row.repeat, mode: row.mode,
-  fRunning: row.fRunning, fEndAt: row.fEndAt?.toISOString() ?? null, fHold: row.fHold,
+  fRunning: row.fRunning, fEndAt: row.fEndAt ? row.fEndAt.getTime() : null, fHold: row.fHold,
   tH: row.tH, tM: row.tM, tS: row.tS,
-  tRunning: row.tRunning, tEndAt: row.tEndAt?.toISOString() ?? null, tHold: row.tHold,
+  tRunning: row.tRunning, tEndAt: row.tEndAt ? row.tEndAt.getTime() : null, tHold: row.tHold,
 } : { ...DEFAULTS });
 
 /** Defaults until the account saves something, so a new account is never null. */

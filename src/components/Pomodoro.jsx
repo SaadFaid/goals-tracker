@@ -90,6 +90,15 @@ function endClock(endAt) {
   return `Ends at ${pad2(h)}:${pad2(m)}`;
 }
 
+// Server timestamps may arrive as epoch ms (current) or an ISO string (older
+// builds). Normalise to epoch ms so countdowns and finish checks stay numeric.
+function toMs(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? null : t;
+}
+
 export default function Pomodoro() {
   const boot = useRef(loadState());
   const s = boot.current;
@@ -180,13 +189,13 @@ export default function Pomodoro() {
         setRepeat(r.repeat ?? repeat);
         setMode(r.mode ?? mode);
         setRunning(!!r.fRunning);
-        setEndAt(r.fEndAt ?? null);
+        setEndAt(toMs(r.fEndAt));
         setHold(r.fHold ?? 0);
         setTH(r.tH ?? 0);
         setTM(r.tM ?? 0);
         setTS(r.tS ?? 0);
         setTRunning(!!r.tRunning);
-        setTEndAt(r.tEndAt ?? null);
+        setTEndAt(toMs(r.tEndAt));
         setTHold(r.tHold ?? 0);
       })
       .catch(() => {});
@@ -296,6 +305,7 @@ export default function Pomodoro() {
   // Focus finished -> switch phase + raise alert.
   useEffect(() => {
     if (!running || !endAt) return;
+    if (!Number.isFinite(endAt)) return;
     if (endAt - now > 40) return;
     const justEnded = phaseRef.current;
     setRunning(false);
@@ -374,6 +384,7 @@ export default function Pomodoro() {
 
   useEffect(() => {
     if (!tRunning || !tEndAt) return;
+    if (!Number.isFinite(tEndAt)) return;
     if (tEndAt - tNow > 40) return;
     setTRunning(false);
     setTEndAt(null);
