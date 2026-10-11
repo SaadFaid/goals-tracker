@@ -65,19 +65,29 @@ router.put("/", async (req, res, next) => {
   try {
     const { id: userId } = req.user;  // req.user is { id, email }
     const mode = req.body?.mode === "merge" ? "merge" : "replace";
+    const hasNotes = req.body?.notes !== undefined;
     const rawNotes = Array.isArray(req.body?.notes) ? req.body.notes : null;
-    if (!rawNotes) throw createHttpError(400, "notes must be an array");
+    // A day-history save (the checklist's second effect) legitimately omits
+    // `notes` and sends only `days`. Requiring `notes` here 400'd every one of
+    // those saves, so the day map and lastDay never advanced on the server; the
+    // next load then saw a stale lastDay and rolled the standing list away —
+    // typed tasks vanished as if never saved. Merge mode treats a missing list
+    // as "touch nothing"; replace mode still requires it, because defaulting it
+    // to empty would silently delete every note.
+    if (rawNotes === null && (hasNotes || mode === "replace")) {
+      throw createHttpError(400, "notes must be an array");
+    }
     const rawMap = req.body?.days?.map;
     if (rawMap != null && (typeof rawMap !== "object" || Array.isArray(rawMap))) {
       throw createHttpError(400, "days.map must be an object");
     }
-    if (rawNotes.length > 500) throw createHttpError(400, "Too many notes");
+    if (rawNotes && rawNotes.length > 500) throw createHttpError(400, "Too many notes");
 
     // sortOrder comes from the array index: the client stores its lists in
     // display order and every note arrives with sortOrder 0, so without this the
     // order Postgres returns ties in is arbitrary and the list reshuffles
     // between requests.
-    const notes = rawNotes
+    const notes = (rawNotes || [])
       .map((raw, i) => {
         const clean = sanitizeNote(raw, { userId });
         if (!clean) return null;

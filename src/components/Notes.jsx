@@ -212,8 +212,16 @@ export default function Notes() {
         // last visit was the day before). Roll it forward the same way the
         // rollover hook does: freeze the fetched list into its day, clear the
         // standing list. The day-history save effect below persists it.
+        //
+        // Only do this when THIS device also sees a day change. Rolling purely
+        // because the server's lastDay looked old is what deleted freshly typed
+        // tasks: whenever a day-history save failed (or lagged), lastDay stayed
+        // in the past, so every reload cleared the standing list out from under
+        // the user. The local rollover already handles a real new day; this path
+        // exists only for a snapshot another device left behind.
         const tk = todayKeyOf();
-        if (res?.days?.lastDay && res.days.lastDay !== tk) {
+        const localLast = dayRecRef.current?.lastDay;
+        if (res?.days?.lastDay && res.days.lastDay !== tk && localLast !== tk) {
           setDayRec((prev) => {
             const map = { ...(prev?.map || {}) };
             if (!map[res.days.lastDay] && Array.isArray(res.notes) && res.notes.length) {
