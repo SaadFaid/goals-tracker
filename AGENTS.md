@@ -7,17 +7,15 @@ Two independent npm packages, **not** a workspace. Run commands from the correct
 - **Frontend** (repo root): Vite + React 19 + Tailwind v4 + Zustand
 - **Server** (`server/`): Express + Prisma on Postgres
 
-## Git remotes — two, and both get pushed
+## Git remote
 
-- `origin` → `SaadFaid/goals-tracker` (**public**). GitHub Pages serves the built
-  bundle from here, and `deploy/goals-stack.sh` auto-pushes to it whenever the
-  quick-tunnel URL changes, rewriting the API base in the bundle.
-- `private` → `SaadFaid/august-goals` (**private**). This is the real source of
-  truth and the repo to clone from.
+- `origin` → `SaadFaid/goals-tracker` (**public**). This is the only remote and
+  the source of truth. GitHub Pages serves the built bundle from here, and
+  `deploy/goals-stack.sh` auto-pushes to it whenever the quick-tunnel URL
+  changes, rewriting the API base in the bundle.
 
-**Always push to both**: `git push origin master && git push private master`.
-Pushing only `origin` leaves the private repo stale, which is the one you would
-clone next.
+**Push with** `git push origin master`. (The old `private` remote →
+`SaadFaid/august-goals` has been retired; there is no second repo to sync.)
 
 ## Secrets never enter the repo — not even a private one
 
