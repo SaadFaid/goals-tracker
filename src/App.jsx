@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useGoalsStore } from "./store/useGoalsStore";
+import { resultDoneValue, resultNotDoneValue } from "./lib/score";
 import Nav from "./components/Nav";
 import StatsBar from "./components/StatsBar";
 import ProgressBar from "./components/ProgressBar";
@@ -218,7 +219,7 @@ function Dashboard() {
         onResultToggle={(catId, idx, checked) => {
           const result = categories.find((c) => c.id === catId)?.results?.[idx];
           if (!result) return;
-          updateResult(catId, idx, "current", checked ? result.target : 0);
+          updateResult(catId, idx, "current", checked ? resultDoneValue(result) : resultNotDoneValue(result));
         }}
       />
       <Notes />

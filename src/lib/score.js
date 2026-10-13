@@ -15,6 +15,19 @@ export function resultPct(r) {
   return Math.min((r.current / r.target) * 100, 100);
 }
 
+// The `current` values a checkbox-style result should store for "done" and
+// "not done". Inverted results (lower is better, e.g. weight) count as done at
+// or below target, so "not done" must sit strictly above it — storing 0 (as a
+// normal result does) still reads as done and the box could never be cleared.
+export function resultDoneValue(r) {
+  return r.target > 0 ? r.target : 1;
+}
+
+export function resultNotDoneValue(r) {
+  const t = r.target > 0 ? r.target : 1;
+  return r.invert ? Math.floor(t) + 1 : 0;
+}
+
 // Overall results completion across categories, weighted like categoryPct.
 export function aggregateResultsPct(categories) {
   const all = (categories || []).filter((c) => !c.isRewards);

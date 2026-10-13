@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { categoryPct, actionPct, resultPct, categoryWeightsSum, checkRewardUnlock, computeOverallPct } from "../lib/score";
+import { categoryPct, actionPct, resultPct, resultDoneValue, resultNotDoneValue, categoryWeightsSum, checkRewardUnlock, computeOverallPct } from "../lib/score";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { CATEGORY_COLORS, dotColorToHex } from "../lib/categoryColors";
 import { IconTrophy, IconLock, IconCheck, IconClose } from "./Icons";
@@ -665,9 +665,9 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
   const [menu, setMenu] = useState(false);
 
   const bump = (amount) => { onIncrement(amount); setMenu(false); };
-  const markDone = () => { onIncrement(safeTarget - item.current); setMenu(false); };
-  const reset = () => { onIncrement(-item.current); setMenu(false); };
-  const toggleCheck = () => { onUpdate(done ? 0 : safeTarget); setMenu(false); };
+  const markDone = () => { onUpdate(resultDoneValue(item)); setMenu(false); };
+  const reset = () => { onUpdate(resultNotDoneValue(item)); setMenu(false); };
+  const toggleCheck = () => { onUpdate(done ? resultNotDoneValue(item) : resultDoneValue(item)); setMenu(false); };
   const dragProps = useRowDrag({ editable, index, onMove, listId });
   return (
     <ConfirmableRow onDelete={onDelete} allowDelete={editable} dragProps={dragProps}>
