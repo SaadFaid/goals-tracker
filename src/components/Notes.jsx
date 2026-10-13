@@ -301,15 +301,21 @@ export default function Notes() {
   const doneCount = notes.filter((n) => n.done).length;
 
   // ── Days history helpers ───────────────────────────
+  const now = new Date();
+  const todayKey = dk(now.getFullYear(), now.getMonth() + 1, now.getDate());
   const dayMap = dayRec?.map || {};
-  const dayKeys = Object.keys(dayMap)
+  // Today's list is still live — it is only frozen into history at midnight —
+  // so mirror it into the Days view instead of showing a stale/absent copy.
+  const viewMap =
+    notes.length > 0
+      ? { ...dayMap, [todayKey]: notes.map((n) => ({ id: n.id, text: n.text, done: !!n.done })) }
+      : dayMap;
+  const dayKeys = Object.keys(viewMap)
     .filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k))
     .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
   const active = activeDay || dayKeys[0] || null;
   const gridTotal = monthDays(monthKey(gridYear, gridMonth + 1));
   const gridLeading = new Date(gridYear, gridMonth, 1).getDay();
-  const now = new Date();
-  const todayKey = dk(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
   const openDays = () => {
     setGridMonth(now.getMonth());
@@ -539,20 +545,22 @@ export default function Notes() {
                   {Array.from({ length: gridTotal }).map((_, i) => {
                     const d = i + 1;
                     const key = dk(gridYear, gridMonth + 1, d);
-                    const saved = !!dayMap[key];
+                    const saved = !!viewMap[key];
+                    const isFuture = key > todayKey;
                     const isSel = key === active;
+                    const isToday = key === todayKey;
                     return (
                       <button
                         key={key}
                         type="button"
-                        disabled={!saved}
+                        disabled={isFuture}
                         onClick={() => setActiveDay(key)}
                         className={`relative aspect-square rounded-lg grid place-items-center text-xs transition-colors ${
-                          saved
-                            ? "text-heading hover:bg-accent-muted cursor-pointer"
-                            : "text-text-tertiary/50 cursor-default"
-                        } ${isSel ? "bg-accent text-navy-900 font-semibold" : key === todayKey ? "ring-1 ring-accent" : ""}`}
-                        title={saved ? `Open ${dayLabel(key)}` : dayLabel(key)}
+                          isFuture
+                            ? "text-text-tertiary/50 cursor-default"
+                            : "text-heading hover:bg-accent-muted cursor-pointer"
+                        } ${isSel ? "bg-accent text-navy-900 font-semibold" : isToday ? "ring-1 ring-accent" : ""}`}
+                        title={isFuture ? dayLabel(key) : saved ? `Open ${dayLabel(key)}` : `Look at ${dayLabel(key)}`}
                       >
                         <span>{d}</span>
                         {saved && !isSel && (
@@ -573,13 +581,17 @@ export default function Notes() {
                     <span className="text-xs font-semibold text-heading">{active ? dayLabel(active) : "No saved days"}</span>
                     <button type="button" onClick={() => scrollDay(1)} disabled={!active} className="stepper-btn" aria-label="Next day">›</button>
                   </div>
-                  {dayKeys.length === 0 ? (
+                  {!active || (viewMap[active] || []).length === 0 ? (
                     <p className="text-sm text-muted">
-                      No saved days yet — each day's checklist is saved from today onward.
+                      {!active
+                        ? "No saved days yet — today's list shows here, and each day is archived at midnight."
+                        : active === todayKey
+                          ? "Nothing on today's list yet."
+                          : "Nothing was saved for this day."}
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {(dayMap[active] || []).map((n) => (
+                      {(viewMap[active] || []).map((n) => (
                         <div key={n.id} className="flex items-end gap-2" style={{ height: ROW_H }}>
                           <span
                             className="grid place-items-center shrink-0"
@@ -612,7 +624,10 @@ export default function Notes() {
                         </div>
                       ))}
                       <p className="text-[11px]" style={{ color: "var(--color-text-tertiary)" }}>
-                        {active} <span style={{ opacity: 0.7 }}>· {dayMap[active]?.filter((x) => x.done).length || 0}/{dayMap[active]?.length || 0} done</span>
+                        {active === todayKey ? "Today" : active}{" "}
+                        <span style={{ opacity: 0.7 }}>
+                          · {(viewMap[active] || []).filter((x) => x.done).length || 0}/{viewMap[active]?.length || 0} done
+                        </span>
                       </p>
                     </div>
                   )}

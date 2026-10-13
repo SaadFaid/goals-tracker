@@ -1,14 +1,13 @@
 /**
  * Guest mode has no server-side ProgressLogs, so we synthesize a deterministic
- * year-long history for the PAST months so the date-popup history shows a
- * whole year. Each entry mirrors the ProgressLog shape:
- *   { dayOfMonth, month, year, qualityScore, expectedScore }
+ * history: the PAST months so the date-popup history shows a whole year, plus
+ * the CURRENT month up to yesterday so the current-month chart line is
+ * populated (the demo account should not read as all-zeros).
  *
- * The CURRENT month is deliberately NOT assembled here. Past days must stay
- * frozen at their real value: each recorded day is saved to localStorage and
- * only TODAY's entry is written (live) by the store. Fabricating a ramp from
- * today's overall score made every past day "move" whenever today's score
- * changed — that is why yesterday drifted off its true number.
+ * Only PAST days are frozen here. Today's entry is written live by the store
+ * (ensureDailyLog), so today always reflects the real seeded progress while
+ * every earlier day stays put. Each entry mirrors the ProgressLog shape:
+ *   { dayOfMonth, month, year, qualityScore, expectedScore, resultsScore }
  */
 
 // Deterministic pseudo-random so the demo doesn't change between runs.
@@ -58,8 +57,31 @@ export function generateGuestLogs() {
         year,
         qualityScore: q,
         expectedScore: Math.round((d / daysInMonth) * 100 * 10) / 10,
+        resultsScore: Math.round(Math.max(0, Math.min(100, q + 4)) * 10) / 10,
       });
     }
+  }
+
+  // Current month, days 1..yesterday: a smooth ramp that lines up with the
+  // seeded progress, so the live month's chart is not empty. Today is left for
+  // the store to write (and keep writing) — these days never change again.
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const today = now.getDate();
+  const rand = seeded(4242 + y * 100 + m);
+  for (let d = 1; d < today; d++) {
+    const wave = Math.sin((d / daysInMonth) * Math.PI) * 5;
+    const jitter = (rand() - 0.5) * 8;
+    const q = Math.round(Math.max(12, Math.min(96, 68 + wave + jitter)));
+    logs.push({
+      dayOfMonth: d,
+      month: m,
+      year: y,
+      qualityScore: q,
+      expectedScore: Math.round((d / daysInMonth) * 100 * 10) / 10,
+      resultsScore: Math.round(Math.max(0, Math.min(100, 58 + wave + jitter)) * 10) / 10,
+    });
   }
 
   return logs;

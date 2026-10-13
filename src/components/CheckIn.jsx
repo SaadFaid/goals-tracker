@@ -91,12 +91,19 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
               {rows.length === 0 ? (
                 <p className="text-text-tertiary text-sm text-center py-8">No actions or results yet. Add some to start.</p>
-              ) : openCount === 0 ? (
-                <p className="text-text-tertiary text-sm text-center py-8 inline-flex items-center justify-center gap-1.5 w-full">All caught up — everything is done. <IconCheckCircle size={14} style={{ color: "var(--color-accent)" }} /></p>
               ) : (
-                rows.filter(notDone).map((r) => (
-                  <CheckInRow key={`${r.type}-${r.item.id}`} row={r} onIncrement={onIncrement} onDecrement={onDecrement} onResultToggle={onResultToggle} />
-                ))
+                <>
+                  {openCount === 0 && (
+                    <p className="text-text-tertiary text-sm text-center py-6 inline-flex items-center justify-center gap-1.5 w-full">
+                      All caught up — everything is done. Tap a line to undo it. <IconCheckCircle size={14} style={{ color: "var(--color-accent)" }} />
+                    </p>
+                  )}
+                  {[...rows]
+                    .sort((a, b) => Number(notDone(b)) - Number(notDone(a)))
+                    .map((r) => (
+                      <CheckInRow key={`${r.type}-${r.item.id}`} row={r} onIncrement={onIncrement} onDecrement={onDecrement} onResultToggle={onResultToggle} />
+                    ))}
+                </>
               )}
             </div>
 
@@ -130,7 +137,7 @@ function CheckInRow({ row, onIncrement, onDecrement, onResultToggle }) {
       if (type === "result") {
         if (onResultToggle) onResultToggle(catId, idx, !done);
       } else {
-        onIncrement(done ? -item.current : (item.target - item.current));
+        onIncrement(catId, idx, done ? -item.current : item.target - item.current);
       }
     };
     return (
@@ -248,7 +255,7 @@ function CheckInRow({ row, onIncrement, onDecrement, onResultToggle }) {
           {Math.round(pct)}%
         </span>
       </button>
-      {!done && onDecrement && type === "action" && (
+      {onDecrement && type === "action" && (
         <button
           onClick={() => onDecrement(catId, idx)}
           title="Remove one"

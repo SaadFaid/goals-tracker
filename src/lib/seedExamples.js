@@ -63,6 +63,44 @@ export function makeExampleDays({ months = 3 } = {}) {
   return out;
 }
 
+// Give the demo (guest) account a month that already looks lived-in: each
+// action and result is filled to a plausible fraction of its target, with a
+// few check-type rows left ticked. Deterministic, applied once per guest
+// (guarded by the store's demoSeeded flag) so real edits are never overwritten.
+export function seedGuestProgress(cats) {
+  const midnight = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const frac = (n) => 0.5 + ((n * 37) % 26) / 100; // 0.50 .. 0.75
+
+  return (cats || []).map((c) => {
+    if (c.isRewards) return c;
+    let n = 0;
+    const actions = (c.actions || []).map((a) => {
+      n += 1;
+      const target = Number(a.target) || 0;
+      const isCheck = a.actionType === "check";
+      const current = isCheck
+        ? (n % 5 !== 0 ? target : 0)
+        : Math.min(target, Math.round(target * frac(n)));
+      const patch = { current };
+      if (a.resetType === "daily" && current > 0) patch.lastResetAt = midnight;
+      return { ...a, ...patch };
+    });
+    const results = (c.results || []).map((r) => {
+      n += 1;
+      if (r.invert) return r;
+      const target = Number(r.target) || 0;
+      const isCheck = (r.resultType || "count") === "check";
+      const current = isCheck ? target : Math.min(target, Math.round(target * frac(n)));
+      return { ...r, current };
+    });
+    return { ...c, actions, results };
+  });
+}
+
 // Example schedule rows for the Plan view, spread across the last months.
 // Each row matches the usePlanStore.addSlot shape with repeat "today".
 export function makeExamplePlanRows({ months = 3 } = {}) {

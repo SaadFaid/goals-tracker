@@ -4,6 +4,7 @@ import { categories as seedCategories, generateRewardTiers } from "../data/goals
 import { calculateDashboardState, aggregateResultsPct } from "../lib/score";
 import { api, setAccessToken, getAccessToken } from "../lib/api";
 import { generateGuestLogs } from "../lib/guestLogs";
+import { seedGuestProgress } from "../lib/seedExamples";
 import {
   setIdentityScope,
   restoreIdentityScope,
@@ -334,6 +335,9 @@ const emptyState = () => ({
   // crosses into a new month, the finished month is archived and the live
   // month starts at zero.
   lastMonthKey: null,
+  // True once the guest demo (sample goals filled to a plausible progress) has
+  // been applied, so real guest edits are never overwritten on reload.
+  demoSeeded: false,
 });
 
 export const useGoalsStore = create(
@@ -489,6 +493,18 @@ export const useGoalsStore = create(
         // Server-backed sessions roll over in adoptServerSession(), once the
         // server's own data has loaded, so the archive is the real end state.
         if (!get().isServerBacked) get().checkMonthRollover();
+        // A first-time guest gets the demo goals filled in with a plausible
+        // month of progress, so the dashboard/chart/check-in are not all zero.
+        // Runs after any rollover (which zeroes the month) and once only.
+        if (get().isGuest && !get().demoSeeded) {
+          const seeded = normalizeResetTypes(seedGuestProgress(get().categories));
+          set({
+            categories: seeded,
+            demoSeeded: true,
+            lastMonthKey: get().lastMonthKey || localMonthKey(),
+          });
+          get().derive();
+        }
         get().ensureDailyLog(get().categories, get().dashboard);
       },
 
@@ -503,12 +519,21 @@ export const useGoalsStore = create(
         // state written here before the scope switched (the persist subscriber
         // ran after the write). Showing it would resurrect the account as
         // "guest", so drop it.
+        let legacyGuestWithData = false;
         try {
           const key = scopeKey(GUEST_KEY, "guest");
           const raw = localStorage.getItem(key);
           const st = raw ? JSON.parse(raw)?.state : null;
           if (st && (st.isServerBacked === true || st.user?.email)) {
             localStorage.removeItem(key);
+          } else if (st && st.demoSeeded !== true && Array.isArray(st.categories)) {
+            // A guest blob from before the demo seed existed, but with real
+            // progress already in it — keep it, do not overwrite with the demo.
+            legacyGuestWithData = st.categories.some(
+              (c) =>
+                (c.actions || []).some((a) => Number(a.current) > 0) ||
+                (c.results || []).some((r) => Number(r.current) > 0)
+            );
           }
         } catch {
           /* storage unavailable */
@@ -520,6 +545,7 @@ export const useGoalsStore = create(
           error,
           categories: seedClone(),
           progressLogs: generateGuestLogs(),
+          demoSeeded: legacyGuestWithData,
           monthlySnapshots: {},
           serverSnapshotMonths: [],
           dailySnapshots: {},
@@ -1763,6 +1789,7 @@ export const useGoalsStore = create(
             dailySnapshots: s.dailySnapshots,
             lastDayKey: s.lastDayKey,
             lastMonthKey: s.lastMonthKey,
+            demoSeeded: s.demoSeeded,
             pendingMutations: s.pendingMutations,
           };
         },
