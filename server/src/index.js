@@ -20,6 +20,7 @@ import syncRoutes from "./routes/sync.js";
 import planRoutes from "./routes/plan.js";
 import notesRoutes from "./routes/notes.js";
 import pomodoroRoutes from "./routes/pomodoro.js";
+import leaderboardRoutes from "./routes/leaderboard.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -77,6 +78,7 @@ app.use("/api/sync", syncRoutes);
 app.use("/api/plan", planRoutes);
 app.use("/api/notes", notesRoutes);
 app.use("/api/pomodoro", pomodoroRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

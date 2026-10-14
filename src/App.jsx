@@ -14,6 +14,7 @@ import Notes from "./components/Notes";
 import Pomodoro from "./components/Pomodoro";
 import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PrintReport from "./components/PrintReport";
+import Leaderboard from "./components/Leaderboard";
 import PlanPage from "./components/PlanPage";
 
 function useDashboard() {
@@ -91,6 +92,7 @@ function Dashboard() {
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [view, setView] = useState("dashboard");
 
   const undo = useGoalsStore((s) => s.undo);
@@ -138,8 +140,10 @@ function Dashboard() {
         view={view}
         onSetView={setView}
         onOpenAnalysis={() => setShowAnalysis(true)}
+        onOpenLeaderboard={() => setShowLeaderboard(true)}
         onPrint={() => setShowPrint(true)}
       />
+      {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
       {showPrint && (
         <PrintReport
           cats={categories}

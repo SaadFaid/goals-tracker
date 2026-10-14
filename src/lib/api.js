@@ -161,6 +161,7 @@ export const api = {
   rollover: (from, to) => request("POST", "/dashboard/rollover", { from, to }),
   progress: (params) =>
     request("GET", `/progress?${new URLSearchParams(params).toString()}`),
+  leaderboard: () => request("GET", "/leaderboard"),
 
   // Categories
   createCategory: (body) => request("POST", "/categories", body),

@@ -4,7 +4,7 @@ import ChangePassword from "./ChangePassword";
 import { IconCheck, IconPencil, IconChart, IconPrint } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
-export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onPrint }) {
+export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onOpenLeaderboard, onPrint }) {
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const logout = useGoalsStore((s) => s.logout);
@@ -139,6 +139,20 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onP
             >
               <span style={{ color: "var(--color-accent)" }}><IconChart size={12} /></span>
               Analysis
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenLeaderboard?.()}
+              className="nav-btn"
+              title="Leaderboard — everyone ranked by progress"
+              style={pill(false)}
+            >
+              <span style={{ color: "var(--color-accent)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 21V13M12 21V4M18 21v-6" />
+                </svg>
+              </span>
+              Board
             </button>
             <button
               onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
