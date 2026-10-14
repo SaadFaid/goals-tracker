@@ -134,9 +134,18 @@ export default function Notes() {
     const tk = todayKeyOf();
     const prevLast = dayRecRef.current?.lastDay;
     if (!prevLast || prevLast === tk) return false;
+    const hadNotes = latestNotes.current.length > 0;
     setDayRec((prev) => {
-      const map = { ...(prev?.map || {}) };
-      if (!map[prev.lastDay] && latestNotes.current.length > 0) {
+      // Both mount effects call this, and the ref they read above is one batch
+      // behind: after the first call queues {lastDay: tk}, the second still
+      // sees the OLD day in the ref and re-runs, by which point `prev.lastDay`
+      // is already `tk` — so it wrote yesterday's tasks under TODAY's date,
+      // hiding the real day and making "Bring last day's tasks" hand back the
+      // seeded example instead of the user's tasks. Re-check the settled state
+      // and no-op rather than writing again.
+      if (!prev?.lastDay || prev.lastDay === tk) return prev;
+      const map = { ...(prev.map || {}) };
+      if (hadNotes) {
         map[prev.lastDay] = latestNotes.current.map((n) => ({
           id: n.id,
           text: n.text,
@@ -145,7 +154,7 @@ export default function Notes() {
       }
       return { lastDay: tk, map, seeded: prev?.seeded === true };
     });
-    if (latestNotes.current.length > 0) setNotes([]);
+    if (hadNotes) setNotes([]);
     return true;
   };
 
@@ -224,7 +233,9 @@ export default function Notes() {
         if (res?.days?.lastDay && res.days.lastDay !== tk && localLast !== tk) {
           setDayRec((prev) => {
             const map = { ...(prev?.map || {}) };
-            if (!map[res.days.lastDay] && Array.isArray(res.notes) && res.notes.length) {
+            // Same rule as the local rollover: the fetched list is that day's
+            // real work, so it overwrites any seeded example on the same date.
+            if (Array.isArray(res.notes) && res.notes.length) {
               map[res.days.lastDay] = res.notes.map((n) => ({
                 id: n.id,
                 text: n.text,
@@ -347,7 +358,9 @@ export default function Notes() {
   const carryTasks = carryDay ? dayMap[carryDay] || [] : [];
   const carryLastDay = () => {
     if (!carryTasks.length) return;
-    setNotes(carryTasks.map((n) => ({ id: n.id, text: n.text, done: false })));
+    // Fresh ids: the originals stay in their saved day, so reusing them would
+    // put the same id in two days (and in two rows if carried twice).
+    setNotes(carryTasks.map((n) => ({ id: crypto.randomUUID(), text: n.text, done: false })));
   };
 
   return (

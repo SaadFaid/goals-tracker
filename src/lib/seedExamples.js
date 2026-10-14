@@ -29,6 +29,10 @@ const TASK_POOL = [
 // few days in the current month, and last month, before today).
 export function makeExampleDays({ months = 3 } = {}) {
   const now = new Date();
+  // Everything from yesterday on is the user's own to fill: seeding those days
+  // would put fake tasks on dates they are about to type into, and (before the
+  // rollover fix) blocked the archive of a day they had actually used.
+  const keepBefore = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   const out = {};
 
   for (let m = 0; m < months; m++) {
@@ -43,9 +47,9 @@ export function makeExampleDays({ months = 3 } = {}) {
     for (const dayOffset of offsets) {
       const day = dayOffset;
       if (day > daysInMonth) continue;
-      // Skip future days (current month only).
+      // Skip future days (current month only), and never seed today/yesterday.
       const candidate = new Date(year, month - 1, day);
-      if (candidate > now) continue;
+      if (candidate >= keepBefore) continue;
 
       // Deterministic task selection for this day.
       const start = (year + month + day) % TASK_POOL.length;
