@@ -15,9 +15,20 @@ import {
   getStoredRefreshToken,
   clearStoredRefreshToken,
 } from "../lib/storageScope";
+import { LEGACY_LOCAL_SALT, LOCAL_SALT, migrateBrandKeys } from "../lib/brandMigration";
+import { dayKey } from "../lib/streak";
 
-const GUEST_KEY = "august-goals-guest-v2";
-const PROFILES_KEY = "august-goals-profiles";
+const GUEST_KEY = "paceline-guest-v2";
+const PROFILES_KEY = "paceline-profiles";
+
+// Debounce handle for pushing the streak to the account. Module-level so a
+// render never stores a timer in state.
+let activitySyncTimer = null;
+
+// The product was renamed. Move whatever is still sitting under the old
+// storage keys onto the new ones before anything reads them, so nobody loses
+// a month of progress to a rename.
+migrateBrandKeys();
 
 // Decide which namespace to read before the store is constructed. The legacy
 // unscoped blob is folded into the identity it really belonged to, so the
@@ -49,10 +60,23 @@ const saveRefreshToken = setStoredRefreshToken;
 const readRefreshToken = getStoredRefreshToken;
 const clearRefreshToken = clearStoredRefreshToken;
 
-async function hashPassword(pw) {
-  const data = new TextEncoder().encode("august-goals::" + pw);
+async function sha256(text) {
+  const data = new TextEncoder().encode(text);
   const buf = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashPassword(pw) {
+  return sha256(LOCAL_SALT + pw);
+}
+
+// Check a local profile's stored hash. A profile created before the rename was
+// hashed with the old salt: it is accepted once and then re-hashed with the
+// current one, so the old salt eventually stops being needed.
+async function verifyLocalPassword(pw, stored) {
+  if (await sha256(LOCAL_SALT + pw) === stored) return { ok: true, legacy: false };
+  if (await sha256(LEGACY_LOCAL_SALT + pw) === stored) return { ok: true, legacy: true };
+  return { ok: false, legacy: false };
 }
 
 // Client generates UUIDs for offline/optimistic items before server assigns real ones.
@@ -303,6 +327,43 @@ function ensureRewardTiers(cats) {
   return changed ? next : cats;
 }
 
+// ── Onboarding + account settings ───────────────────────────
+// Both live in the persisted blob, so a half-finished onboarding survives a
+// reload and a member's preferences follow them on the device.
+function defaultOnboarding() {
+  return {
+    started: false,
+    step: 0,
+    done: false,
+    areas: [],
+    cadence: "",
+    status: "",
+    country: "",
+    currency: "",
+    phone: "",
+    whatsapp: false,
+    heardFrom: "",
+    goals: [],
+    targets: {},
+  };
+}
+
+function defaultSettings() {
+  return {
+    hideFromLeaderboard: false,
+    emailReminders: true,
+    emailWeekly: true,
+    emailMonth: true,
+    plan: "trial",
+    planUntil: null,
+    trialEnds: null,
+    authProvider: "email",
+    country: "",
+    currency: "USD",
+    phone: "",
+  };
+}
+
 const emptyState = () => ({
   user: null,
   isGuest: true,
@@ -316,6 +377,10 @@ const emptyState = () => ({
   error: null,
   lastSyncedAt: null,
   progressLogs: [],
+  // Which days the user actually moved a goal, as "YYYY-MM-DD" keys. Drives the
+  // streak and is mirrored to the account so the leaderboard sees the same
+  // number on every device.
+  activityDays: {},
   undoStack: [],
   pendingMutations: [],
   flushing: false,
@@ -338,6 +403,17 @@ const emptyState = () => ({
   // True once the guest demo (sample goals filled to a plausible progress) has
   // been applied, so real guest edits are never overwritten on reload.
   demoSeeded: false,
+  // Onboarding answers. Kept in the persisted blob so a user can leave half
+  // way through and pick up where they left off.
+  onboarding: defaultOnboarding(),
+  // Account preferences. The account-level ones are mirrored to the server so
+  // they follow the member across devices.
+  settings: defaultSettings(),
+  // The how-to tour auto-opens once, right after onboarding.
+  tourSeen: false,
+  // Exactly one dialog is open at a time. Everything that shows a popup goes
+  // through here so the rule holds across the whole app.
+  dialog: null,
 });
 
 export const useGoalsStore = create(
@@ -578,6 +654,7 @@ export const useGoalsStore = create(
 
       openAuth: () => {
         set({ sessionStarted: false });
+        if (typeof window !== "undefined") window.location.hash = "/login";
       },
 
       // ── Auth lifecycle (frontend-only local profiles) ──
@@ -675,6 +752,12 @@ export const useGoalsStore = create(
         get().checkMonthRollover({ ignoreStored: true });
         get().derive();
         get().ensureDailyLog(get().categories, get().dashboard);
+        // An existing account is never ambushed by onboarding. Only a fresh
+        // signup starts it; a half-finished run resumes where it stopped.
+        if (!get().onboarding.started) {
+          set({ onboarding: { ...get().onboarding, started: true, done: true } });
+        }
+        get().syncSettingsFromServer();
       },
 
       register: async (credentials) => {
@@ -693,6 +776,10 @@ export const useGoalsStore = create(
           const { accessToken, user, refreshToken } = await api.register({ email, password, name });
           await get().adoptServerSession(accessToken, user);
           saveRefreshToken(refreshToken);
+          // A brand-new account starts onboarding at step one, and it resumes
+          // from wherever it was left if the tab is closed midway.
+          set({ onboarding: { ...defaultOnboarding(), started: true, step: 0 }, tourSeen: false });
+          if (credentials?.phone) set({ settings: { ...get().settings, phone: String(credentials.phone) } });
           return;
         } catch (err) {
           // The server already knows this email, or is unreachable. A local-only
@@ -753,12 +840,18 @@ export const useGoalsStore = create(
           throw new Error(msg);
         }
         const passHash = await hashPassword(password);
-        if (passHash !== slot.passHash) {
+        const check = await verifyLocalPassword(password, slot.passHash);
+        if (!check.ok) {
           const msg = "Incorrect password. Try again.";
           set({ error: msg, loading: false });
           throw new Error(msg);
         }
-        get().commit(slot.categories); // load this user's own stats
+        if (check.legacy) {
+          // Re-hash with the current salt so the old one is never needed again.
+          slot.passHash = passHash;
+          writeProfiles(map);
+        }
+        get().commit(slot.categories, { silent: true }); // load this user's own stats
         get().applyLocalProfile(email, slot);
       },
 
@@ -785,6 +878,7 @@ export const useGoalsStore = create(
         clearRefreshToken();
         setAccessToken(null);
         get().enterGuest({ sessionStarted: false });
+        if (typeof window !== "undefined") window.location.hash = "/";
       },
 
       // Called once on boot. A page reload rehydrates a logged-in state from
@@ -901,9 +995,12 @@ export const useGoalsStore = create(
       },
 
       // ── Generic persist+sync after a local mutation ──
-      commit: (nextCategories, { op, args } = {}) => {
+      commit: (nextCategories, { op, args, silent } = {}) => {
         const act = () => {
           set({ categories: nextCategories });
+          // Anything that changes the goals is a day the user moved something,
+          // which is what keeps the streak alive. Loads pass `silent`.
+          if (!silent) get().markActivity();
           if (op) get().enqueue({ op, args });
           get().persistLocalProfile();
           const dashboard = calculateDashboardState(nextCategories, new Date(), get().monthOffset);
@@ -1078,6 +1175,104 @@ export const useGoalsStore = create(
       // Off: cards are clean — check-in + minus only.
       // On: reveals create/delete/edit controls everywhere.
       toggleEditMode: () => set((s) => ({ editMode: !s.editMode })),
+
+      // ── Dialogs ───────────────────────────────────────────
+      // One dialog at a time, app-wide. A new one replaces whatever was open.
+      openDialog: (dialog) => set({ dialog: dialog || null }),
+      closeDialog: () => set({ dialog: null }),
+
+      // ── Onboarding ────────────────────────────────────────
+      setOnboarding: (patch) =>
+        set((s) => ({ onboarding: { ...s.onboarding, ...(typeof patch === "function" ? patch(s.onboarding) : patch) } })),
+
+      // ── Account settings ──────────────────────────────────
+      // Saved instantly. The account-level ones are mirrored to the server so
+      // they follow the member to another device.
+      setSettings: (patch) => {
+        const next = { ...get().settings, ...(typeof patch === "function" ? patch(get().settings) : patch) };
+        set({ settings: next });
+        const user = get().user;
+        if (get().isGuest || !user?.email) return next;
+        api
+          .saveSettings({ hideFromLeaderboard: next.hideFromLeaderboard, settings: next })
+          .catch(() => {
+            /* the toggle stays saved on the device; the server copy syncs later */
+          });
+        return next;
+      },
+
+      setTourSeen: (seen = true) => set({ tourSeen: seen }),
+
+      // ── Streak bookkeeping ────────────────────────────────
+      // A day counts once, and the account copy is pushed with a short debounce
+      // so a burst of taps is one request, not eight.
+      markActivity: () => {
+        const key = dayKey(new Date());
+        const prev = get().activityDays || {};
+        if (prev[key]) return;
+        set({ activityDays: { ...prev, [key]: true } });
+        if (get().isGuest || !get().user) return;
+        if (activitySyncTimer) clearTimeout(activitySyncTimer);
+        activitySyncTimer = setTimeout(() => {
+          activitySyncTimer = null;
+          get().flushActivity();
+        }, 3000);
+      },
+
+      flushActivity: () => {
+        if (get().isGuest || !get().user) return;
+        const days = Object.keys(get().activityDays || {})
+          .filter((k) => get().activityDays[k])
+          .sort()
+          .slice(-120);
+        api.saveSettings({ activity: days }).catch(() => {
+          /* the local streak is still right; the server copy catches up later */
+        });
+      },
+
+      // Pull the account's preferences and merged activity on sign-in.
+      syncSettingsFromServer: async () => {
+        if (get().isGuest || !get().user) return;
+        try {
+          const res = await api.getSettings();
+          const remote = res?.settings || {};
+          const merged = { ...(get().activityDays || {}) };
+          for (const d of remote.activity || []) merged[d] = true;
+          set({
+            activityDays: merged,
+            settings: { ...get().settings, ...(remote.prefs || {}) },
+          });
+        } catch {
+          /* offline — the device's own copy is enough for now */
+        }
+      },
+
+      // Delete the account for good: the server wipes it, the local blob goes
+      // with it, and the app returns to the landing page.
+      deleteAccount: async () => {
+        const user = get().user;
+        if (user?.email && !get().isGuest) {
+          await api.deleteAccount();
+        }
+        try {
+          localStorage.removeItem(scopeKey("paceline-guest-v2", user?.email));
+          localStorage.removeItem(scopeKey("paceline-refresh-token", user?.email));
+        } catch {
+          /* storage unavailable */
+        }
+        set({
+          user: null,
+          isGuest: true,
+          isServerBacked: false,
+          sessionStarted: false,
+          dialog: null,
+          settings: defaultSettings(),
+          onboarding: defaultOnboarding(),
+          tourSeen: false,
+          categories: seedClone(),
+        });
+        return true;
+      },
 
       // ── Undo ────────────────────────────────────────────
       undo: () => {
@@ -1638,6 +1833,35 @@ export const useGoalsStore = create(
         );
       },
 
+      // Move a goal to a different category. The row keeps its id so its logged
+      // progress travels with it rather than restarting at zero.
+      moveGoalToCategory: (kind, fromCatId, index, toCatId) => {
+        const cats = get().categories;
+        const source = cats.find((c) => c.id === fromCatId);
+        const target = cats.find((c) => c.id === toCatId);
+        if (!source || !target || fromCatId === toCatId) return;
+        const listKey = kind === "action" ? "actions" : "results";
+        const item = source[listKey]?.[index];
+        if (!item) return;
+
+        const next = cats.map((c) => {
+          if (c.id === fromCatId) return { ...c, [listKey]: (c[listKey] || []).filter((_, i) => i !== index) };
+          if (c.id === toCatId) return { ...c, [listKey]: [...(c[listKey] || []), item] };
+          return c;
+        });
+
+        const serverId = !String(item.id || "").startsWith("tmp-") ? item.id : null;
+        get().commit(
+          next,
+          serverId
+            ? {
+                op: kind === "action" ? "action/update" : "result/update",
+                args: { id: serverId, body: { categoryId: toCatId } },
+              }
+            : {},
+        );
+      },
+
       // Zero only what a reset is actually allowed to zero. A monthly counter
       // is the user's month-to-date progress and must survive a stray reset,
       // so this respects each action's own resetType instead of flattening
@@ -1791,6 +2015,10 @@ export const useGoalsStore = create(
             lastMonthKey: s.lastMonthKey,
             demoSeeded: s.demoSeeded,
             pendingMutations: s.pendingMutations,
+            onboarding: s.onboarding,
+            settings: s.settings,
+            tourSeen: s.tourSeen,
+            activityDays: s.activityDays,
           };
         },
         onRehydrateStorage: () => (state) => {

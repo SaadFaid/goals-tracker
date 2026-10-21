@@ -1,18 +1,38 @@
 import { useState } from "react";
 import { api, setAccessToken } from "../lib/api";
 import { setStoredRefreshToken } from "../lib/storageScope";
+import { Btn, Field, Input } from "./ui";
+import { IconEye, IconEyeOff } from "./Icons";
+import { toast } from "../lib/toast";
 
-export default function ChangePassword({ onClose }) {
+const strong = (value) =>
+  value.length >= 8 &&
+  /[A-Z]/.test(value) &&
+  /[0-9]/.test(value) &&
+  /[^A-Za-z0-9]/.test(value);
+
+/**
+ * Change password, inline inside Settings. The server drops every other refresh
+ * token on success and hands back this session's replacement, so the current
+ * device stays signed in.
+ */
+export default function ChangePassword({ onDone }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (busy) return;
     setError(null);
+    if (!strong(newPassword)) {
+      setError("Min. 8 characters, with a capital, a number and a symbol.");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError("The two new passwords do not match.");
       return;
@@ -20,15 +40,14 @@ export default function ChangePassword({ onClose }) {
     setBusy(true);
     try {
       const { accessToken, refreshToken } = await api.changePassword(currentPassword, newPassword);
-      // The server drops every refresh token on a password change and hands
-      // back a fresh access token, so keep this session alive rather than
-      // dropping the user back on the login screen.
       if (accessToken) setAccessToken(accessToken);
       setStoredRefreshToken(refreshToken);
       setDone(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      toast("Password updated");
+      onDone?.();
     } catch (err) {
       setError(err.message || "Could not change the password.");
     } finally {
@@ -36,94 +55,73 @@ export default function ChangePassword({ onClose }) {
     }
   };
 
-  const field =
-    "w-full px-3 py-2 text-sm rounded-lg bg-[var(--color-sunken)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]";
+  if (done) {
+    return (
+      <p className="text-sm" style={{ color: "var(--color-accent)" }}>
+        Password updated. Any other device is signed out.
+      </p>
+    );
+  }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.55)" }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl p-5 flex flex-col gap-4"
-        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)" }}
-        onClick={(e) => e.stopPropagation()}
+    <form onSubmit={submit} className="flex flex-col gap-3 max-w-[380px]">
+      <Field label="Current password" id="pl-cur-pw">
+        <Input
+          id="pl-cur-pw"
+          type={show ? "text" : "password"}
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          autoComplete="current-password"
+        />
+      </Field>
+
+      <Field
+        label="New password"
+        id="pl-new-pass"
+        hint="8+ characters, with a capital, a number and a symbol."
       >
-        <h2 className="text-base font-bold">Change password</h2>
+        <div className="relative">
+          <Input
+            id="pl-new-pass"
+            type={show ? "text" : "password"}
+            value={newPassword}
+            onChange={setNewPassword}
+            autoComplete="new-password"
+            className="pr-11"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="absolute right-2 top-1/2 -translate-y-1/2 grid place-items-center w-8 h-8 rounded-md cursor-pointer"
+            style={{ color: "var(--color-text-tertiary)" }}
+          >
+            {show ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+          </button>
+        </div>
+      </Field>
 
-        {done ? (
-          <>
-            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-              Password updated. Any other device is signed out.
-            </p>
-            <button onClick={onClose} className="nav-btn nav-btn-primary py-2" style={{ background: "var(--color-accent)", color: "#101010" }}>
-              Close
-            </button>
-          </>
-        ) : (
-          <form onSubmit={submit} className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
-              Current password
-              <input
-                type="password"
-                className={field}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
+      <Field label="Confirm new password" id="pl-confirm-pass">
+        <Input
+          id="pl-confirm-pass"
+          type={show ? "text" : "password"}
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          autoComplete="new-password"
+        />
+      </Field>
 
-            <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
-              New password
-              <input
-                type="password"
-                className={field}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-              <span className="font-normal" style={{ color: "var(--color-text-tertiary)" }}>
-                8+ characters, with an uppercase letter, a number and a symbol.
-              </span>
-            </label>
+      {error ? (
+        <p className="text-xs" style={{ color: "var(--color-danger)" }} role="alert">
+          {error}
+        </p>
+      ) : null}
 
-            <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--color-text-secondary)" }}>
-              Confirm new password
-              <input
-                type="password"
-                className={field}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-
-            {error && (
-              <p className="text-xs" style={{ color: "var(--color-danger, #e5484d)" }}>
-                {error}
-              </p>
-            )}
-
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={onClose} className="nav-btn py-2" disabled={busy}>
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="nav-btn nav-btn-primary py-2"
-                style={{ background: "var(--color-accent)", color: "#101010" }}
-                disabled={busy}
-              >
-                {busy ? "Updating..." : "Update password"}
-              </button>
-            </div>
-          </form>
-        )}
+      <div>
+        <Btn type="submit" busy={busy} disabled={busy}>
+          Update password
+        </Btn>
       </div>
-    </div>
+    </form>
   );
 }

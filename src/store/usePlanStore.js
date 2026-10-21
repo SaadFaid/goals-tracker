@@ -5,7 +5,7 @@ import { useGoalsStore } from "./useGoalsStore";
 import { api } from "../lib/api";
 import { makeExamplePlanRows } from "../lib/seedExamples";
 
-const PLAN_KEY = "august-goals-schedule-v1";
+const PLAN_KEY = "paceline-schedule-v1";
 const MAX_HISTORY = 30;
 
 function uid() {

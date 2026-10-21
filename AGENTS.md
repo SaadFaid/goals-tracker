@@ -1,4 +1,4 @@
-# AGENTS.md — august-goals
+# AGENTS.md — Paceline
 
 ## Structure
 
@@ -16,6 +16,8 @@ Two independent npm packages, **not** a workspace. Run commands from the correct
 
 **Push with** `git push origin master`. (The old `private` remote →
 `SaadFaid/august-goals` has been retired; there is no second repo to sync.)
+
+- Product name is **Paceline** (see `src/lib/brand.js`). Never reintroduce an old brand string in UI, titles, meta, emails or legal copy.
 
 ## Secrets never enter the repo — not even a private one
 
@@ -37,7 +39,7 @@ EnvironmentFile=/etc/goals-tracker/secrets.env
 - **No ESLint** — linter is `oxlint` (React plugin). `npm run lint` from root.
 - **Tests are pure** — `server/test/` uses `node:test` + `node:assert`. No Jest, no vitest, no DB. `npm test` from `server/`.
 - **Calc logic is duplicated, not shared** — `server/src/lib/calc.js` (server) and `src/lib/score.js` (client) are separate implementations. Update **both** when changing calculation logic; server is the tested source of truth. Similarly `src/data/goals.js` mirrors `server/src/seed/defaultCategories.js` reward tier generation for guest mode.
-- **Guest-first** — frontend works fully offline in localStorage (`august-goals-guest-v2`). Server sync is optional.
+- **Guest-first** — frontend works fully offline in localStorage (`paceline-guest-v2`). Server sync is optional. Old `august-goals-*` keys are renamed on first load by `src/lib/brandMigration.js`; do not delete its `LEGACY_LOCAL_SALT`.
 - **Env required for server** — copy `server/.env.example` to `server/.env`. Needs `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `DATABASE_URL`. Docker Compose provides Postgres on :5432.
 - **Database is Supabase, not Docker** — `server/.env` points at Supabase's Postgres 17. Bootstrap SQL lives in `server/supabase/schema.sql` (paste into the Supabase SQL Editor). The Docker Compose DB in `server/docker-compose.yml` is now unused; the 8 migrations are baselined as applied against Supabase.
 - **The `aws-0-` pooler is the wrong node** — this project's region is `eu-central-1` but its pooler is `aws-1-eu-central-1`, not `aws-0-eu-central-1`. The `aws-0-*` host resolves and accepts TCP, then fails with `ENOTFOUND tenant/user`. Never assume `aws-0`; copy the host from the dashboard's connection string.
@@ -78,6 +80,8 @@ npm test               # unit tests (node:test, no DB)
 - **Supabase bootstrap SQL**: `server/supabase/schema.sql` — mirrors `schema.prisma` exactly; re-paste it only when creating a brand-new database
 - **Auth is not Supabase Auth** — the app does its own bcrypt + JWT. There is no `auth.users` link and RLS is deliberately off, because Prisma connects as `postgres` (BYPASSRLS) and the API layer does all authorization. Enabling RLS without policies will silently break every query.
 - **Frontend API base**: `VITE_API_URL || http://localhost:4000/api`
+- **Routing is hash-based** (`#/`, `#/login`, `#/signup`, `#/forgot`, `#/reset?token=`, `#/legal/:id`, `#/app`) so it works under the GitHub Pages subpath with no rewrite rules.
+- **One dialog at a time** — every popup goes through `openDialog()` in the store and renders from `<DialogHost />`; never mount a second modal directly.
 - **CORS origin**: `CLIENT_ORIGIN` env var (default `http://localhost:5173`)
 - **`sortOrder` is dropped for categories** — `calculateDashboardState` builds each
   category from an explicit field list, so a field not named there is lost.

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, memo } from "react";
 import { categoryPct, actionPct, resultPct, resultDoneValue, resultNotDoneValue, categoryWeightsSum, checkRewardUnlock, computeOverallPct } from "../lib/score";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { CATEGORY_COLORS, dotColorToHex } from "../lib/categoryColors";
-import { IconTrophy, IconLock, IconCheck, IconClose } from "./Icons";
+import { IconTrophy, IconLock, IconCheck, IconClose, IconPencil } from "./Icons";
 
 const ACCENT = "var(--color-accent)";
 
@@ -456,12 +456,15 @@ function CheckCircle({ pct, done, onTap, onOpenMenu }) {
   );
 }
 
-function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId }) {
+function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId, categoryId }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(actionPct(item));
   const done = item.current >= safeTarget;
   const isCheck = item.actionType === "check";
   const [menu, setMenu] = useState(false);
+  const openDialog = useGoalsStore((s) => s.openDialog);
+  const openLog = () => openDialog({ type: "log-progress", kind: "action", categoryId, index });
+  const openEdit = () => openDialog({ type: "edit-goal", kind: "action", categoryId, index });
 
   const bump = (amount) => { onIncrement(amount); setMenu(false); };
   const markDone = () => { onIncrement(safeTarget - item.current); setMenu(false); };
@@ -520,27 +523,41 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
             </>
           ) : (
             <>
-              <span className="text-muted mono text-[11px]">
-                <EditableNumber value={item.current} onChange={onUpdate} ariaLabel="Edit action count" />
-                {item.actionType !== "count" ? item.unit : ""}
-                {" / "}
-                {editable ? (
-                  <>
-                    <EditableNumber value={item.target} onChange={(v) => onFieldChange("target", v)} ariaLabel="Edit action target" />
-                    {item.actionType !== "count" && (
-                      <EditableText value={item.unit || ""} onChange={(v) => onFieldChange("unit", v)} ariaLabel="Edit action unit" />
-                    )}
-                  </>
-                ) : (
-                  <>{item.target}{item.actionType !== "count" ? item.unit : ""}</>
-                )}
-              </span>
+              {editable ? (
+                <span className="text-muted mono text-[11px]">
+                  <EditableNumber value={item.current} onChange={onUpdate} ariaLabel="Edit action count" />
+                  {item.actionType !== "count" ? item.unit : ""}
+                  {" / "}
+                  <EditableNumber value={item.target} onChange={(v) => onFieldChange("target", v)} ariaLabel="Edit action target" />
+                  {item.actionType !== "count" && (
+                    <EditableText value={item.unit || ""} onChange={(v) => onFieldChange("unit", v)} ariaLabel="Edit action unit" />
+                  )}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openLog}
+                  title="Log progress"
+                  className="text-muted mono text-[11px] cursor-pointer hover:text-heading transition-colors"
+                >
+                  {item.current}
+                  {item.actionType !== "count" ? item.unit : ""}
+                  {" / "}
+                  {item.target}
+                  {item.actionType !== "count" ? item.unit : ""}
+                </button>
+              )}
               <span
                 className="text-heading font-semibold mono w-14 text-right"
                 style={pct >= 100 ? { color: "var(--color-success)", fontSize: 11 } : undefined}
               >
                 {pctLabel}
               </span>
+              {editable && (
+                <button onClick={openEdit} title="Edit goal" aria-label="Edit goal" className="stepper-btn">
+                  <IconPencil size={11} />
+                </button>
+              )}
               <button
                 onClick={stepDown}
                 title="Step down"
@@ -656,13 +673,16 @@ function TaskMenu({ item, onFieldChange, done, onMarkDone, onReset, bump }) {
   );
 }
 
-function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId }) {
+function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement, editable, index, onMove, listId, categoryId }) {
   const safeTarget = item.target > 0 ? item.target : 1;
   const pct = Math.round(resultPct(item));
   const isBadge = !!item.isBadge;
   const isCheck = (item.resultType || (item.invert ? "check" : "count")) === "check";
   const done = isBadge ? item.current >= safeTarget : pct >= 100;
   const [menu, setMenu] = useState(false);
+  const openDialog = useGoalsStore((s) => s.openDialog);
+  const openLog = () => openDialog({ type: "log-progress", kind: "result", categoryId, index });
+  const openEdit = () => openDialog({ type: "edit-goal", kind: "result", categoryId, index });
 
   const bump = (amount) => { onIncrement(amount); setMenu(false); };
   const markDone = () => { onUpdate(resultDoneValue(item)); setMenu(false); };
@@ -721,21 +741,31 @@ function ResultRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
               <CheckCircle pct={pct} done={done} onTap={() => onIncrement && onIncrement()} onOpenMenu={editable ? () => setMenu(true) : undefined} />
             </span>
           )}
-          {!isCheck && (
-            <span className="text-muted mono text-[11px]">
-              <EditableNumber value={item.current} onChange={onUpdate} ariaLabel="Edit result value" />
-              {item.unit} /{" "}
-              {editable ? (
-                <>
-                  <EditableNumber value={item.target} onChange={(v) => onFieldChange("target", v)} ariaLabel="Edit result target" />
-                  <EditableText value={item.unit || ""} onChange={(v) => onFieldChange("unit", v)} ariaLabel="Edit result unit" />
-                </>
-              ) : (
-                <>{item.target}{item.unit}</>
-              )}
-            </span>
-          )}
+          {!isCheck && (editable ? (
+              <span className="text-muted mono text-[11px]">
+                <EditableNumber value={item.current} onChange={onUpdate} ariaLabel="Edit result value" />
+                {item.unit} /{" "}
+                <EditableNumber value={item.target} onChange={(v) => onFieldChange("target", v)} ariaLabel="Edit result target" />
+                <EditableText value={item.unit || ""} onChange={(v) => onFieldChange("unit", v)} ariaLabel="Edit result unit" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={openLog}
+                title="Log progress"
+                className="text-muted mono text-[11px] cursor-pointer hover:text-heading transition-colors"
+              >
+                {item.current}
+                {item.unit} / {item.target}
+                {item.unit}
+              </button>
+            ))}
           {!isCheck && <span className="text-heading font-semibold mono w-8 text-right">{pct}%</span>}
+          {editable && (
+            <button onClick={openEdit} title="Edit goal" aria-label="Edit goal" className="stepper-btn">
+              <IconPencil size={11} />
+            </button>
+          )}
           {menu && (
             <ResultMenu
               item={item}
@@ -816,7 +846,8 @@ function ResultMenu({ item, onFieldChange, done, onMarkDone, onReset, bump, isCh
   );
 }
 
-function EmptyList({ type, onAdd, addOpen, setAddOpen, canAdd }) {
+function EmptyList({ type, onAdd, addOpen, setAddOpen, canAdd, categoryId, categoryName }) {
+  const openDialog = useGoalsStore((s) => s.openDialog);
   if (!canAdd) {
     return (
       <div className="text-center py-3 border border-dashed rounded-lg mb-1" style={{ borderColor: "var(--color-border-subtle)" }}>
@@ -829,7 +860,18 @@ function EmptyList({ type, onAdd, addOpen, setAddOpen, canAdd }) {
       {!addOpen ? (
         <div className="text-center py-3 border border-dashed rounded-lg mb-1" style={{ borderColor: "var(--color-border-subtle)" }}>
           <p className="text-text-tertiary text-xs mb-1">No {type} yet. Add one to start tracking.</p>
-          <button onClick={() => setAddOpen(true)} className="text-xs font-semibold" style={{ color: "var(--color-accent)" }}>
+          <button
+            onClick={() =>
+              openDialog({
+                type: "add-goal",
+                categoryId,
+                categoryName,
+                kind: type === "results" ? "result" : "action",
+              })
+            }
+            className="text-xs font-semibold cursor-pointer"
+            style={{ color: "var(--color-accent)" }}
+          >
             + Add {type.replace(/s$/, "")}
           </button>
         </div>
@@ -1341,6 +1383,7 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
   const [nameDraft, setNameDraft] = useState(category.name);
   const [colorOpen, setColorOpen] = useState(false);
   const [addOpen, setAddOpen] = useState({ actions: false, results: false });
+  const openDialog = useGoalsStore((st) => st.openDialog);
   const catTimer = useRef(null);
 
   const onDragStart = (e) => {
@@ -1584,13 +1627,14 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                   Actions · Scored
                 </h3>
                 {(category.actions || []).length === 0 ? (
-                  <EmptyList type="actions" canAdd={editMode} onAdd={(d) => onAddAction(category.id, d)} addOpen={addOpen.actions} setAddOpen={(v) => setAddOpen((s) => ({ ...s, actions: v }))} />
+                  <EmptyList type="actions" canAdd={editMode} categoryId={category.id} categoryName={category.name} onAdd={(d) => onAddAction(category.id, d)} addOpen={addOpen.actions} setAddOpen={(v) => setAddOpen((s) => ({ ...s, actions: v }))} />
                 ) : (
                   <>
                     <div className="flex flex-col gap-0.5">
                       {(category.actions || []).map((item, i) => (
                         <ActionRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
                           index={i}
+                          categoryId={category.id}
                           listId={`actions:${category.id}`}
                           onMove={(from, to) => onMoveAction(category.id, from, to)}
                           onUpdate={(v) => onActionUpdate(category.id, i, "current", v)}
@@ -1602,7 +1646,11 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                     {editMode && (addOpen.actions ? (
                       <AddForm type="actions" onAdd={(d) => onAddAction(category.id, d)} onCancel={() => setAddOpen((s) => ({ ...s, actions: false }))} />
                     ) : (
-                      <button onClick={() => setAddOpen((s) => ({ ...s, actions: true }))} className="mt-1 text-xs font-semibold" style={{ color: "var(--color-accent)" }}>
+                      <button
+                        onClick={() => openDialog({ type: "add-goal", categoryId: category.id, categoryName: category.name, kind: "action" })}
+                        className="mt-1 text-xs font-semibold cursor-pointer"
+                        style={{ color: "var(--color-accent)" }}
+                      >
                         + Add action
                       </button>
                     ))}
@@ -1615,13 +1663,14 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                   Results · Tracked
                 </h3>
                 {(category.results || []).length === 0 ? (
-                  <EmptyList type="results" canAdd={editMode} onAdd={(d) => onAddResult(category.id, d)} addOpen={addOpen.results} setAddOpen={(v) => setAddOpen((s) => ({ ...s, results: v }))} />
+                  <EmptyList type="results" canAdd={editMode} categoryId={category.id} categoryName={category.name} onAdd={(d) => onAddResult(category.id, d)} addOpen={addOpen.results} setAddOpen={(v) => setAddOpen((s) => ({ ...s, results: v }))} />
                 ) : (
                   <>
                     <div className="flex flex-col gap-0.5">
                       {(category.results || []).map((item, i) => (
                         <ResultRow key={item.id || item.label} item={item} color={headerColor} editable={editMode}
                           index={i}
+                          categoryId={category.id}
                           listId={`results:${category.id}`}
                           onMove={(from, to) => onMoveResult(category.id, from, to)}
                           onUpdate={(v) => onResultUpdate(category.id, i, "current", v)}
@@ -1633,7 +1682,11 @@ function RewardsGrid({ category, rewards, onClaim, onUnclaim, onAddReward, onUpd
                     {editMode && (addOpen.results ? (
                       <AddForm type="results" onAdd={(d) => onAddResult(category.id, d)} onCancel={() => setAddOpen((s) => ({ ...s, results: false }))} />
                     ) : (
-                      <button onClick={() => setAddOpen((s) => ({ ...s, results: true }))} className="mt-1 text-xs font-semibold" style={{ color: "var(--color-accent)" }}>
+                      <button
+                        onClick={() => openDialog({ type: "add-goal", categoryId: category.id, categoryName: category.name, kind: "result" })}
+                        className="mt-1 text-xs font-semibold cursor-pointer"
+                        style={{ color: "var(--color-accent)" }}
+                      >
                         + Add result
                       </button>
                     ))}

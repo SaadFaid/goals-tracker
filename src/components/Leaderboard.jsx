@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
+import { IconFlame } from "./Icons";
 
 // Everyone ranked by progress, best first. The percentage is the same
 // overall-quality number each member sees on their own dashboard, so a row here
@@ -130,7 +131,15 @@ export default function Leaderboard({ onClose }) {
                     </span>
                   )}
                 </span>
-                <span className="w-24 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-border-subtle)" }}>
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums shrink-0 w-8"
+                  style={{ color: e.streak ? "var(--color-accent)" : "var(--color-text-tertiary)" }}
+                  title={`${e.streak || 0}-day streak`}
+                >
+                  <IconFlame size={11} />
+                  {e.streak || 0}
+                </span>
+                <span className="w-20 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-border-subtle)" }}>
                   <span
                     className="block h-full rounded-full"
                     style={{ width: `${e.percent}%`, background: "var(--color-accent)" }}

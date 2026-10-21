@@ -5,8 +5,8 @@ import { IconClose } from "./Icons";
 import { scopeKey } from "../lib/storageScope";
 import { makeExampleDays } from "../lib/seedExamples";
 
-const NOTES_BASE = "august-goals-notes";
-const DAYS_BASE = "august-goals-notes-days";
+const NOTES_BASE = "paceline-notes";
+const DAYS_BASE = "paceline-notes-days";
 const ROW_H = 30;
 
 const MONTHS = [

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BRAND, LEGAL_PAGES } from "../lib/brand";
 
 export default function Footer({ onReset, onCopyLastMonth, onEmptyMonth }) {
   const [hint, setHint] = useState(null);
@@ -72,6 +73,26 @@ export default function Footer({ onReset, onCopyLastMonth, onEmptyMonth }) {
       >
         {hint ? hint.text : "\u00A0"}
       </p>
+
+      <div
+        className="mt-2 pt-4 flex flex-col items-center gap-2"
+        style={{ borderTop: "1px solid var(--color-border-subtle)" }}
+      >
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1" aria-label="Legal">
+          {LEGAL_PAGES.map((page) => (
+            <a
+              key={page.id}
+              href={`#/legal/${page.id}`}
+              className="text-[11px] text-text-tertiary hover:text-heading transition-colors"
+            >
+              {page.title}
+            </a>
+          ))}
+        </nav>
+        <p className="text-[11px] text-text-tertiary">
+          {BRAND.name} · © {BRAND.year}
+        </p>
+      </div>
     </footer>
   );
 }

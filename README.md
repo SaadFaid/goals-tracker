@@ -1,6 +1,8 @@
-# august-goals
+# Paceline
 
-A personal monthly goals tracker. You build your month out of **categories**, each holding weighted **actions** and **results**. Progress is tracked and turned into a running quality score; as the score or specific tasks reach their targets, **rewards** unlock that you can claim.
+**Set goals. Stay on pace.** A monthly goals tracker: weighted actions, tracked results, daily streaks and a pace line that tells you if you are ahead or behind.
+
+You build your month out of **categories**, each holding weighted **actions** and **results**. Progress is tracked and turned into a running quality score; as the score or specific tasks reach their targets, **rewards** unlock that you can claim.
 
 ## The concept
 

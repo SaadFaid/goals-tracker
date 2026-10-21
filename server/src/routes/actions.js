@@ -151,6 +151,21 @@ router.patch("/:id", async (req, res, next) => {
       data.sortOrder = req.body.sortOrder;
     }
 
+    // Moving a goal to another category. The row keeps its id, so its logged
+    // progress travels with it instead of being reset by a delete + create.
+    if (req.body.categoryId !== undefined) {
+      assert(typeof req.body.categoryId === "string" && req.body.categoryId, 400, "categoryId must be a string");
+      if (req.body.categoryId !== action.categoryId) {
+        await assertCategoryOwned(req.body.categoryId, req.user.id);
+        const max = await prisma.action.aggregate({
+          where: { categoryId: req.body.categoryId },
+          _max: { sortOrder: true },
+        });
+        data.categoryId = req.body.categoryId;
+        if (req.body.sortOrder === undefined) data.sortOrder = (max._max.sortOrder ?? -1) + 1;
+      }
+    }
+
     const updated = await prisma.action.update({ where: { id: action.id }, data });
 
     if (weightChanged) {

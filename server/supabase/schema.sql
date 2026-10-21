@@ -1,4 +1,4 @@
--- goals-tracker / august-goals — Supabase schema
+-- Paceline — Supabase schema
 -- Paste into Supabase Dashboard → SQL Editor → Run.
 --
 -- Mirrors server/prisma/schema.prisma exactly (quoted CamelCase identifiers,

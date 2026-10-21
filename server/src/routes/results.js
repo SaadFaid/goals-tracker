@@ -119,6 +119,20 @@ router.patch("/:id", async (req, res, next) => {
       data.sortOrder = req.body.sortOrder;
     }
 
+    // Same move support as actions: the row keeps its id, so progress survives.
+    if (req.body.categoryId !== undefined) {
+      assert(typeof req.body.categoryId === "string" && req.body.categoryId, 400, "categoryId must be a string");
+      if (req.body.categoryId !== result.categoryId) {
+        await assertCategoryOwned(req.body.categoryId, req.user.id);
+        const max = await prisma.result.aggregate({
+          where: { categoryId: req.body.categoryId },
+          _max: { sortOrder: true },
+        });
+        data.categoryId = req.body.categoryId;
+        if (req.body.sortOrder === undefined) data.sortOrder = (max._max.sortOrder ?? -1) + 1;
+      }
+    }
+
     const updated = await prisma.result.update({ where: { id: result.id }, data });
     const dashboard = await recomputeAndLog(req.user.id);
     return res.json({ result: updated, dashboard });

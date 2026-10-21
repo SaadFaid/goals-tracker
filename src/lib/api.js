@@ -155,6 +155,11 @@ export const api = {
     request("POST", "/auth/change-password", { currentPassword, newPassword }),
   forgotPassword: (email) => request("POST", "/auth/forgot-password", { email }, { authed: false }),
   resetPassword: (token, password) => request("POST", "/auth/reset-password", { token, password }, { authed: false }),
+  // Account preferences (leaderboard visibility, email toggles, plan).
+  getSettings: () => request("GET", "/auth/settings"),
+  saveSettings: (body) => request("PATCH", "/auth/settings", body),
+  // Wipes the account and everything attached to it.
+  deleteAccount: () => request("DELETE", "/auth/account"),
 
   // Dashboard
   dashboard: (date) => request("GET", `/dashboard${date ? `?date=${date}` : ""}`),

@@ -16,6 +16,41 @@ import MonthEndAnalysis from "./components/MonthEndAnalysis";
 import PrintReport from "./components/PrintReport";
 import Leaderboard from "./components/Leaderboard";
 import PlanPage from "./components/PlanPage";
+import Landing from "./pages/Landing";
+import Legal from "./pages/Legal";
+import ResetPassword from "./components/ResetPassword";
+import Onboarding from "./components/Onboarding";
+import HowToTour from "./components/HowToTour";
+import SettingsPanel from "./components/SettingsPanel";
+import { DialogHost } from "./components/GoalDialogs";
+import { Toaster } from "./components/ui";
+
+const go = (path) => {
+  if (window.location.hash !== `#${path}`) window.location.hash = path;
+};
+
+/* ── Hash routing ──────────────────────────────────────────────
+   No router dependency: the app is served from a Pages subpath, and a hash
+   route works there without any server rewrite rules.
+   #/            landing (public)
+   #/login       log in
+   #/signup      create account
+   #/forgot      request a reset link
+   #/reset       set a new password (?token=…)
+   #/legal/:id   privacy / terms / refunds / cookies
+   #/app         the tracker
+   ────────────────────────────────────────────────────────────── */
+function useHashRoute() {
+  const [hash, setHash] = useState(() => window.location.hash || "#/");
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash || "#/");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const raw = hash.replace(/^#/, "") || "/";
+  const [pathname, query] = raw.split("?");
+  return { pathname: pathname || "/", params: new URLSearchParams(query || "") };
+}
 
 function useDashboard() {
   const categories = useGoalsStore((s) => s.categories);
@@ -24,14 +59,25 @@ function useDashboard() {
   return { categories, dashboard, progressLogs };
 }
 
+function Loading() {
+  return (
+    <div className="min-h-screen bg-navy-900 flex items-center justify-center">
+      <p className="text-text-tertiary">Loading…</p>
+    </div>
+  );
+}
+
 export default function App() {
-  const sessionStarted = useGoalsStore((s) => s.sessionStarted);
   const bootstrapped = useGoalsStore((s) => s.bootstrapped);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const userEmail = useGoalsStore((s) => s.user?.email);
-  const sessionRestoring = useGoalsStore((s) => s.sessionRestoring);
+  const sessionStarted = useGoalsStore((s) => s.sessionStarted);
   const isServerBacked = useGoalsStore((s) => s.isServerBacked === true);
   const restoreSession = useGoalsStore((s) => s.restoreSession);
+  const onboarding = useGoalsStore((s) => s.onboarding);
+  const { pathname, params } = useHashRoute();
+
+  const signedIn = !!userEmail && !isGuest;
 
   // A reload rehydrates "logged in" from localStorage, but the access token is
   // gone. Re-establish it on mount, otherwise every edit this session would
@@ -41,11 +87,9 @@ export default function App() {
   }, [isGuest, userEmail, restoreSession]);
 
   // Signed in but the server dropped us (tunnel rotation, API restart). Bring
-  // the session back the moment the network returns, without a login flash:
-  // the refresh token is still valid, so restoreSession just mints a new
-  // access token and flushes the queued edits.
+  // the session back the moment the network returns, without a login flash.
   useEffect(() => {
-    if (isGuest || !userEmail || isServerBacked) return;
+    if (isGuest || !userEmail || isServerBacked) return undefined;
     const attempt = () => restoreSession();
     const onOnline = () => attempt();
     window.addEventListener("online", onOnline);
@@ -56,32 +100,56 @@ export default function App() {
     };
   }, [isGuest, userEmail, isServerBacked, restoreSession]);
 
-  if (!bootstrapped) {
+  // A signed-in member who lands on the marketing page keeps it, unless they
+  // asked to open the tracker.
+  useEffect(() => {
+    if (pathname === "/app" && !sessionStarted) go(signedIn ? "/app" : "/");
+  }, [pathname, sessionStarted, signedIn]);
+
+  if (!bootstrapped) return <Loading />;
+
+  /* ── Public pages ── */
+  if (pathname === "/" || pathname === "") return <Landing />;
+
+  if (pathname.startsWith("/legal/")) {
+    return <Legal id={pathname.split("/")[2]} />;
+  }
+
+  if (pathname === "/login" || pathname === "/signup") {
+    if (signedIn && sessionStarted) {
+      return <Dashboard />;
+    }
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-text-tertiary">Loading…</p>
-      </div>
+      <AuthScreen
+        mode={pathname === "/signup" ? "register" : "login"}
+        onModeChange={(next) => go(next === "register" ? "/signup" : "/login")}
+        onForgot={() => go("/forgot")}
+      />
     );
   }
 
-  if (!sessionStarted) {
-    return <AuthScreen />;
+  if (pathname === "/forgot") {
+    return <ResetPassword mode="forgot" onBack={() => go("/login")} />;
   }
 
-  // Holding the dashboard back means the user never sees a populated screen
-  // whose edits are about to fail to save. This is only meaningful at boot: a
-  // mid-session restore (reconnect probe while signed in) must not blank the
-  // populated dashboard for a second on every 15s attempt.
-  if (sessionRestoring && !sessionStarted) {
+  if (pathname === "/reset") {
     return (
-      <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-        <p className="text-text-tertiary">Loading…</p>
-      </div>
+      <ResetPassword
+        mode="reset"
+        token={params.get("token") || ""}
+        onBack={() => go("/login")}
+        onDone={() => go("/login")}
+      />
     );
   }
 
-  // Holding the dashboard back until the token is back means the user never
-  // sees a populated screen whose edits are about to fail to save.
+  /* ── The tracker ── */
+  if (!sessionStarted) return <Landing />;
+
+  if (onboarding.started && !onboarding.done) {
+    return <Onboarding onFinish={() => go("/app")} />;
+  }
+
   return <Dashboard />;
 }
 
@@ -90,9 +158,13 @@ function Dashboard() {
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const selectedMonth = useGoalsStore((s) => s.selectedMonth);
+  const tourSeen = useGoalsStore((s) => s.tourSeen);
+  const setTourSeen = useGoalsStore((s) => s.setTourSeen);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [view, setView] = useState("dashboard");
 
   const undo = useGoalsStore((s) => s.undo);
@@ -127,6 +199,11 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The tour runs once, right after onboarding.
+  useEffect(() => {
+    if (!tourSeen) setShowTour(true);
+  }, [tourSeen]);
+
   return (
     <main className="min-h-screen text-muted relative isolate">
       <div aria-hidden className="bg-anim">
@@ -142,8 +219,24 @@ function Dashboard() {
         onOpenAnalysis={() => setShowAnalysis(true)}
         onOpenLeaderboard={() => setShowLeaderboard(true)}
         onPrint={() => setShowPrint(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
       {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
+      <SettingsPanel
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        onOpenTour={() => setShowTour(true)}
+      />
+      <HowToTour
+        open={showTour}
+        onClose={() => {
+          setShowTour(false);
+          setTourSeen(true);
+        }}
+        onDone={() => setTourSeen(true)}
+      />
+      <DialogHost />
+      <Toaster />
       {showPrint && (
         <PrintReport
           cats={categories}

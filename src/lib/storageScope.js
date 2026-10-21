@@ -12,7 +12,7 @@
   // zustand reads the blob synchronously at construction time. Without this
   // marker the app always rehydrated the guest blob, so a server-backed user
   // got whatever the guest slot happened to hold.
-  const IDENTITY_KEY = "august-goals-active-identity";
+  const IDENTITY_KEY = "paceline-active-identity";
   
   // Called by the auth lifecycle whenever the active user changes. Also
   // persists the choice, so a page reload rehydrates the right namespace.
@@ -81,7 +81,7 @@ export function getIdentityScope() {
 // server returns it in auth responses because the httpOnly refresh cookie is a
 // third-party cookie when the app (GitHub Pages) and API (quick tunnel) are on
 // different sites, and browsers drop those.
-const REFRESH_TOKEN_KEY = "august-goals-refresh-token";
+const REFRESH_TOKEN_KEY = "paceline-refresh-token";
 
 export function setStoredRefreshToken(token) {
   if (token) identityStorage.setItem(REFRESH_TOKEN_KEY, token);

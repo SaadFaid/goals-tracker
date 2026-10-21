@@ -1,20 +1,17 @@
-import { useState } from "react";
 import { useGoalsStore } from "../store/useGoalsStore";
-import ChangePassword from "./ChangePassword";
+import Brand from "./Brand";
+import Avatar from "./Avatar";
 import { IconCheck, IconPencil, IconChart, IconPrint } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
-export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onOpenLeaderboard, onPrint }) {
-  const user = useGoalsStore((s) => s.user);
+export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onOpenLeaderboard, onPrint, onOpenSettings }) {
   const isGuest = useGoalsStore((s) => s.isGuest);
-  const logout = useGoalsStore((s) => s.logout);
   const openAuth = useGoalsStore((s) => s.openAuth);
   const editMode = useGoalsStore((s) => s.editMode);
   const toggleEditMode = useGoalsStore((s) => s.toggleEditMode);
 
-  const signedIn = !!user && !isGuest;
+  const signedIn = !isGuest;
   const isServerBacked = useGoalsStore((s) => s.isServerBacked === true);
-  const [changingPw, setChangingPw] = useState(false);
 
   // Shared pill style — calm glass when off, mint glow when on.
   const pill = (active) => ({
@@ -40,21 +37,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
       <header className="mx-auto max-w-[1100px] px-3 sm:px-5 pt-2 pb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
         style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <span
-            className="grid place-items-center w-6 h-6 rounded-lg shrink-0"
-            style={{
-              background: "var(--color-accent-muted)",
-              color: "var(--color-accent)",
-              boxShadow: "0 0 18px rgba(109,245,227,0.35)",
-            }}
-            aria-hidden="true"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </span>
-          <span className="brand text-sm text-heading leading-none hidden sm:inline">Tchizu Goal Tracker</span>
+          <Brand withMark size="sm" />
           <span className="relative flex w-2.5 h-2.5 shrink-0" aria-hidden="true">
             <span className="absolute inline-flex h-full w-full rounded-full opacity-70" style={{ background: "var(--color-accent)", animation: "brandPulse 2.4s ease-in-out infinite" }} />
             <span className="relative inline-flex rounded-full" style={{ width: 8, height: 8, margin: "auto", background: "var(--color-accent)" }} />
@@ -73,25 +56,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
                   Offline · saving on device
                 </span>
               )}
-              <span
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full max-w-[50vw] sm:max-w-none min-w-0"
-                style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-success)" }} aria-hidden="true" />
-                <span className="truncate">{user.name || user.email}</span>
-              </span>
-              {isServerBacked && (
-                <button onClick={() => setChangingPw(true)} className="nav-btn" style={pill(false)}>
-                  Password
-                </button>
-              )}
-              <button
-                onClick={logout}
-                className="nav-btn"
-                style={pill(false)}
-              >
-                Sign out
-              </button>
+              <Avatar onClick={() => onOpenSettings?.()} />
             </>
           ) : (
             <>
@@ -144,7 +109,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
               type="button"
               onClick={() => onOpenLeaderboard?.()}
               className="nav-btn"
-              title="Leaderboard — everyone ranked by progress"
+              title="Leaderboard — ranked by streak"
               style={pill(false)}
             >
               <span style={{ color: "var(--color-accent)" }}>
@@ -152,7 +117,7 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
                   <path d="M6 21V13M12 21V4M18 21v-6" />
                 </svg>
               </span>
-              Board
+              Leaderboard
             </button>
             <button
               onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
@@ -186,7 +151,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
         </div>
       </div>
 
-      {changingPw && <ChangePassword onClose={() => setChangingPw(false)} />}
     </>
   );
 }

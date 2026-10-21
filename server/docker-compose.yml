@@ -6,11 +6,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: august_goals
+      POSTGRES_DB: paceline
     ports:
       - "5432:5432"
     volumes:
-      - august_goals_pgdata:/var/lib/postgresql/data
+      - paceline_pgdata:/var/lib/postgresql/data
 
 volumes:
-  august_goals_pgdata:
+  paceline_pgdata:

@@ -767,6 +767,127 @@ html, body {
   .pl-section { break-inside: avoid; }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Paceline — landing page, dialogs, settings, tour
+   Everything below is built from the tokens above. No new colours,
+   no new fonts, no new radii: the app's look carries over as-is.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Dialog shell ─────────────────────────────────────────── */
+@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+.modal-backdrop { animation: modal-fade 0.18s ease-out; }
+
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-panel { animation: modal-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (max-width: 639px) {
+  @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-panel { animation: sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1); border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-in { animation: toast-in 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ── Settings drawer ─────────────────────────────────────── */
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.settings-drawer { animation: drawer-in 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (max-width: 639px) {
+  @keyframes sheet-up-soft { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .settings-drawer { animation: sheet-up-soft 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+}
+
+/* ── Landing page ────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s ease-out, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal.in { opacity: 1; transform: none; }
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+.float-gentle { animation: float-gentle 7s ease-in-out infinite; }
+.float-gentle-2 { animation: float-gentle 9s ease-in-out infinite 0.8s; }
+
+@keyframes soft-glow {
+  0%, 100% { box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(109, 245, 227, 0.10); }
+  50% { box-shadow: 0 26px 60px rgba(0, 0, 0, 0.55), 0 0 42px rgba(109, 245, 227, 0.20); }
+}
+.soft-glow { animation: soft-glow 6s ease-in-out infinite; }
+
+.ring-track { stroke: var(--color-sunken); }
+.ring-arc {
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ring-arc.in { transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1); }
+
+.chart-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  transition: stroke-dashoffset 1.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.chart-line.in { stroke-dashoffset: 0; }
+.chart-dash { opacity: 0; transition: opacity 0.7s ease 0.9s; }
+.chart-dash.in { opacity: 1; }
+
+.bar-grow { transform: scaleX(0); transform-origin: left; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.bar-grow.in { transform: scaleX(1); }
+
+.faq-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+.faq-body.open { grid-template-rows: 1fr; }
+.faq-body > div { overflow: hidden; }
+
+.count-up { font-variant-numeric: tabular-nums; }
+
+.nav-blur {
+  background: linear-gradient(180deg, rgba(20, 40, 37, 0.92), rgba(11, 22, 21, 0.84));
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  box-shadow: inset 0 1px 0 rgba(229, 246, 240, 0.07), 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+.press-btn { transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease; }
+.press-btn:hover { filter: brightness(1.08); }
+.press-btn:active { transform: scale(0.97); }
+
+.arrow-slide { transition: transform 0.2s ease; }
+.hover-arrow:hover .arrow-slide { transform: translateX(4px); }
+
+.gradient-text {
+  background: linear-gradient(100deg, var(--color-accent-strong), var(--color-accent) 45%, var(--color-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cookie-banner-in { animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ── Onboarding ──────────────────────────────────────────── */
+.step-seg { transition: background 0.35s ease, box-shadow 0.35s ease; }
+
+.tour-demo-ring { animation: tour-spin 3.6s linear infinite; transform-origin: 50% 50%; }
+@keyframes tour-spin { to { transform: rotate(360deg); } }
+
 /* ---- Flip-clock fullscreen focus timer ---- */
 .flip-tile {
   position: relative;

@@ -119,5 +119,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Tchizu Goal Tracker API listening on http://localhost:${PORT}`);
+  console.log(`Paceline API listening on http://localhost:${PORT}`);
 });

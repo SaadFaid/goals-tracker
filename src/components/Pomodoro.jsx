@@ -4,8 +4,8 @@ import { scopeKey } from "../lib/storageScope";
 import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 
-const STORAGE_BASE = "august-goals-pomodoro";
-const ALERT_KEY = "august-goals-alerts";
+const STORAGE_BASE = "paceline-pomodoro";
+const ALERT_KEY = "paceline-alerts";
 const REPEAT_MS = 10_000;
 
 const SF =

@@ -441,7 +441,7 @@ export default function PrintReport({ cats, dashboard, logs, selectedMonth, user
       <div className="print-doc">
         <header className="pl-header">
           <div>
-            <div className="pl-kicker">Tchizu Goal Tracker</div>
+            <div className="pl-kicker">Paceline</div>
             <h1>{monthName} {displayYear}</h1>
             <div className="pl-account">{account}</div>
           </div>

@@ -171,3 +171,40 @@ export const IconRotate = (p) => (
     <path d="M3 4v5h5" />
   </Svg>
 );
+
+export const IconEye = (p) => (
+  <Svg {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </Svg>
+);
+
+export const IconEyeOff = (p) => (
+  <Svg {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 5.2A9.9 9.9 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.3 4.1" />
+    <path d="M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.6 9.6 0 0 0 4.1-.9" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </Svg>
+);
+
+export const IconFlame = (p) => (
+  <Svg {...p}>
+    <path d="M12 2s5 4.2 5 9a5 5 0 0 1-10 0c0-1.6.6-2.8 1.2-3.7 0 1.3.7 2.2 1.6 2.2 1.2 0 1.7-1.1 1.7-2.4 0-2-.8-3.6.5-5.1Z" />
+    <path d="M9.5 13.5a2.6 2.6 0 0 0 2.5 2.6 2.6 2.6 0 0 0 2.5-2.6" />
+  </Svg>
+);
+
+export const IconArrowRight = (p) => (
+  <Svg {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Svg>
+);
+
+export const IconExternal = (p) => (
+  <Svg {...p}>
+    <path d="M14 4h6v6" />
+    <path d="M20 4 11 13" />
+    <path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
+  </Svg>
+);

@@ -13,6 +13,8 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { seedUserCategories } from "../seed/defaultCategories.js";
 import { calculateDashboardState } from "../lib/calc.js";
+import { isConfigured as mailConfigured, sendPasswordReset } from "../lib/mailer.js";
+import { BRAND } from "../lib/brand.js";
 import {
   cleanText,
   isEmail,
@@ -33,7 +35,46 @@ async function loadDashboard(userId) {
 }
 
 function serializeUser(user) {
-  return { id: user.id, email: user.email, name: user.name, timezone: user.timezone, monthOffset: user.monthOffset };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    timezone: user.timezone,
+    monthOffset: user.monthOffset,
+    hideFromLeaderboard: !!user.hideFromLeaderboard,
+  };
+}
+
+// Only these preference keys are stored. Anything else a client sends is
+// dropped, so the JSON column cannot become a junk drawer.
+const PREF_KEYS = [
+  "emailReminders",
+  "emailWeekly",
+  "emailMonth",
+  "plan",
+  "planUntil",
+  "trialEnds",
+  "authProvider",
+  "country",
+  "currency",
+  "phone",
+];
+
+function pickPrefs(input) {
+  const out = {};
+  if (!input || typeof input !== "object") return out;
+  for (const key of PREF_KEYS) {
+    if (input[key] !== undefined) out[key] = input[key];
+  }
+  return out;
+}
+
+function settingsBag(settings) {
+  const bag = settings && typeof settings === "object" && !Array.isArray(settings) ? settings : {};
+  return {
+    activity: Array.isArray(bag.activity) ? bag.activity : [],
+    prefs: bag.prefs && typeof bag.prefs === "object" ? bag.prefs : {},
+  };
 }
 
 router.post("/register", async (req, res, next) => {
@@ -150,8 +191,23 @@ router.post("/forgot-password", async (req, res, next) => {
       data: { tokenHash, userId: user.id, expiresAt },
     });
 
-    // No email service configured: return the raw token so the UI can show it.
-    return res.json({ ok: true, resetToken: raw });
+    const link = `${BRAND.siteUrl}/#/reset?token=${raw}`;
+    let delivered = false;
+    try {
+      ({ delivered } = await sendPasswordReset({ to: user.email, name: user.name, link }));
+    } catch (err) {
+      // A mail failure must not reveal whether the address exists, and must not
+      // break the request — log it and fall through to the dev fallback.
+      console.error("[auth] reset email failed:", err.message);
+    }
+
+    if (delivered || mailConfigured()) {
+      return res.json({ ok: true });
+    }
+
+    // No mail transport on this host: hand the link back so the flow is still
+    // usable in development. It disappears the moment MAIL_WEBHOOK_URL is set.
+    return res.json({ ok: true, resetToken: raw, devLink: link });
   } catch (err) {
     next(err);
   }
@@ -250,6 +306,75 @@ router.get("/me", requireAuth, async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) throw createHttpError(404, "User not found");
     return res.json({ user: serializeUser(user), isGuest: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ── Preferences & activity (Paceline) ─────────────────────── */
+
+router.get("/settings", requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) throw createHttpError(404, "User not found");
+    const bag = settingsBag(user.settings);
+    return res.json({
+      settings: { ...bag, hideFromLeaderboard: !!user.hideFromLeaderboard },
+      user: serializeUser(user),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/settings", requireAuth, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    if (!user) throw createHttpError(404, "User not found");
+
+    const current = settingsBag(user.settings);
+    const nextBag = {
+      activity: current.activity,
+      prefs: current.prefs,
+    };
+
+    if (req.body.activity !== undefined) {
+      assert(Array.isArray(req.body.activity), 400, "activity must be an array");
+      nextBag.activity = req.body.activity
+        .filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+        .slice(-120);
+    }
+
+    if (req.body.settings !== undefined) {
+      assert(req.body.settings && typeof req.body.settings === "object", 400, "settings must be an object");
+      nextBag.prefs = { ...current.prefs, ...pickPrefs(req.body.settings) };
+    }
+
+    const data = { settings: nextBag };
+    if (req.body.hideFromLeaderboard !== undefined) {
+      data.hideFromLeaderboard = !!req.body.hideFromLeaderboard;
+    }
+
+    const updated = await prisma.user.update({ where: { id: user.id }, data });
+    return res.json({
+      settings: { ...settingsBag(updated.settings), hideFromLeaderboard: !!updated.hideFromLeaderboard },
+      user: serializeUser(updated),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Delete the account and everything hanging off it. Every relation on User
+ * cascades, so removing the row removes categories, goals, logs, snapshots,
+ * notes, plan items, reset tokens and refresh tokens in the same statement.
+ */
+router.delete("/account", requireAuth, async (req, res, next) => {
+  try {
+    await prisma.user.delete({ where: { id: req.user.id } });
+    clearRefreshCookie(res);
+    return res.json({ ok: true });
   } catch (err) {
     next(err);
   }
