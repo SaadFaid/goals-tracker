@@ -3,6 +3,7 @@ import { useGoalsStore } from "../store/useGoalsStore";
 import Brand from "./Brand";
 import { Btn, Input, Select } from "./ui";
 import { COUNTRIES, CURRENCIES, currencyOf, currentMonthLabel, detectRegion } from "../lib/geo";
+import { scopeKey } from "../lib/storageScope";
 
 /* ════════════════════════════════════════════════════════════
    Onboarding — eight short steps, saved as you go.
@@ -97,29 +98,59 @@ export default function Onboarding({ onFinish }) {
     const goals = onboarding.goals || [];
     const targets = onboarding.targets || {};
 
-    // 1. Keep only the areas the user picked (Rewards always stays).
-    for (const cat of [...store.categories]) {
-      if (cat.isRewards) continue;
-      const wanted = areas.some((a) => areaCategory(a) === cat.name);
-      if (!wanted) store.deleteCategory(cat.id);
+    // Onboarding runs its picker only on a month with nothing in it. On an
+    // account that already has history, the picker is an addition, never a
+    // deletion: this used to delete every goal the person did not re-tick and
+    // push those deletes to the server, which is exactly how a real month got
+    // wiped. Existing goals stay exactly as they are.
+    const hasWork =
+      (store.progressLogs || []).length > 1 ||
+      (store.categories || []).some((c) =>
+        [...(c.actions || []), ...(c.results || [])].some((x) => Number(x.current) > 0)
+      );
+
+    if (!hasWork) {
+      // 1. Keep only the areas the user picked (Rewards always stays).
+      for (const cat of [...store.categories]) {
+        if (cat.isRewards) continue;
+        const wanted = areas.some((a) => areaCategory(a) === cat.name);
+        if (!wanted) store.deleteCategory(cat.id);
+      }
+
+      // 2. Inside the kept categories, keep only the chosen goals.
+      for (const cat of useGoalsStore.getState().categories) {
+        if (cat.isRewards) continue;
+        const wanted = goals
+          .map(goalById)
+          .filter((g) => g && areaCategory(g.area) === cat.name);
+        const wantedLabels = wanted.map((g) => g.label);
+
+        for (let i = (cat.actions || []).length - 1; i >= 0; i -= 1) {
+          if (!wantedLabels.includes(cat.actions[i].label)) store.deleteAction(cat.id, i);
+        }
+        for (let i = (cat.results || []).length - 1; i >= 0; i -= 1) {
+          if (!wantedLabels.includes(cat.results[i].label)) store.deleteResult(cat.id, i);
+        }
+      }
+    } else {
+      // A local safety copy, taken before the picker touches anything. If a
+      // future picker bug still loses a goal, the month is one key away.
+      try {
+        localStorage.setItem(
+          scopeKey("paceline-before-onboarding", store.user?.email || "guest"),
+          JSON.stringify({ at: new Date().toISOString(), categories: store.categories })
+        );
+      } catch {
+        /* storage full: not worth failing onboarding over */
+      }
     }
 
-    // 2. Inside the kept categories, keep only the chosen goals.
+    // 3. Add the ones this month does not have yet, and set the numbers.
     for (const cat of useGoalsStore.getState().categories) {
       if (cat.isRewards) continue;
       const wanted = goals
         .map(goalById)
         .filter((g) => g && areaCategory(g.area) === cat.name);
-      const wantedLabels = wanted.map((g) => g.label);
-
-      for (let i = (cat.actions || []).length - 1; i >= 0; i -= 1) {
-        if (!wantedLabels.includes(cat.actions[i].label)) store.deleteAction(cat.id, i);
-      }
-      for (let i = (cat.results || []).length - 1; i >= 0; i -= 1) {
-        if (!wantedLabels.includes(cat.results[i].label)) store.deleteResult(cat.id, i);
-      }
-
-      // 3. Add the ones this month does not have yet, and set the numbers.
       const fresh = useGoalsStore.getState().categories.find((c) => c.id === cat.id);
       if (!fresh) continue;
       for (const g of wanted) {

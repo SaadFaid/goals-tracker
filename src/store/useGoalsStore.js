@@ -41,6 +41,16 @@ setIdentityScope(bootIdentity);
 // Each user is a profile stored in localStorage on this device:
 //   { [email]: { name, passHash, categories } }
 // No backend involved — data never leaves this browser.
+function readScopedState(identity) {
+  try {
+    const raw = localStorage.getItem(scopeKey(GUEST_KEY, identity));
+    if (!raw) return null;
+    return JSON.parse(raw)?.state || null;
+  } catch {
+    return null;
+  }
+}
+
 function readProfiles() {
   try {
     return JSON.parse(localStorage.getItem(PROFILES_KEY)) || {};
@@ -669,10 +679,18 @@ export const useGoalsStore = create(
         writeProfiles(map);
       },
 
-      applyLocalProfile: (email, { name = "User" } = {}) => {
+      applyLocalProfile: (email, { name = "User", categories = [] } = {}) => {
         // Bind the namespace to this account before any state is written, so
         // its blob cannot land in the guest slot.
         setIdentityScope(email);
+        // Account-level flags come from this account's own blob. Without this
+        // a half-finished signup on another account followed the user in and
+        // ran the goal picker (which prunes) on an account full of history.
+        const scoped = readScopedState(email);
+        const hasHistory =
+          (categories || []).some((c) =>
+            [...(c.actions || []), ...(c.results || [])].some((x) => Number(x.current) > 0)
+          );
         set({
           user: { email, name },
           isGuest: false,
@@ -681,6 +699,12 @@ export const useGoalsStore = create(
           // A local profile carries no chart history, and the previous
           // identity's days must not follow us into this account.
           progressLogs: [],
+          onboarding: hasHistory
+            ? { ...(scoped?.onboarding || defaultOnboarding()), started: true, done: true }
+            : scoped?.onboarding || defaultOnboarding(),
+          tourSeen: scoped?.tourSeen ?? hasHistory,
+          settings: { ...defaultSettings(), ...(scoped?.settings || {}) },
+          activityDays: scoped?.activityDays || {},
           lastSyncedAt: new Date().toISOString(),
         });
         get().derive();
@@ -719,12 +743,30 @@ export const useGoalsStore = create(
           dateKey: l.dateKey || paddedDayKeyOfLog(l),
         }));
 
+        // Onboarding belongs to the account, not to the browser. A fresh
+        // signup sets it explicitly after this call; every other login must
+        // read this account's own flags, never whatever the previous identity
+        // left in memory. That leak is how an old account was dragged through
+        // "pick your goals" and had its untouched goals deleted.
+        const scoped = readScopedState(user.email);
+        const hasHistory =
+          logs.length > 1 ||
+          (dashboard.categories || []).some((c) =>
+            [...(c.actions || []), ...(c.results || [])].some((x) => Number(x.current) > 0)
+          );
+        const onboarding = hasHistory
+          ? { ...(scoped?.onboarding || defaultOnboarding()), started: true, done: true }
+          : scoped?.onboarding || { ...defaultOnboarding(), started: true, done: false };
+
         set({
           user: { email: user.email, name: user.name },
           isGuest: false,
           isServerBacked: true,
           sessionStarted: true,
           error: null,
+          onboarding,
+          tourSeen: scoped?.tourSeen ?? hasHistory,
+          activityDays: scoped?.activityDays || {},
           categories: normalizeResetTypes(
             ensureRewardTiers(deepClone(dashboard.categories || []))
           ),
@@ -748,11 +790,6 @@ export const useGoalsStore = create(
         get().checkMonthRollover({ ignoreStored: true });
         get().derive();
         get().ensureDailyLog(get().categories, get().dashboard);
-        // An existing account is never ambushed by onboarding. Only a fresh
-        // signup starts it; a half-finished run resumes where it stopped.
-        if (!get().onboarding.started) {
-          set({ onboarding: { ...get().onboarding, started: true, done: true } });
-        }
         get().syncSettingsFromServer();
       },
 
@@ -796,6 +833,9 @@ export const useGoalsStore = create(
         map[email] = { name, passHash, categories: seedClone() };
         writeProfiles(map);
         get().applyLocalProfile(email, map[email]);
+        // Same contract as the server-backed path: a brand-new account starts
+        // onboarding at step one.
+        set({ onboarding: { ...defaultOnboarding(), started: true, step: 0 }, tourSeen: false });
       },
 
       login: async (credentials) => {
