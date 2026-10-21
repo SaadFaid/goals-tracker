@@ -47,26 +47,7 @@ function useReveal() {
   }, []);
 }
 
-/* ── Count up ──────────────────────────────────────────────── */
-function useCountUp(target, active, duration = 1100) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!active) return undefined;
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(target * eased));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, active, duration]);
-  return value;
-}
 
-/* ── Navbar ────────────────────────────────────────────────── */
 function LandingNav({ signedIn }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -188,173 +169,77 @@ function LandingNav({ signedIn }) {
   );
 }
 
-/* ── Rings ─────────────────────────────────────────────────── */
-function Ring({ label, value, sub, pct, color, size = 84, animate }) {
-  const r = (size - 12) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c * (1 - Math.max(0, Math.min(1, pct)));
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-          <circle className="ring-track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="7" />
-          <circle
-            className={`ring-arc ${animate ? "in" : ""}`}
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            strokeWidth="7"
-            stroke={color}
-            strokeDasharray={c}
-            strokeDashoffset={offset}
-          />
-        </svg>
-        <div className="absolute inset-0 grid place-items-center text-center">
-          <div>
-            <div className="stat-num" style={{ color: "var(--color-text-primary)", fontSize: 15 }}>
-              {value}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="caption" style={{ color: "var(--color-text-secondary)" }}>
-        {label}
-      </div>
-      {sub ? <div className="text-[10px] text-text-tertiary">{sub}</div> : null}
-    </div>
-  );
-}
+/* ── Real screens ─────────────────────────────────────────────
+   Not a drawing of the product: these are captures of the tracker
+   itself, taken at 1440px and 390px.                                */
+const SHOT_DESKTOP = `${import.meta.env.BASE_URL}screens/tracker-desktop.webp`;
+const SHOT_MOBILE = `${import.meta.env.BASE_URL}screens/tracker-mobile.webp`;
 
-/* ── Hero mockup ──────────────────────────────────────────── */
-function Mockup() {
-  const [animate, setAnimate] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    if (!("IntersectionObserver" in window)) {
-      setAnimate(true);
-      return undefined;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            setAnimate(true);
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.25 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  // Execution line climbs, the "should be" line is the straight dashed one.
-  const days = 12;
-  const actual = [4, 7, 9, 12, 15, 17, 21, 24, 27, 29, 31, 33];
-  const should = Array.from({ length: days }, (_, i) => 2.5 + (i * 31) / (days - 1));
-  const max = 36;
-  const toXY = (arr) =>
-    arr
-      .map((v, i) => `${(i / (arr.length - 1)) * 100},${34 - (v / max) * 30}`)
-      .join(" ");
+function RealScreens() {
+  const [desktopReady, setDesktopReady] = useState(false);
+  const [mobileReady, setMobileReady] = useState(false);
 
   return (
-    <div ref={ref} className="relative mx-auto w-full max-w-[820px] px-2 sm:px-6">
+    <div className="relative mx-auto w-full max-w-[1060px]">
       <div
-        className="float-gentle soft-glow rounded-2xl p-3 sm:p-4"
+        className="float-gentle soft-glow rounded-2xl p-2 sm:p-3"
         style={{ background: "var(--color-elevated)", border: "1px solid var(--color-border-active)" }}
       >
-        {/* Laptop */}
-        <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-base)", border: "1px solid var(--color-border-subtle)" }}>
-          <div className="flex items-center gap-1.5 px-3 py-2" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-            <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
-            <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
-            <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
-            <span className="ml-2 text-[10px] text-text-tertiary">Paceline</span>
-          </div>
-          <div className="p-3 sm:p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex gap-3 sm:gap-5 justify-center">
-              <Ring label="Execution" value="13/18" pct={0.72} color="var(--color-accent)" animate={animate} size={72} />
-              <Ring label="Money" value="4,200" pct={0.58} color="var(--color-gold)" animate={animate} size={72} />
-              <Ring label="Results" value="3 tracked" pct={0.66} color="#FFA14D" animate={animate} size={72} />
-            </div>
-            <div className="grow min-w-0">
-              <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full" style={{ height: 92 }} aria-label="Progress chart">
-                <polyline
-                  className={`chart-line ${animate ? "in" : ""}`}
-                  points={toXY(actual)}
-                  fill="none"
-                  stroke="var(--color-accent)"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <polyline
-                  className={`chart-dash ${animate ? "in" : ""}`}
-                  points={toXY(should)}
-                  fill="none"
-                  stroke="var(--color-grey)"
-                  strokeWidth="1.2"
-                  strokeDasharray="3 2.4"
-                />
-              </svg>
-              <div className="flex items-center gap-3 mt-1.5 text-[9px] text-text-tertiary">
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-block" style={{ width: 14, borderTop: "2px solid var(--color-accent)" }} /> Execution
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-block" style={{ width: 14, borderTop: "2px dashed var(--color-grey)" }} /> Should be
-                </span>
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5 px-2 pb-2 pt-0.5">
+          <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
+          <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
+          <span className="w-2 h-2 rounded-full" style={{ background: "var(--color-border-active)" }} />
+          <span className="ml-2 text-[10px] text-text-tertiary">Paceline — this month</span>
         </div>
-        {/* Laptop base */}
         <div
-          className="mx-auto h-2.5 rounded-b-2xl"
-          style={{ background: "linear-gradient(180deg, var(--color-surface-2), var(--color-sunken))", width: "62%" }}
-          aria-hidden="true"
-        />
+          className="overflow-hidden rounded-xl"
+          style={{ background: "var(--color-base)", border: "1px solid var(--color-border-subtle)" }}
+        >
+          <img
+            src={SHOT_DESKTOP}
+            alt="The Paceline dashboard: rings for execution, money, results and days, the pace chart, and this month's goal cards."
+            width="1440"
+            height="880"
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setDesktopReady(true)}
+            className="hidden h-auto w-full sm:block"
+            style={{
+              aspectRatio: "1440 / 880",
+              opacity: desktopReady ? 1 : 0,
+              transition: "opacity 0.45s ease",
+            }}
+          />
+          {/* Below 640px the laptop capture would be unreadable, so the frame
+              shows the phone capture at a size you can actually read. */}
+          <img
+            src={SHOT_MOBILE}
+            alt="The Paceline dashboard on a phone: month header, four rings and the goal cards."
+            width="780"
+            height="1688"
+            loading="lazy"
+            decoding="async"
+            className="mx-auto block w-[250px] sm:hidden"
+          />
+        </div>
       </div>
 
-      {/* Phone */}
-      <div
-        className="float-gentle-2 absolute -right-1 sm:right-2 -bottom-10 sm:-bottom-12 w-[150px] rounded-2xl p-2"
-        style={{ background: "var(--color-elevated)", border: "1px solid var(--color-border-active)", boxShadow: "0 24px 50px rgba(0,0,0,0.55)" }}
-      >
-        <div className="rounded-xl p-2" style={{ background: "var(--color-base)", border: "1px solid var(--color-border-subtle)" }}>
-          <div className="text-center caption text-text-tertiary mb-1">Day 12 of 31</div>
-          <div className="flex justify-center mb-1.5">
-            <Ring label="" value="72%" pct={0.72} color="var(--color-accent)" animate={animate} size={54} />
-          </div>
-          <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full" style={{ height: 42 }} aria-hidden="true">
-            <polyline
-              className={`chart-line ${animate ? "in" : ""}`}
-              points={toXY(actual.slice(0, 9))}
-              fill="none"
-              stroke="var(--color-accent)"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <polyline
-              className={`chart-dash ${animate ? "in" : ""}`}
-              points={toXY(should.slice(0, 9))}
-              fill="none"
-              stroke="var(--color-grey)"
-              strokeWidth="1.4"
-              strokeDasharray="3 2.4"
-            />
-          </svg>
-          <div className="mt-1.5 text-center text-[9px] font-semibold" style={{ color: "var(--color-accent)" }}>
-            ON PACE
-          </div>
-        </div>
-      </div>
+      <img
+        src={SHOT_MOBILE}
+        alt="The same dashboard on a phone: the month header, the four rings and the goal cards stacked."
+        width="780"
+        height="1688"
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setMobileReady(true)}
+        className="float-gentle-2 absolute hidden -bottom-14 -right-6 w-[168px] rounded-[20px] sm:block"
+        style={{
+          border: "1px solid var(--color-border-active)",
+          boxShadow: "0 24px 50px rgba(0,0,0,0.55), 0 0 30px rgba(109,245,227,0.12)",
+          opacity: mobileReady ? 1 : 0,
+          transition: "opacity 0.45s ease",
+        }}
+      />
     </div>
   );
 }
@@ -380,44 +265,44 @@ const STEPS = [
   {
     n: "01",
     title: "Set this month's goals",
-    body: "Pick a handful of things you actually want done this month, give each one a target, and move on with your day.",
+    body: "Group them into categories, give each goal a target and a unit — sessions, hours, pages, no-spend days. Copy last month's list if it still fits.",
   },
   {
     n: "02",
-    title: "Log progress every day",
-    body: "Open the tracker, tap a goal, and say what you did. A checklist at the end of the day takes ten seconds.",
+    title: "Move something, most days",
+    body: "Tap a goal to add what you did, or open the check-in at the end of the day and tick what happened. Both write to the same numbers.",
   },
   {
     n: "03",
-    title: "See where you stand",
-    body: "The rings, the pace line and the streak tell you whether the month is on track — and what to fix tomorrow.",
+    title: "Read the month, not your mood",
+    body: "The rings, the pace line and the streak say whether the month is ahead or behind. Month-end, the analysis and the print report close it out.",
   },
 ];
 
 const FEATURES = [
   {
-    title: "A month, not a to-do list",
-    body: "Goals reset when the month turns. You are not fighting yesterday's list every morning.",
-  },
-  {
-    title: "Execution, Money and Results",
-    body: "What you do, what you earn, what you get. Only the first one scores — the rest are tracked, not judged.",
+    title: "Four rings, one score",
+    body: "Execution is what you do, and it is the only ring that scores. Money adds up every $ result you track. Results are weighted, Days is just the calendar.",
   },
   {
     title: "The pace line",
-    body: "A dashed line shows where the month should be today. You always know if you are ahead or behind.",
+    body: "A dashed line runs from zero to your target across the month. Your solid line is the real progress — ahead of it reads AHEAD, below it reads BEHIND.",
   },
   {
-    title: "Streaks that mean something",
-    body: "Move any goal on a day to keep the flame alive. Three quiet days in a row and it ends — no fake wins.",
+    title: "A plan with real hours",
+    body: "The Plan tab is a month calendar of time blocks. Drag them to a new day or hour, resize the edges, and repeat them daily, weekly or monthly.",
   },
   {
-    title: "A checklist that remembers",
-    body: "Every day is saved with what you typed and what you ticked, so you can look back at any day of the month.",
+    title: "Notes and focus",
+    body: "Each day has a note checklist, saved with its date. The focus timer runs a work/break cycle while you do the thing you wrote down.",
   },
   {
-    title: "Private by default",
-    body: "Only you see your goals. The leaderboard shows your first name, your last initial and your streak.",
+    title: "Rewards you actually claim",
+    body: "Give categories reward tiers — a daily treat, a weekly night off, a monthly splurge at 80%. Claim one when you hit the threshold.",
+  },
+  {
+    title: "Private, with an off switch",
+    body: "Only you see goals, numbers and notes. The leaderboard shows your first name, last initial and streak, and Settings can hide you from it.",
   },
 ];
 
@@ -510,14 +395,14 @@ function PaceCard() {
     <div ref={ref} className="card p-5 sm:p-6" style={{ overflow: "hidden" }}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
-          <p className="caption text-text-tertiary">Day 12 of 31</p>
-          <p className="h3 text-heading mt-1">39% done — should be 39%</p>
+          <p className="caption text-text-tertiary">Day 21 of 31</p>
+          <p className="h3 text-heading mt-1">66% done — 68% of the month gone</p>
         </div>
         <span
           className="text-[11px] font-bold px-2.5 py-1 rounded-full"
           style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
         >
-          ON PACE
+          ON TRACK
         </span>
       </div>
       <svg viewBox="0 0 100 42" preserveAspectRatio="none" className="w-full" style={{ height: 170 }} role="img" aria-label="Execution against the should-be pace line">
@@ -557,38 +442,16 @@ export default function Landing() {
   const isGuest = useGoalsStore((s) => s.isGuest);
   const signedIn = !!user && !isGuest;
   const [openFaq, setOpenFaq] = useState(0);
-  const [heroCount, setHeroCount] = useState(0);
-  const heroRef = useRef(null);
 
   useReveal();
 
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return undefined;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            setHeroCount(1);
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  const days = useCountUp(18, heroCount === 1);
-  const pace = useCountUp(72, heroCount === 1);
-
   return (
-    <div id="top" className="min-h-screen" style={{ background: "var(--color-base)" }}>
+    <div id="top" className="relative isolate min-h-screen" style={{ background: "var(--color-base)" }}>
       <div aria-hidden className="bg-anim">
         <div className="bg-orb orb-mint" />
         <div className="bg-orb orb-periwinkle" />
         <div className="bg-orb orb-coral" />
+        <div className="bg-orb orb-teal" />
         <div className="bg-sheen" />
       </div>
 
@@ -596,12 +459,12 @@ export default function Landing() {
 
       {/* ── Hero ── */}
       <section className="relative px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24">
-        <div className="mx-auto max-w-[1140px] grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
-          <div>
+        <div className="mx-auto max-w-[1140px]">
+          <div className="mx-auto max-w-[760px] text-center">
             <img
               src={MARK_SRC}
               alt={`${BRAND.name} logo`}
-              className="mb-5 block h-10 w-auto sm:h-11"
+              className="mx-auto mb-5 block h-10 w-auto sm:h-11"
               style={{ filter: "drop-shadow(0 0 26px rgba(109,245,227,0.35))" }}
             />
             <span
@@ -619,11 +482,11 @@ export default function Landing() {
               </span>
             </h1>
 
-            <p className="mt-5 text-[15px] leading-relaxed text-muted max-w-lg">
+            <p className="mt-5 mx-auto text-[15px] leading-relaxed text-muted max-w-xl">
               Paceline turns a month into a handful of targets you can actually hit. Set them, log what you did, and see every day whether you are keeping up.
             </p>
 
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+            <div className="mt-7 flex flex-col sm:flex-row justify-center gap-3">
               <Btn size="lg" className="press-btn hover-arrow" onClick={() => go("#/signup")}>
                 Start tracking
                 <svg className="arrow-slide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -635,33 +498,18 @@ export default function Landing() {
               </Btn>
             </div>
 
-            <p className="mt-6 text-[12px] text-text-tertiary flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="mt-6 text-[12px] text-text-tertiary flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
               <span>Free while in early access</span>
               <span aria-hidden="true">·</span>
               <span>Nothing to install</span>
               <span aria-hidden="true">·</span>
               <span>Laptop and phone</span>
             </p>
-
-            <div className="mt-8 grid grid-cols-3 gap-3 max-w-md">
-              {[
-                { v: days, suffix: "", label: "actions this month" },
-                { v: pace, suffix: "%", label: "of the way there" },
-                { v: 5, suffix: "-day", label: "streak, and counting" },
-              ].map((s) => (
-                <div key={s.label} className="rounded-xl px-3 py-2.5" style={{ background: "var(--color-elevated)", border: "1px solid var(--color-border-subtle)" }}>
-                  <div className="stat-num" style={{ color: "var(--color-accent)", fontSize: 20 }}>
-                    {s.v}
-                    {s.suffix}
-                  </div>
-                  <div className="text-[10px] text-text-tertiary mt-0.5">{s.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div ref={heroRef}>
-            <Mockup />
+          {/* Real captures of the tracker, not a drawing of it. */}
+          <div className="mt-12 sm:mt-16">
+            <RealScreens />
           </div>
         </div>
       </section>
@@ -706,7 +554,7 @@ export default function Landing() {
               {[
                 "The dashed line is the month, not you — it never moves.",
                 "Your solid line is your progress, day by day.",
-                "Above the line reads AHEAD. Below it reads BEHIND. On it reads ON PACE.",
+                "Above the line reads AHEAD. Below it reads BEHIND. On it reads ON TRACK.",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2.5 text-sm text-muted">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-accent)" }} />

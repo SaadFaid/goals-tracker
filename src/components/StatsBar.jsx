@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { userData } from "../data/goals";
 import { aggregateResultsPct, computeOverallPct } from "../lib/score";
 
-const TRACK = "rgba(229, 246, 240, 0.22)"; // bright ring base so the arc reads against it
 const EXECUTION = "#DB6088"; // pink — execution (matches dashboard chart)
 const DAYS = "#8FA8A3"; // grey — days
 const MONEY = "var(--color-gold)"; // gold — money
@@ -113,7 +112,7 @@ export default function StatsBar({ cats }) {
 
 function StatRing({ label, center, sub, pct, color, textColor, expectedPct, maskable, masked, onToggleMask }) {
   const size = 124;
-  const stroke = 6;
+  const stroke = 9;
   const r = (size - stroke) / 2 - 1;
   const cx = size / 2;
   const cy = size / 2;
@@ -140,9 +139,11 @@ function StatRing({ label, center, sub, pct, color, textColor, expectedPct, mask
           aria-hidden="true"
           style={{ position: "absolute", inset: 0, overflow: "visible" }}
         >
-          <g transform={`rotate(-90 ${cx} ${cy})`}>
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke={TRACK} strokeWidth={stroke} />
+          {/* Same ring language as the landing page: one soft track, one
+                rounded arc that fades in rather than blasting a hard glow. */}
+            <circle className="ring-track" cx={cx} cy={cy} r={r} fill="none" strokeWidth={stroke} />
             <circle
+              className="ring-arc in"
               cx={cx}
               cy={cy}
               r={r}
@@ -152,18 +153,14 @@ function StatRing({ label, center, sub, pct, color, textColor, expectedPct, mask
               strokeLinecap="round"
               strokeDasharray={C}
               strokeDashoffset={C * (1 - clamped / 100)}
-              style={{
-                transition: "stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
-                filter: `drop-shadow(0 0 3px ${color}) drop-shadow(0 0 9px ${color})`,
-              }}
+              style={{ filter: `drop-shadow(0 0 6px ${color}55)` }}
             />
-          </g>
           {/* Start marker at 12 o'clock */}
-          <circle cx={cx} cy={cy - r} r="2.8" fill={color} />
+          <circle cx={cx} cy={cy - r} r="2.6" fill={color} />
           {/* Small grey point at the expected position */}
-          <circle cx={ex} cy={ey} r="2.4" fill={EXPECTED} />
+          <circle cx={ex} cy={ey} r="2.6" fill={EXPECTED} />
         </svg>
-        <div className="stat-num" style={{ color: textColor || color, fontWeight: 800, fontSize: center.length > 5 ? 17 : 20 }}>
+        <div className="stat-num" style={{ color: textColor || color, fontWeight: 800, fontSize: center.length > 5 ? 18 : 22 }}>
           {center}
         </div>
       </div>
