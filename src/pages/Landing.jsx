@@ -424,7 +424,7 @@ const FEATURES = [
 const FAQS = [
   {
     q: "How much does it cost?",
-    a: "The first month is free, and there is nothing to install. After the trial you can stay on the free plan or pick a paid one — and you can cancel from Settings whenever you like.",
+    a: "Nothing. Paceline is free while it is in early access — no card, no trial clock, no downgrade at the end of the month. If that ever changes, you will hear it from me directly before anything is charged.",
   },
   {
     q: "Is Paceline an app or a website?",
@@ -455,8 +455,8 @@ const FAQS = [
     a: `Email ${BRAND.supportEmail}. A real person reads it. If something in the tracker looks broken, that is the fastest way to get it fixed.`,
   },
   {
-    q: "Is the free trial really free?",
-    a: "Really free. No card, no auto-charge, no trial that turns into a subscription on its own. It just ends, and you decide what happens next.",
+    q: "Do I need a card to sign up?",
+    a: "No. There is nothing to buy, so there is no card field anywhere in the app. Sign up with an email and start setting goals.",
   },
 ];
 
@@ -621,7 +621,7 @@ export default function Landing() {
             </div>
 
             <p className="mt-6 text-[12px] text-text-tertiary flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>Free trial</span>
+              <span>Free while in early access</span>
               <span aria-hidden="true">·</span>
               <span>Nothing to install</span>
               <span aria-hidden="true">·</span>

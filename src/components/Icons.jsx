@@ -208,3 +208,16 @@ export const IconExternal = (p) => (
     <path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
   </Svg>
 );
+export const IconKey = (p) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="4.2" />
+    <path d="m11 11 9 9M17 17l2-2M14 14l2-2" />
+  </Svg>
+);
+
+export const IconSignOut = (p) => (
+  <Svg {...p}>
+    <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+    <path d="M10 8 6 12l4 4M6 12h9" />
+  </Svg>
+);

@@ -56,19 +56,19 @@ export const LEGAL_PAGES = [
   {
     id: "refunds",
     title: "Refunds",
-    intro: "What happens to your money if you change your mind.",
+    intro: "Why there is nothing to refund right now.",
     sections: [
       {
-        heading: "Free trial",
-        body: "The trial is free and needs no card. Nothing is charged when it ends.",
+        heading: "Paceline is free",
+        body: "Every feature is available at no cost while the product is in early access. There is no subscription, no trial that expires and no card on file.",
       },
       {
-        heading: "Paid plans",
-        body: "Cancel any time from Settings. We refund a plan you bought and then cancelled within 30 days, no questions asked.",
+        heading: "If that changes",
+        body: "A paid plan would only ever start after you were told the price and agreed to it. Nothing here charges you silently.",
       },
       {
-        heading: "How long a refund takes",
-        body: "We process refunds within 5 working days, back to the card you paid with.",
+        heading: "Questions",
+        body: "If you think you were charged for something, email us and we will sort it out or return the money.",
       },
     ],
   },

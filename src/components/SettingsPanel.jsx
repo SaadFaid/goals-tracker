@@ -8,35 +8,65 @@ import { BRAND } from "../lib/brand";
 import { CURRENCIES, COUNTRIES } from "../lib/geo";
 import { computeStreak, streakLabel } from "../lib/streak";
 import { toast } from "../lib/toast";
-import { IconExternal } from "./Icons";
+import { IconExternal, IconKey, IconSignOut } from "./Icons";
 
 const go = (hash) => {
   window.location.hash = hash;
 };
 
-/** Days left in the trial, created on first view so it is stable across reloads. */
-function useTrialDaysLeft() {
-  const settings = useGoalsStore((s) => s.settings);
-  const setSettings = useGoalsStore((s) => s.setSettings);
-  const [days, setDays] = useState(null);
-
-  useEffect(() => {
-    if (settings.plan !== "trial") {
-      setDays(null);
-      return;
-    }
-    let end = settings.trialEnds;
-    if (!end) {
-      const d = new Date();
-      d.setDate(d.getDate() + 30);
-      end = d.toISOString().slice(0, 10);
-      setSettings({ trialEnds: end });
-    }
-    const left = Math.ceil((new Date(end).getTime() - Date.now()) / 86400000);
-    setDays(Math.max(0, left));
-  }, [settings.plan, settings.trialEnds, setSettings]);
-
-  return days;
+/**
+ * A full-width account action. Big hit area, a tinted icon tile, and a line of
+ * plain English about what it actually does.
+ */
+function ActionButton({ onClick, label, hint, icon, danger = false }) {
+  const tone = danger ? "var(--color-danger)" : "var(--color-accent)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group w-full flex items-center gap-3 rounded-xl px-4 py-3.5 text-left cursor-pointer transition-all btn-lift"
+      style={{
+        background: danger ? "rgba(219,96,136,0.08)" : "var(--color-sunken)",
+        border: `1px solid ${danger ? "rgba(219,96,136,0.35)" : "var(--color-border-active)"}`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = danger ? "rgba(219,96,136,0.7)" : "var(--color-accent)";
+        e.currentTarget.style.boxShadow = danger
+          ? "0 0 22px rgba(219,96,136,0.18)"
+          : "0 0 22px rgba(109,245,227,0.18)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = danger ? "rgba(219,96,136,0.35)" : "var(--color-border-active)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      <span
+        className="grid place-items-center rounded-lg shrink-0"
+        style={{
+          width: 38,
+          height: 38,
+          background: danger ? "rgba(219,96,136,0.16)" : "var(--color-accent-muted)",
+          color: tone,
+        }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-heading">{label}</span>
+        <span className="block text-[11px] text-text-tertiary mt-0.5">{hint}</span>
+      </span>
+      <span
+        className="shrink-0 transition-transform group-hover:translate-x-0.5"
+        style={{ color: tone }}
+        aria-hidden="true"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </span>
+    </button>
+  );
 }
 
 /**
@@ -51,11 +81,11 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
   const setSettings = useGoalsStore((s) => s.setSettings);
   const logout = useGoalsStore((s) => s.logout);
   const openDialog = useGoalsStore((s) => s.openDialog);
+  const openAuth = useGoalsStore((s) => s.openAuth);
   const activityDays = useGoalsStore((s) => s.activityDays);
   const [rendered, setRendered] = useState(open);
   const [showPassword, setShowPassword] = useState(false);
   const panelRef = useRef(null);
-  const trialDays = useTrialDaysLeft();
   const { streak } = computeStreak(activityDays);
 
   useEffect(() => {
@@ -90,16 +120,6 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
   const save = (patch, message) => {
     setSettings(patch);
     if (message) toast(message);
-  };
-
-  const planLine = () => {
-    if (settings.plan === "trial") {
-      return trialDays == null
-        ? "Free trial"
-        : `Free trial · ${trialDays} ${trialDays === 1 ? "day" : "days"} left`;
-    }
-    const renews = settings.planUntil ? new Date(settings.planUntil).toLocaleDateString() : "—";
-    return `${settings.plan === "yearly" ? "Yearly" : "Monthly"} · renews ${renews}`;
   };
 
   return createPortal(
@@ -224,59 +244,47 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
               />
             </label>
 
-            {signedIn && settings.authProvider !== "google" ? (
-              <div className="mt-3">
-                {showPassword ? (
-                  <div className="flex flex-col gap-2">
+            <div className="mt-4 flex flex-col gap-2.5">
+              {signedIn && settings.authProvider !== "google" ? (
+                showPassword ? (
+                  <div className="flex flex-col gap-3 rounded-xl p-3.5" style={{ background: "var(--color-sunken)", border: "1px solid var(--color-border-subtle)" }}>
                     <ChangePassword />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(false)}
-                      className="self-start text-[11px] cursor-pointer hover:underline"
-                      style={{ color: "var(--color-text-tertiary)" }}
-                    >
+                    <Btn variant="ghost" size="sm" onClick={() => setShowPassword(false)} className="self-start">
                       Close
-                    </button>
+                    </Btn>
                   </div>
                 ) : (
-                  <button
-                    type="button"
+                  <ActionButton
                     onClick={() => setShowPassword(true)}
-                    className="text-xs cursor-pointer hover:underline"
-                    style={{ color: "var(--color-accent)" }}
-                  >
-                    Change password
-                  </button>
-                )}
-              </div>
-            ) : null}
+                    label="Change password"
+                    hint="Set a new one and sign out other devices"
+                    icon={<IconKey size={17} />}
+                  />
+                )
+              ) : null}
 
-            <button
-              type="button"
-              onClick={() => {
-                onClose?.();
-                logout();
-              }}
-              className="mt-3 text-xs cursor-pointer hover:underline"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Sign out
-            </button>
-          </section>
-
-          <Divider />
-
-          {/* ── Plan ── */}
-          <section>
-            <SectionLabel>Plan</SectionLabel>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm text-heading">{planLine()}</p>
-                <p className="text-[11px] text-text-tertiary mt-0.5">Cancel anytime. No card on the trial.</p>
-              </div>
-              <Btn size="sm" variant="secondary" onClick={() => openDialog({ type: "plan" })}>
-                Choose a plan
-              </Btn>
+              {signedIn ? (
+                <ActionButton
+                  onClick={() => {
+                    onClose?.();
+                    logout();
+                  }}
+                  label="Sign out"
+                  hint="Your progress stays saved to your account"
+                  icon={<IconSignOut size={17} />}
+                  danger
+                />
+              ) : (
+                <ActionButton
+                  onClick={() => {
+                    onClose?.();
+                    openAuth();
+                  }}
+                  label="Log in or sign up"
+                  hint="Sync this month to every device"
+                  icon={<IconKey size={17} />}
+                />
+              )}
             </div>
           </section>
 

@@ -436,93 +436,6 @@ export function LogProgressDialog({ kind, categoryId, index, onClose }) {
   );
 }
 
-/* ── Choose a plan ─────────────────────────────────────────── */
-const PLANS = [
-  {
-    id: "monthly",
-    name: "Monthly",
-    price: "9 DH / month",
-    includes: ["Everything in the free trial", "Unlimited months of history", "Reminders and weekly recap"],
-  },
-  {
-    id: "yearly",
-    name: "Yearly",
-    price: "79 DH / year",
-    includes: ["Everything in Monthly", "Two months free", "Same price every month you use it"],
-  },
-];
-
-export function ChoosePlanDialog({ onClose }) {
-  const settings = useGoalsStore((s) => s.settings);
-  const setSettings = useGoalsStore((s) => s.setSettings);
-  const [busy, setBusy] = useState(false);
-
-  const choose = async (plan) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const until = new Date();
-      until.setMonth(until.getMonth() + (plan.id === "yearly" ? 12 : 1));
-      setSettings({ plan: plan.id, planUntil: until.toISOString().slice(0, 10) });
-      toast(`${plan.name} plan selected`);
-      onClose();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Choose a plan"
-      footer={
-        <>
-          <Btn variant="secondary" onClick={onClose}>
-            Cancel
-          </Btn>
-          <div className="grow" />
-          <span className="text-[11px] text-text-tertiary">Cancel anytime.</span>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        {PLANS.map((p) => {
-          const current = settings.plan === p.id;
-          return (
-            <div
-              key={p.id}
-              className="rounded-xl p-4"
-              style={{
-                background: "var(--color-sunken)",
-                border: `1px solid ${current ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
-              }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="h3 text-heading">{p.name}</p>
-                  <p className="text-[11px] text-text-tertiary mt-0.5">{p.price}</p>
-                </div>
-                <Btn size="sm" onClick={() => choose(p)} busy={busy} disabled={current}>
-                  {current ? "Current plan" : "Choose"}
-                </Btn>
-              </div>
-              <ul className="mt-3 flex flex-col gap-1">
-                {p.includes.map((inc) => (
-                  <li key={inc} className="flex items-start gap-2 text-[11px] text-muted">
-                    <span className="mt-1 w-1 h-1 rounded-full shrink-0" style={{ background: "var(--color-accent)" }} />
-                    {inc}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-    </Modal>
-  );
-}
-
 /* ── Delete the account ────────────────────────────────────── */
 export function DeleteAccountDialog({ onClose }) {
   const deleteAccount = useGoalsStore((s) => s.deleteAccount);
@@ -651,9 +564,6 @@ export function DialogHost() {
     return (
       <LogProgressDialog kind={dialog.kind} categoryId={dialog.categoryId} index={dialog.index} onClose={close} />
     );
-  }
-  if (dialog.type === "plan") {
-    return <ChoosePlanDialog onClose={close} />;
   }
   if (dialog.type === "delete-account") {
     return <DeleteAccountDialog onClose={close} />;
