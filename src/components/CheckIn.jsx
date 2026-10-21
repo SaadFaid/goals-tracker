@@ -32,12 +32,12 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+      <div className="fab-checkin fixed bottom-5 right-5 z-40 flex flex-col items-end gap-2 sm:flex-row sm:items-center">
         <button
           onClick={scrollToTop}
           aria-label="Back to top"
           title="Back to top"
-          className="flex items-center justify-center rounded-full px-3 py-3 font-bold"
+          className="hidden sm:flex items-center justify-center rounded-full px-3 py-3 font-bold"
           style={{
             background: "var(--color-navy-600)",
             color: "var(--color-text-secondary)",

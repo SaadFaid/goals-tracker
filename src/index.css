@@ -513,6 +513,36 @@ html, body {
   .controls-card .nav-divider { display: none; }
   .controls-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
   .controls-actions .nav-btn { width: 100%; }
+
+  /* One dock instead of three stray pills: Checklist left, Focus centre,
+     Check in right, all sitting on the same 12px safe-area line. */
+  .fab-notes,
+  .fab-focus,
+  .fab-checkin { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .fab-notes { left: 12px; }
+  .fab-focus { left: 50%; transform: translateX(-50%); }
+  .fab-checkin { right: 12px; }
+  .fab-checkin button,
+  .fab-notes button,
+  .fab-focus button { min-height: 44px; }
+  /* Phones keep the dock compact: the two secondary tools become round
+     46px buttons, the primary Check in keeps its label. */
+  .fab-notes .fab-label,
+  .fab-focus .fab-label { display: none; }
+  .fab-notes button,
+  .fab-focus button {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 999px;
+    justify-content: center;
+  }
+  .fab-checkin button span,
+  .fab-focus button span { white-space: nowrap; }
+
+  /* Keep page content clear of the dock. */
+  .page-container { padding-bottom: 84px; }
 }
 
 /* Animations for enhanced components */
@@ -984,3 +1014,7 @@ html, body {
   transition: transform 0.4s linear;
   transform-origin: left;
 }
+
+/* The consent banner owns the bottom of the screen on a phone; the sticky
+   landing CTA waits its turn instead of stacking behind it. */
+body:has(.cookie-banner-in) .landing-cta { display: none; }

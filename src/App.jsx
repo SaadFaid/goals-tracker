@@ -213,19 +213,15 @@ function Dashboard() {
         <div className="bg-orb orb-teal" />
         <div className="bg-sheen" />
       </div>
-      <Nav
-        view={view}
-        onSetView={setView}
-        onOpenAnalysis={() => setShowAnalysis(true)}
-        onOpenLeaderboard={() => setShowLeaderboard(true)}
-        onPrint={() => setShowPrint(true)}
-        onOpenSettings={() => setShowSettings(true)}
-      />
+      <Nav view={view} onSetView={setView} onOpenSettings={() => setShowSettings(true)} />
       {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
       <SettingsPanel
         open={showSettings}
         onClose={() => setShowSettings(false)}
         onOpenTour={() => setShowTour(true)}
+        onOpenAnalysis={() => setShowAnalysis(true)}
+        onOpenLeaderboard={() => setShowLeaderboard(true)}
+        onPrint={() => setShowPrint(true)}
       />
       <HowToTour
         open={showTour}

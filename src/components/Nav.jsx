@@ -1,10 +1,10 @@
 import { useGoalsStore } from "../store/useGoalsStore";
 import Brand from "./Brand";
 import Avatar from "./Avatar";
-import { IconCheck, IconPencil, IconChart, IconPrint } from "./Icons";
+import { IconCheck, IconPencil } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
-export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onOpenLeaderboard, onPrint, onOpenSettings }) {
+export default function Nav({ view = "dashboard", onSetView, onOpenSettings }) {
   const isGuest = useGoalsStore((s) => s.isGuest);
   const openAuth = useGoalsStore((s) => s.openAuth);
   const editMode = useGoalsStore((s) => s.editMode);
@@ -22,14 +22,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
       : "linear-gradient(180deg, rgba(229,246,240,0.07), rgba(229,246,240,0.02))",
     boxShadow: active ? "0 0 16px rgba(109,245,227,0.30)" : "0 1px 2px rgba(0,0,0,0.3)",
   });
-
-  // Print gets its own warm tint so it reads as a separate action.
-  const printPill = {
-    border: "1px solid rgba(232,180,75,0.4)",
-    color: "#E8B44B",
-    background: "rgba(232,180,75,0.12)",
-    boxShadow: "0 0 14px rgba(232,180,75,0.18)",
-  };
 
   return (
     <>
@@ -84,41 +76,6 @@ export default function Nav({ view = "dashboard", onSetView, onOpenAnalysis, onO
           <MonthPicker />
           <span className="nav-divider" aria-hidden="true" />
           <div className="flex items-center gap-2 flex-wrap justify-end controls-actions">
-            <button
-              type="button"
-              onClick={() => onPrint?.()}
-              className="nav-btn"
-              title="Print this month"
-              style={printPill}
-            >
-              <span><IconPrint size={13} /></span>
-              Print
-            </button>
-            <span className="nav-divider" aria-hidden="true" />
-            <button
-              type="button"
-              onClick={() => onOpenAnalysis?.()}
-              className="nav-btn"
-              title="Month analysis"
-              style={pill(false)}
-            >
-              <span style={{ color: "var(--color-accent)" }}><IconChart size={12} /></span>
-              Analysis
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenLeaderboard?.()}
-              className="nav-btn"
-              title="Leaderboard — ranked by streak"
-              style={pill(false)}
-            >
-              <span style={{ color: "var(--color-accent)" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M6 21V13M12 21V4M18 21v-6" />
-                </svg>
-              </span>
-              Leaderboard
-            </button>
             <button
               onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
               className="nav-btn"

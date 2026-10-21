@@ -358,7 +358,7 @@ export default function Notes() {
 
   return (
     <>
-      <div className="fixed bottom-5 left-5 z-40 flex items-center gap-2">
+      <div className="fab-notes fixed bottom-5 left-5 z-40 flex items-center gap-2">
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
@@ -375,7 +375,7 @@ export default function Notes() {
             <path d="M4 4h16v16H4z" />
             <path d="M8 8h8M8 12h8M8 16h5" />
           </svg>
-          Checklist
+          <span className="fab-label">Checklist</span>
           {notes.length > 0 && (
             <span
               className="grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold"

@@ -8,7 +8,7 @@ import { BRAND } from "../lib/brand";
 import { CURRENCIES, COUNTRIES } from "../lib/geo";
 import { computeStreak, streakLabel } from "../lib/streak";
 import { toast } from "../lib/toast";
-import { IconHelp, IconHome, IconKey, IconSignOut, IconTrash } from "./Icons";
+import { IconChart, IconHelp, IconHome, IconKey, IconPrint, IconSignOut, IconTrash } from "./Icons";
 
 const go = (hash) => {
   window.location.hash = hash;
@@ -74,7 +74,7 @@ function ActionButton({ onClick, label, hint, icon, danger = false }) {
  * Every preference saves the moment it is changed; the account-level ones
  * (leaderboard visibility, activity) are mirrored to the server.
  */
-export default function SettingsPanel({ open, onClose, onOpenTour }) {
+export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysis, onOpenLeaderboard, onPrint }) {
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const settings = useGoalsStore((s) => s.settings);
@@ -285,6 +285,46 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
                   icon={<IconKey size={17} />}
                 />
               )}
+            </div>
+          </section>
+
+          <Divider />
+
+          {/* ── This month — occasional actions, kept out of the sticky deck ── */}
+          <section>
+            <SectionLabel>This month</SectionLabel>
+            <div className="flex flex-col gap-2.5">
+              <ActionButton
+                onClick={() => {
+                  onClose?.();
+                  onOpenAnalysis?.();
+                }}
+                label="Month analysis"
+                hint="How the month is tracking against pace"
+                icon={<IconChart size={17} />}
+              />
+              <ActionButton
+                onClick={() => {
+                  onClose?.();
+                  onOpenLeaderboard?.();
+                }}
+                label="Leaderboard"
+                hint="See where your streak ranks"
+                icon={
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 21V13M12 21V4M18 21v-6" />
+                  </svg>
+                }
+              />
+              <ActionButton
+                onClick={() => {
+                  onClose?.();
+                  onPrint?.();
+                }}
+                label="Print this month"
+                hint="A clean one-page report for the wall"
+                icon={<IconPrint size={17} />}
+              />
             </div>
           </section>
 

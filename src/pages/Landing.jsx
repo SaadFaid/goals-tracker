@@ -50,12 +50,14 @@ function useReveal() {
 
 function LandingNav({ signedIn }) {
   const [scrolled, setScrolled] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState("");
 
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 12);
+      setPastHero(window.scrollY > 520);
       const ids = ["how-it-works", "features", "faq"];
       let current = "";
       for (const id of ids) {
@@ -76,6 +78,7 @@ function LandingNav({ signedIn }) {
   ];
 
   return (
+    <>
     <header
       className={`sticky top-0 z-50 transition-colors ${scrolled || open ? "nav-blur" : "bg-transparent"}`}
       style={!scrolled && !open ? { borderBottom: "1px solid transparent" } : undefined}
@@ -145,7 +148,7 @@ function LandingNav({ signedIn }) {
                 setOpen(false);
                 scrollToId(l.id);
               }}
-              className="text-left text-sm py-2"
+              className="text-left text-sm py-3 rounded-lg px-3"
               style={{ color: active === l.id ? "var(--color-accent)" : "var(--color-text-secondary)" }}
             >
               {l.label}
@@ -153,19 +156,39 @@ function LandingNav({ signedIn }) {
           ))}
           <div className="flex flex-col gap-2 pt-2 mt-1" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
             {signedIn ? (
-              <Btn onClick={() => go("#/app")}>Open tracker</Btn>
+              <Btn className="w-full" size="lg" onClick={() => go("#/app")}>Open tracker</Btn>
             ) : (
               <>
-                <Btn variant="secondary" onClick={() => go("#/login")}>
+                <Btn className="w-full" size="lg" variant="secondary" onClick={() => go("#/login")}>
                   Log in
                 </Btn>
-                <Btn onClick={() => go("#/signup")}>Start tracking</Btn>
+                <Btn className="w-full" size="lg" onClick={() => go("#/signup")}>Start tracking</Btn>
               </>
             )}
           </div>
         </div>
       ) : null}
+
     </header>
+
+      {/* Phone-only bottom CTA: the action stays under the thumb once the
+          hero buttons have scrolled away. */}
+      {!open && pastHero ? (
+        <div
+          className="landing-cta md:hidden fixed inset-x-0 bottom-0 z-50 px-4"
+          style={{
+            paddingTop: 22,
+            paddingBottom: "calc(10px + env(safe-area-inset-bottom, 0px))",
+            background: "linear-gradient(180deg, rgba(11,21,20,0) 0%, rgba(11,21,20,0.92) 45%, rgba(11,21,20,0.98) 100%)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <Btn size="lg" className="w-full press-btn" onClick={() => go(signedIn ? "#/app" : "#/signup")}>
+            {signedIn ? "Open tracker" : "Start tracking — free"}
+          </Btn>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -194,14 +217,14 @@ function RealScreens() {
         >
           <img
             src={SHOT_DESKTOP}
-            alt="The Paceline dashboard: rings for execution, money, results and days, the pace chart, and this month's goal cards."
+            alt="The Paceline dashboard: the month header, rings for execution, money, results and days, the pace chart, and the checklist and focus buttons."
             width="1440"
-            height="936"
+            height="692"
             loading="eager"
             fetchPriority="high"
             decoding="async"
             className="hidden h-auto w-full sm:block"
-            style={{ aspectRatio: "1440 / 936" }}
+            style={{ aspectRatio: "1440 / 692" }}
           />
           {/* Below 640px the laptop capture would be unreadable, so the frame
               shows the phone capture at a size you can actually read. */}
@@ -477,13 +500,13 @@ export default function Landing() {
             </p>
 
             <div className="mt-7 flex flex-col sm:flex-row justify-center gap-3">
-              <Btn size="lg" className="press-btn hover-arrow" onClick={() => go("#/signup")}>
+              <Btn size="lg" className="press-btn hover-arrow w-full sm:w-auto" onClick={() => go("#/signup")}>
                 Start tracking
                 <svg className="arrow-slide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
               </Btn>
-              <Btn size="lg" variant="secondary" onClick={() => scrollToId("how-it-works")}>
+              <Btn size="lg" variant="secondary" className="w-full sm:w-auto" onClick={() => scrollToId("how-it-works")}>
                 See how it works
               </Btn>
             </div>
@@ -722,7 +745,7 @@ export default function Landing() {
 /* ── Footer ────────────────────────────────────────────────── */
 export function LandingFooter() {
   return (
-    <footer className="px-4 sm:px-6 py-10" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+    <footer className="px-4 sm:px-6 py-10 pb-28 md:pb-10" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
       <div className="mx-auto max-w-[1140px] flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Brand size="sm" />

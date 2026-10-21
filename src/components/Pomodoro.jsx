@@ -402,7 +402,7 @@ export default function Pomodoro() {
 
   return (
     <>
-      <div className="fixed bottom-24 left-5 z-40 sm:bottom-5 sm:left-44">
+      <div className="fab-focus fixed bottom-24 left-5 z-40 sm:bottom-5 sm:left-44">
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
@@ -420,7 +420,7 @@ export default function Pomodoro() {
             <circle cx="12" cy="13" r="8" />
             <path d="M12 9v4l2.5 2.5M9 2h6" />
           </svg>
-          {label}
+          <span className="fab-label">{label}</span>
           {livingRemaining !== null && (
             <span
               className="grid place-items-center min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold tabular-nums"
