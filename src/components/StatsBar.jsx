@@ -153,7 +153,6 @@ function StatRing({ label, center, sub, pct, color, textColor, expectedPct, mask
               strokeLinecap="round"
               strokeDasharray={C}
               strokeDashoffset={C * (1 - clamped / 100)}
-              style={{ filter: `drop-shadow(0 0 6px ${color}55)` }}
             />
           {/* Start marker at 12 o'clock */}
           <circle cx={cx} cy={cy - r} r="2.6" fill={color} />
