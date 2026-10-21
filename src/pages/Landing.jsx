@@ -199,13 +199,13 @@ function RealScreens() {
             src={SHOT_DESKTOP}
             alt="The Paceline dashboard: rings for execution, money, results and days, the pace chart, and this month's goal cards."
             width="1440"
-            height="880"
+            height="936"
             loading="lazy"
             decoding="async"
             onLoad={() => setDesktopReady(true)}
             className="hidden h-auto w-full sm:block"
             style={{
-              aspectRatio: "1440 / 880",
+              aspectRatio: "1440 / 936",
               opacity: desktopReady ? 1 : 0,
               transition: "opacity 0.45s ease",
             }}
