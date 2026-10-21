@@ -176,9 +176,6 @@ const SHOT_DESKTOP = `${import.meta.env.BASE_URL}screens/tracker-desktop.webp`;
 const SHOT_MOBILE = `${import.meta.env.BASE_URL}screens/tracker-mobile.webp`;
 
 function RealScreens() {
-  const [desktopReady, setDesktopReady] = useState(false);
-  const [mobileReady, setMobileReady] = useState(false);
-
   return (
     <div className="relative mx-auto w-full max-w-[1060px]">
       <div
@@ -200,15 +197,11 @@ function RealScreens() {
             alt="The Paceline dashboard: rings for execution, money, results and days, the pace chart, and this month's goal cards."
             width="1440"
             height="936"
-            loading="lazy"
+            loading="eager"
+            fetchPriority="high"
             decoding="async"
-            onLoad={() => setDesktopReady(true)}
             className="hidden h-auto w-full sm:block"
-            style={{
-              aspectRatio: "1440 / 936",
-              opacity: desktopReady ? 1 : 0,
-              transition: "opacity 0.45s ease",
-            }}
+            style={{ aspectRatio: "1440 / 936" }}
           />
           {/* Below 640px the laptop capture would be unreadable, so the frame
               shows the phone capture at a size you can actually read. */}
@@ -231,13 +224,10 @@ function RealScreens() {
         height="1688"
         loading="lazy"
         decoding="async"
-        onLoad={() => setMobileReady(true)}
         className="float-gentle-2 absolute hidden -bottom-14 -right-6 w-[168px] rounded-[20px] sm:block"
         style={{
           border: "1px solid var(--color-border-active)",
           boxShadow: "0 24px 50px rgba(0,0,0,0.55), 0 0 30px rgba(109,245,227,0.12)",
-          opacity: mobileReady ? 1 : 0,
-          transition: "opacity 0.45s ease",
         }}
       />
     </div>
