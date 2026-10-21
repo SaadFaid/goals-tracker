@@ -1,4 +1,5 @@
 import { actionPct, resultPct } from "../lib/score";
+import useDialogBehavior from "../lib/useDialogBehavior";
 import { IconTrendUp, IconCheckCircle, IconGauge, IconTrendDown } from "./Icons";
 
 const SECTION_ICONS = {
@@ -62,13 +63,23 @@ function getAnalysis(cats) {
 }
 
 export default function MonthEndAnalysis({ cats, onClose }) {
+  const panelRef = useDialogBehavior(true, onClose);
   const { good, bad, doingWell, needsWork } = getAnalysis(cats);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.85)" }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl p-5 border border-white/10" style={{ background: "#0E1817" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="month-analysis-title"
+        tabIndex={-1}
+        className="w-full max-w-sm rounded-2xl p-5 border border-white/10"
+        style={{ background: "#0E1817" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-white">Month Analysis</h3>
+          <h3 id="month-analysis-title" className="text-base font-bold text-white">Month Analysis</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-white/10 text-white/50 text-sm w-6 h-6 flex items-center justify-center">
             ×
           </button>

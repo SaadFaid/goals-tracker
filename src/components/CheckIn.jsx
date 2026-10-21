@@ -1,4 +1,5 @@
 import { useState } from "react";
+import useDialogBehavior from "../lib/useDialogBehavior";
 import { actionPct, resultPct } from "../lib/score";
 import { IconCheckCircle, IconClose } from "./Icons";
 
@@ -7,6 +8,7 @@ const isKgResult = (item) =>
 
 export default function CheckIn({ categories, onIncrement, onDecrement, onResultToggle }) {
   const [open, setOpen] = useState(false);
+  const panelRef = useDialogBehavior(open, () => setOpen(false));
 
   const rows = [];
   (categories || []).forEach((cat) => {
@@ -74,15 +76,23 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
           style={{ background: "rgba(11,31,30,0.7)", backdropFilter: "blur(6px)" }}
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-[520px] max-h-[84vh] flex flex-col rounded-2xl overflow-hidden"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Check in"
+            tabIndex={-1}
+            className="w-full max-w-[520px] max-h-[90vh] sm:max-h-[84vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
             style={{ background: "var(--color-elevated)", border: "1px solid var(--color-border-active)", boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="sm:hidden grid place-items-center pt-2 pb-1 shrink-0">
+              <span className="block rounded-full" style={{ width: 38, height: 4, background: "var(--color-border-active)" }} />
+            </div>
             <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
               <h2 className="display text-heading text-lg">Check in</h2>
               <button onClick={() => setOpen(false)} aria-label="Close check-in" className="text-text-tertiary cursor-pointer"><IconClose size={14} /></button>

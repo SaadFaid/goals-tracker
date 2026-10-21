@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import useDialogBehavior from "../lib/useDialogBehavior";
 import FlipClock from "./FlipClock";
 import { scopeKey } from "../lib/storageScope";
 import { api, getAccessToken } from "../lib/api";
@@ -107,6 +108,8 @@ export default function Pomodoro() {
   // offline cache.
   const isServerBacked = useGoalsStore((st) => st.isServerBacked === true);
   const [open, setOpen] = useState(false);
+  const panelRef = useDialogBehavior(open, () => setOpen(false));
+  const identity = useGoalsStore((st) => (st.isGuest ? "guest" : st.user?.email || "guest"));
   const [mode, setMode] = useState(s.mode);
   const [workM, setWorkM] = useState(s.workM);
   const [breakM, setBreakM] = useState(s.breakM);
@@ -157,6 +160,32 @@ export default function Pomodoro() {
     localStorage.setItem(scopeKey(STORAGE_BASE), JSON.stringify(settings));
     if (isServerBacked && getAccessToken()) api.savePomodoro(settings).catch(() => {});
   }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold, isServerBacked]);
+
+  // Each identity owns its own timer and session. Without this, signing in or
+  // out kept the previous account's clock and wrote it into the new slot.
+  const lastPomodoroIdentity = useRef(identity);
+  useEffect(() => {
+    if (lastPomodoroIdentity.current === identity) return;
+    lastPomodoroIdentity.current = identity;
+    const next = loadState();
+    setMode(next.mode || "focus");
+    setWorkM(next.workM);
+    setBreakM(next.breakM);
+    setSoundId(soundIdFrom(next));
+    setPhase(next.phase);
+    setPomodoros(next.pomodoros);
+    setRepeat(next.repeat);
+    setRunning(!!next.fRunning);
+    setEndAt(toMs(next.fEndAt));
+    setHold(next.fHold || 0);
+    setTH(next.tH);
+    setTM(next.tM);
+    setTS(next.tS);
+    setTRunning(!!next.tRunning);
+    setTEndAt(toMs(next.tEndAt));
+    setTHold(next.tHold || 0);
+    setAlert(null);
+  }, [identity]);
 
   // Persist + clear cache once an alert is acknowledged or replaced.
   useEffect(() => {
@@ -434,19 +463,28 @@ export default function Pomodoro() {
 
       {open && (
         <div
-          className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="notes-backdrop-in fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
           style={{ background: "rgba(11,31,30,0.32)", backdropFilter: "blur(12px)" }}
           onClick={() => setOpen(false)}
         >
           <div
-            className="notes-pop w-full overflow-hidden rounded-2xl flex flex-col"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={mode === "focus" ? "Focus timer" : "Timer"}
+            tabIndex={-1}
+            className="notes-pop w-full overflow-hidden rounded-t-2xl sm:rounded-2xl flex flex-col"
             style={{
               maxWidth: 480,
-              maxHeight: "88vh",
+              maxHeight: "90vh",
               fontFamily: SF,
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="sm:hidden grid place-items-center pt-2 pb-1 shrink-0">
+              <span className="block rounded-full" style={{ width: 38, height: 4, background: "var(--color-border-active)" }} />
+            </div>
+
             {/* Cool glass header — matches the site. Accent turns red on an active alert */}
             <div
               className="relative flex items-center justify-between gap-3 px-4 py-2.5"

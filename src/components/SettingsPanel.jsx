@@ -74,7 +74,7 @@ function ActionButton({ onClick, label, hint, icon, danger = false }) {
  * Every preference saves the moment it is changed; the account-level ones
  * (leaderboard visibility, activity) are mirrored to the server.
  */
-export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysis, onOpenLeaderboard, onPrint }) {
+export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysis, onPrint }) {
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const settings = useGoalsStore((s) => s.settings);
@@ -302,19 +302,6 @@ export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysi
                 label="Month analysis"
                 hint="How the month is tracking against pace"
                 icon={<IconChart size={17} />}
-              />
-              <ActionButton
-                onClick={() => {
-                  onClose?.();
-                  onOpenLeaderboard?.();
-                }}
-                label="Leaderboard"
-                hint="See where your streak ranks"
-                icon={
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M6 21V13M12 21V4M18 21v-6" />
-                  </svg>
-                }
               />
               <ActionButton
                 onClick={() => {

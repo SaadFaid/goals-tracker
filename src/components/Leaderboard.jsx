@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useDialogBehavior from "../lib/useDialogBehavior";
 import { api } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconFlame } from "./Icons";
@@ -7,6 +8,7 @@ import { IconFlame } from "./Icons";
 // overall-quality number each member sees on their own dashboard, so a row here
 // matches what they are used to reading.
 export default function Leaderboard({ onClose }) {
+  const panelRef = useDialogBehavior(true, onClose);
   const user = useGoalsStore((s) => s.user);
   const isGuest = useGoalsStore((s) => s.isGuest);
   const openAuth = useGoalsStore((s) => s.openAuth);
@@ -46,13 +48,18 @@ export default function Leaderboard({ onClose }) {
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="leaderboard-title"
+        tabIndex={-1}
         className="w-full max-w-md rounded-2xl p-5 flex flex-col gap-4"
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold" style={{ color: "var(--color-heading)" }}>
+            <h2 id="leaderboard-title" className="text-base font-bold" style={{ color: "var(--color-heading)" }}>
               Leaderboard
             </h2>
             <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>

@@ -238,21 +238,10 @@ function RealScreens() {
             className="mx-auto block w-[250px] sm:hidden"
           />
         </div>
+        <p className="mt-2 text-center text-[10px] text-text-tertiary">
+          A real month in Paceline — no mockups, no placeholder numbers.
+        </p>
       </div>
-
-      <img
-        src={SHOT_MOBILE}
-        alt="The same dashboard on a phone: the month header, the four rings and the goal cards stacked."
-        width="780"
-        height="1688"
-        loading="lazy"
-        decoding="async"
-        className="float-gentle-2 absolute hidden -bottom-14 -right-6 w-[168px] rounded-[20px] sm:block"
-        style={{
-          border: "1px solid var(--color-border-active)",
-          boxShadow: "0 24px 50px rgba(0,0,0,0.55), 0 0 30px rgba(109,245,227,0.12)",
-        }}
-      />
     </div>
   );
 }

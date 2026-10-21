@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import useDialogBehavior from "../lib/useDialogBehavior";
 
 const SF =
   "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif";
@@ -53,6 +54,7 @@ function useTileSize(nGroups, running) {
  *   onSession   (patch: { running?, endAt?, hold?, durMs? }) => void
  */
 export default function FlipClock({ open, onClose, session, onSession }) {
+  const panelRef = useDialogBehavior(open, onClose);
   const [now, setNow] = useState(Date.now());
   const will = useRef(session);
 
@@ -152,6 +154,11 @@ export default function FlipClock({ open, onClose, session, onSession }) {
 
   return (
     <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Timer"
+      tabIndex={-1}
       className="fixed inset-0 z-[90] flex flex-col"
       style={{ background: "#000000", fontFamily: SF }}
     >

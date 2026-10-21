@@ -4,7 +4,7 @@ import Avatar from "./Avatar";
 import { IconCheck, IconPencil } from "./Icons";
 import MonthPicker from "./MonthPicker";
 
-export default function Nav({ view = "dashboard", onSetView, onOpenSettings }) {
+export default function Nav({ view = "dashboard", onSetView, onOpenLeaderboard, onOpenSettings }) {
   const isGuest = useGoalsStore((s) => s.isGuest);
   const openAuth = useGoalsStore((s) => s.openAuth);
   const editMode = useGoalsStore((s) => s.editMode);
@@ -76,6 +76,20 @@ export default function Nav({ view = "dashboard", onSetView, onOpenSettings }) {
           <MonthPicker />
           <span className="nav-divider" aria-hidden="true" />
           <div className="flex items-center gap-2 flex-wrap justify-end controls-actions">
+            <button
+              type="button"
+              onClick={() => onOpenLeaderboard?.()}
+              className="nav-btn"
+              title="Leaderboard — ranked by streak"
+              style={pill(false)}
+            >
+              <span style={{ color: "var(--color-accent)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 21V13M12 21V4M18 21v-6" />
+                </svg>
+              </span>
+              Leaderboard
+            </button>
             <button
               onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
               className="nav-btn"

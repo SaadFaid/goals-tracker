@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import useDialogBehavior from "../lib/useDialogBehavior";
 import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconClose } from "./Icons";
@@ -123,6 +124,8 @@ export default function Notes() {
   const justDragged = useRef(false);
   const latestNotes = useRef(notes);
   const dayRecRef = useRef(dayRec);
+  const panelRef = useDialogBehavior(open, () => setOpen(false));
+  const identity = useGoalsStore((st) => (st.isGuest ? "guest" : st.user?.email || "guest"));
   const rolledRef = useRef(false);
   useEffect(() => {
     dayRecRef.current = dayRec;
@@ -204,6 +207,25 @@ export default function Notes() {
     }
   }, [dayRec, isServerBacked]);
 
+  // The checklist and its day history belong to the identity that wrote them.
+  // Without this, logging in (or out) kept the previous account's sheet in
+  // memory and the next save wrote it into the new account's slot — so a day
+  // looked saved under the wrong name, or vanished.
+  const lastIdentity = useRef(identity);
+  useEffect(() => {
+    // Mount already loaded this identity's copy — only reload on a real switch,
+    // otherwise it would undo the midnight archive that just ran.
+    if (lastIdentity.current === identity) return;
+    lastIdentity.current = identity;
+    rolledRef.current = false;
+    setNotes(loadNotes());
+    setDayRec(loadDayRec());
+    setActiveDay(null);
+    setView("list");
+    setEditMode(false);
+    setDraft("");
+  }, [identity]);
+
   useEffect(() => {
     if (open && view === "list") inputRef.current?.focus();
   }, [open, view]);
@@ -244,7 +266,7 @@ export default function Notes() {
     // Runs once per successful restore; later edits flow through the save
     // effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isServerBacked, sessionRestoring]);
+  }, [isServerBacked, sessionRestoring, identity]);
 
   const addNote = () => {
     const text = draft.trim();
@@ -389,12 +411,17 @@ export default function Notes() {
 
       {open && (
         <div
-          className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="notes-backdrop-in fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
           style={{ background: "rgba(11,31,30,0.32)", backdropFilter: "blur(12px)" }}
           onClick={() => setOpen(false)}
         >
           <div
-            className="notes-pop w-full max-w-[540px] max-h-[84vh] flex flex-col rounded-2xl overflow-hidden"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={view === "days" ? "Days history" : "Checklist"}
+            tabIndex={-1}
+            className="notes-pop w-full max-w-[540px] max-h-[92vh] sm:max-h-[84vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
             style={{
               border: "1px solid rgba(109,245,227,0.16)",
               boxShadow:
@@ -402,6 +429,10 @@ export default function Notes() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="sm:hidden grid place-items-center pt-2 pb-1 shrink-0">
+              <span className="block rounded-full" style={{ width: 38, height: 4, background: "var(--color-border-active)" }} />
+            </div>
+
             {/* Glass navbar — matches the site's floating controls card */}
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"
