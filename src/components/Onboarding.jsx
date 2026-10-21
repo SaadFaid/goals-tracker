@@ -83,7 +83,7 @@ export default function Onboarding({ onFinish }) {
       case 1: return !!onboarding.cadence;
       case 2: return !!onboarding.status;
       case 3: return !!onboarding.country && !!onboarding.currency;
-      case 4: return onboarding.phone.trim().length >= 6;
+      case 4: return true;
       case 5: return !!onboarding.heardFrom;
       case 6: return (onboarding.goals || []).length > 0;
       case 7: return (onboarding.goals || []).length > 0;
@@ -146,6 +146,18 @@ export default function Onboarding({ onFinish }) {
     }
     setBusy(true);
     try {
+      const store = useGoalsStore.getState();
+      const phone = String(onboarding.phone || "").trim();
+      const calling = (COUNTRIES.find((c) => c.code === onboarding.country) || {}).calling || "";
+      store.setSettings({
+        country: onboarding.country || store.settings.country,
+        currency: onboarding.currency || store.settings.currency,
+        // Store it the way it would be dialled, dial code included.
+        phone: phone ? (calling && calling !== "+" ? `${calling} ${phone}` : phone) : store.settings.phone,
+        // "On my own" means no reminders at all.
+        emailReminders: onboarding.cadence !== "own",
+        emailWeekly: onboarding.cadence !== "own",
+      });
       applyToTracker();
       setOnboarding({ step: 7, done: true });
       onFinish?.();
@@ -198,17 +210,17 @@ export default function Onboarding({ onFinish }) {
             {step === 3 && "Your country and currency"}
             {step === 4 && "Your phone number"}
             {step === 5 && "Where did you hear about us?"}
-            {step === 6 && "Pick your goals"}
+            {step === 6 && "What are you actually chasing this month?"}
             {step === 7 && "Set your numbers"}
           </h1>
           <p className="text-sm text-muted mt-1.5 mb-5">
             {step === 0 && "Pick one or more. You can change everything later."}
-            {step === 1 && "This sets the rhythm of your reminders. Change it whenever."}
+            {step === 1 && "This becomes your default check-in rhythm. Change it whenever."}
             {step === 2 && "One answer. It only shapes the advice you get."}
             {step === 3 && "We picked them from your device. Money goals use this currency."}
             {step === 4 && "For your account, so we can reach you if we need to."}
             {step === 5 && "Pick one."}
-            {step === 6 && `Choose the ones you want for ${monthLabel}. You can add your own later.`}
+            {step === 6 && `Tick what you mean to do in ${monthLabel}. Three honest goals beat twelve hopeful ones, and you can add your own after.`}
             {step === 7 && `Your targets for ${monthLabel}. Change any number.`}
           </p>
 
@@ -330,13 +342,13 @@ export default function Onboarding({ onFinish }) {
               </div>
             ) : null}
 
-            {/* Step 5 — phone */}
+            {/* Step 5 — phone (the only place it is asked) */}
             {step === 4 ? (
               <div className="flex flex-col gap-3">
                 <div className="flex gap-2">
-                  <div className="w-[130px] shrink-0">
+                  <div className="w-[150px] shrink-0">
                     <Select
-                      value={onboarding.country || "OTHER"}
+                      value={onboarding.country || detectRegion().code}
                       onChange={(v) => {
                         const c = COUNTRIES.find((x) => x.code === v);
                         setOnboarding({ country: v, currency: c?.currency || onboarding.currency });
@@ -344,29 +356,42 @@ export default function Onboarding({ onFinish }) {
                     >
                       {COUNTRIES.map((c) => (
                         <option key={c.code} value={c.code}>
-                          {c.calling} {c.code}
+                          {c.name}
                         </option>
                       ))}
                     </Select>
                   </div>
-                  <div className="grow">
-                    <Input
+                  <div className="grow flex items-stretch rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border-subtle)" }}>
+                    <span
+                      className="grid place-items-center px-3 text-sm font-semibold mono shrink-0"
+                      style={{ background: "var(--color-sunken)", color: "var(--color-text-secondary)" }}
+                    >
+                      {(COUNTRIES.find((c) => c.code === (onboarding.country || detectRegion().code)) || {}).calling || "+"}
+                    </span>
+                    <input
                       value={onboarding.phone || ""}
-                      onChange={(v) => setOnboarding({ phone: v })}
+                      onChange={(e) => {
+                        // Keep only what belongs in a phone number. The dial code
+                        // is already shown on the left, so typing it again would
+                        // duplicate it.
+                        const digits = e.target.value.replace(/[^\d\s().-]/g, "");
+                        setOnboarding({ phone: digits });
+                      }}
                       placeholder="6 00 00 00 00"
                       inputMode="tel"
+                      autoComplete="tel"
+                      className="grow bg-sunken text-heading text-sm px-3 py-2.5 outline-none min-w-0"
                     />
                   </div>
                 </div>
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!onboarding.whatsapp}
-                    onChange={(e) => setOnboarding({ whatsapp: e.target.checked })}
-                    className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]"
-                  />
-                  <span className="text-sm text-muted">OK to get reminders and tips on WhatsApp</span>
-                </label>
+                <p className="text-[11px] text-text-tertiary">
+                  Optional. Used only if we need to reach you about your account. No marketing, ever.
+                </p>
+                {onboarding.phone && onboarding.phone.replace(/\D/g, "").length < 6 ? (
+                  <p className="text-[11px]" style={{ color: "var(--color-warning)" }} role="status">
+                    That looks short for a phone number.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Brand, { BrandMark } from "../components/Brand";
 import CookieBanner from "../components/CookieBanner";
 import { Btn } from "../components/ui";
@@ -461,9 +461,18 @@ const FAQS = [
 ];
 
 const TIMELINE = [
-  { when: "The start", what: "[my story] — how the tracker began." },
-  { when: "First month", what: "Built for one person, one month at a time." },
-  { when: "Today", what: `${BRAND.name} is open to anyone who wants a month that adds up.` },
+  {
+    when: "The problem",
+    what: "Every month started the same way: a fresh page, twelve goals, and no idea by the 20th whether the month was going well or just felt busy.",
+  },
+  {
+    when: "The spreadsheet",
+    what: "I built a weighted monthly sheet for myself — what I do counts, what I earn is tracked, what I get is remembered. It worked, and it was ugly.",
+  },
+  {
+    when: "Today",
+    what: `${BRAND.name} is that sheet with a proper interface: same rules, one month at a time, open to anyone who wants a month that adds up.`,
+  },
 ];
 
 /* ── Pace chart card ───────────────────────────────────────── */
@@ -793,7 +802,25 @@ export default function Landing() {
               Built by {BRAND.founder}
             </h2>
             <p className="text-sm text-muted mt-3 leading-relaxed">
-              [my story] — I kept rewriting the same spreadsheet every month, so I built the tracker I wanted instead. {BRAND.name} is deliberately small: one month, a few goals, and an honest read on whether you are keeping up.
+              I am {BRAND.founder}. I kept rebuilding the same spreadsheet every month, and every version
+              had the same flaw: it told me what I had done, never whether I was on pace. So I built the
+              thing I wanted to open each morning.
+            </p>
+            <p className="text-sm text-muted mt-3 leading-relaxed">
+              {BRAND.name} is deliberately small. One month, a handful of goals, a score you cannot
+              flatter, and a line that says ahead or behind without asking how you feel about it.
+              No streaks bought with easy wins, no dashboard full of numbers that never change a decision.
+            </p>
+            <p className="text-sm text-muted mt-3 leading-relaxed">
+              It is free while it is in early access. I read every reply that reaches{" "}
+              <a
+                href={`mailto:${BRAND.supportEmail}`}
+                className="underline-offset-4 hover:underline"
+                style={{ color: "var(--color-accent)" }}
+              >
+                {BRAND.supportEmail}
+              </a>
+              .
             </p>
           </div>
           <div className="reveal" style={{ transitionDelay: "80ms" }}>
@@ -829,7 +856,7 @@ export default function Landing() {
             Start tracking this month.
           </h2>
           <p className="text-sm text-muted mt-3 max-w-md mx-auto">
-            Your first month is free, and there is nothing to install. Set three goals and see where the month takes you.
+            Free while it is in early access, and nothing to install. Set three goals and see where the month takes you.
           </p>
           <div className="mt-7 flex justify-center">
             <Btn size="lg" className="press-btn hover-arrow" onClick={() => go("#/signup")}>

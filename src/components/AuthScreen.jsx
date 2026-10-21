@@ -14,7 +14,6 @@ export default function AuthScreen({ mode = "login", onModeChange, onForgot }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldError, setFieldError] = useState({});
@@ -32,9 +31,6 @@ export default function AuthScreen({ mode = "login", onModeChange, onForgot }) {
     const errs = {};
     if (isRegister && !name.trim()) errs.name = "Enter your full name.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = "Enter a valid email address.";
-    if (isRegister && phone.trim() && !/^[+()\d][\d\s().-]{5,}$/.test(phone.trim())) {
-      errs.phone = "That does not look like a phone number.";
-    }
     if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password))
       errs.password = "Min. 8 characters, with a capital, a number and a symbol.";
     setFieldError(errs);
@@ -49,7 +45,7 @@ export default function AuthScreen({ mode = "login", onModeChange, onForgot }) {
     setBusy(true);
     try {
       if (isRegister) {
-        await register({ email, password, name, phone });
+        await register({ email, password, name });
       } else {
         await login({ email, password });
       }
@@ -141,16 +137,6 @@ export default function AuthScreen({ mode = "login", onModeChange, onForgot }) {
                     onChange={setName}
                     placeholder="e.g. Sara Bennani"
                     autoComplete="name"
-                  />
-                </Field>
-                <Field label="Phone number" id="pl-phone" error={fieldError.phone}>
-                  <Input
-                    id="pl-phone"
-                    value={phone}
-                    onChange={setPhone}
-                    placeholder="+212 6 00 00 00 00"
-                    inputMode="tel"
-                    autoComplete="tel"
                   />
                 </Field>
               </>

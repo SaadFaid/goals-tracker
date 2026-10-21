@@ -293,6 +293,10 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
           {/* ── Reminders ── */}
           <section className="flex flex-col gap-3.5">
             <SectionLabel>Reminders</SectionLabel>
+            <p className="text-[11px] text-text-tertiary -mt-1">
+              Your choice is saved now. Email sending switches on with the reminder service, and you
+              will get a note before the first one goes out.
+            </p>
             <Toggle
               id="pl-reminders"
               label="Daily reminder"

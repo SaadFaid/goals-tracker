@@ -341,7 +341,6 @@ function defaultOnboarding() {
     country: "",
     currency: "",
     phone: "",
-    whatsapp: false,
     heardFrom: "",
     goals: [],
     targets: {},
@@ -776,7 +775,6 @@ export const useGoalsStore = create(
           // A brand-new account starts onboarding at step one, and it resumes
           // from wherever it was left if the tab is closed midway.
           set({ onboarding: { ...defaultOnboarding(), started: true, step: 0 }, tourSeen: false });
-          if (credentials?.phone) set({ settings: { ...get().settings, phone: String(credentials.phone) } });
           return;
         } catch (err) {
           // The server already knows this email, or is unreachable. A local-only
