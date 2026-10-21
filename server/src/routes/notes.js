@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createHttpError, cleanText, isIsoDate } from "../validation/validate.js";
+import { buildDayRows } from "../lib/notesDays.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -98,25 +99,7 @@ router.put("/", async (req, res, next) => {
       })
       .filter(Boolean);
 
-    const dayRows = [];
-    if (rawMap) {
-      for (const [date, list] of Object.entries(rawMap)) {
-        if (!isIsoDate(date)) throw createHttpError(400, `Invalid notes day ${date}`);
-        if (!Array.isArray(list)) throw createHttpError(400, `Notes day ${date} must be an array`);
-        if (list.length > 200) throw createHttpError(400, `Too many notes on ${date}`);
-        const seen = new Set();
-        list.forEach((raw, i) => {
-          const clean = sanitizeNote(raw, { userId, date });
-          if (!clean) return; // empty text: drop from the batch
-          const row = { ...clean, sortOrder: raw?.sortOrder == null ? i : isInt(raw.sortOrder) ? raw.sortOrder : i };
-          if (seen.has(row.id)) throw createHttpError(400, `Duplicate note id ${row.id} on ${date}`);
-          seen.add(row.id);
-          // NoteDay has its own row uuid plus noteId, which is the note's client
-          // id and the column the unique key is built on.
-          dayRows.push({ ...row, noteId: row.id });
-        });
-      }
-    }
+    const dayRows = buildDayRows(rawMap, userId);
 
     const lastDay = req.body?.days?.lastDay;
     if (lastDay != null && lastDay !== "" && !isIsoDate(lastDay)) {
@@ -148,8 +131,13 @@ router.put("/", async (req, res, next) => {
         }
         for (const d of dayRows) {
           await tx.noteDay.upsert({
-            where: { userId_date_noteId: { userId, date: d.date, noteId: d.id } },
-            create: { id: d.id, userId, date: d.date, noteId: d.id, text: d.text, done: d.done, sortOrder: d.sortOrder },
+            where: { userId_date_noteId: { userId, date: d.date, noteId: d.noteId } },
+            // No `id` here on purpose: the row's own uuid is its primary key and
+            // the upsert is identified by (userId, date, noteId). Setting the
+            // note's client id as the primary key made a second date for the
+            // same note a unique-constraint failure that took the entire day
+            // map down with it.
+            create: { userId, date: d.date, noteId: d.noteId, text: d.text, done: d.done, sortOrder: d.sortOrder },
             update: { text: d.text, done: d.done, sortOrder: d.sortOrder },
           });
         }

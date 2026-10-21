@@ -90,7 +90,10 @@ const distPath = path.resolve(__dirname, "../../dist");
 if (fs.existsSync(distPath)) {
   const clientBuild = express.static(distPath);
   app.use(clientBuild);
-  app.get(/^\/(?!api\/).*/, (_req, res, next) => {
+  app.get(/^\/(?!api\/).*/, (req, res, next) => {
+    // The callback parameter is the request object — the old `_req` name with a
+    // bare `req` in the body threw "req is not defined" on every non-API GET
+    // and took the SPA fallback down with it.
     const file = path.join(distPath, req.path);
     if (req.path !== "/" && fs.existsSync(file) && fs.statSync(file).isFile()) {
       return next();

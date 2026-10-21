@@ -123,6 +123,7 @@ export default function Notes() {
   const justDragged = useRef(false);
   const latestNotes = useRef(notes);
   const dayRecRef = useRef(dayRec);
+  const rolledRef = useRef(false);
   useEffect(() => {
     dayRecRef.current = dayRec;
   }, [dayRec]);
@@ -130,30 +131,33 @@ export default function Notes() {
   // A new day (midnight) starts with an empty checklist: yesterday's list is
   // frozen into that day's history so it lives "only for that day", and the
   // standing list clears. Carry yesterday's tasks back with the button below.
+  //
+  // `rolledRef` records that this device already filed a day. The load effect
+  // reads it: the server still holds yesterday's standing list, and re-loading
+  // it after the rollover put yesterday's tasks back on today's sheet.
   const rollToToday = () => {
     const tk = todayKeyOf();
-    const prevLast = dayRecRef.current?.lastDay;
+    const prev = dayRecRef.current;
+    const prevLast = prev?.lastDay;
     if (!prevLast || prevLast === tk) return false;
     const hadNotes = latestNotes.current.length > 0;
-    setDayRec((prev) => {
-      // Both mount effects call this, and the ref they read above is one batch
-      // behind: after the first call queues {lastDay: tk}, the second still
-      // sees the OLD day in the ref and re-runs, by which point `prev.lastDay`
-      // is already `tk` — so it wrote yesterday's tasks under TODAY's date,
-      // hiding the real day and making "Bring last day's tasks" hand back the
-      // seeded example instead of the user's tasks. Re-check the settled state
-      // and no-op rather than writing again.
-      if (!prev?.lastDay || prev.lastDay === tk) return prev;
-      const map = { ...(prev.map || {}) };
-      if (hadNotes) {
-        map[prev.lastDay] = latestNotes.current.map((n) => ({
-          id: n.id,
-          text: n.text,
-          done: !!n.done,
-        }));
-      }
-      return { lastDay: tk, map, seeded: prev?.seeded === true };
-    });
+    const map = { ...(prev?.map || {}) };
+    if (hadNotes) {
+      map[prevLast] = latestNotes.current.map((n) => ({
+        id: n.id,
+        text: n.text,
+        done: !!n.done,
+      }));
+    }
+    const next = { lastDay: tk, map, seeded: prev?.seeded === true };
+    // Both mount effects call this, and the ref they read has to move with the
+    // state: the second call still saw the OLD day and archived the list a
+    // second time under a different date. The same note ids then landed on two
+    // dates, which the server rejected with a unique-constraint failure that
+    // rolled back the whole day map — so the history never saved.
+    dayRecRef.current = next;
+    rolledRef.current = true;
+    setDayRec(next);
     if (hadNotes) setNotes([]);
     return true;
   };
@@ -179,9 +183,9 @@ export default function Notes() {
       if (notes.length === 0) {
         // A cleared checklist means the standing list on the server goes too;
         // merge mode only upserts and would resurrect the old rows on reload.
-        api.clearNotes().catch(() => {});
+        api.clearNotes().catch((err) => console.error("[checklist] clear failed", err));
       } else {
-        api.saveNotes({ mode: "merge", notes }).catch(() => {});
+        api.saveNotes({ mode: "merge", notes }).catch((err) => console.error("[checklist] notes save failed", err));
       }
     }
   }, [notes, isServerBacked]);
@@ -189,9 +193,14 @@ export default function Notes() {
   useEffect(() => {
     localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
     if (isServerBacked && getAccessToken()) {
+      // `seeded` has to travel with the save: the server stores it next to
+      // lastDay, and leaving it out reset the flag to false on every save.
       api
-        .saveNotes({ mode: "merge", days: dayRec?.map || {}, lastDay: dayRec?.lastDay })
-        .catch(() => {});
+        .saveNotes({
+          mode: "merge",
+          days: { map: dayRec?.map || {}, lastDay: dayRec?.lastDay, seeded: dayRec?.seeded === true },
+        })
+        .catch((err) => console.error("[checklist] day-history save failed", err));
     }
   }, [dayRec, isServerBacked]);
 
@@ -209,45 +218,29 @@ export default function Notes() {
     api
       .getNotes()
       .then((res) => {
-        if (Array.isArray(res?.notes)) setNotes(res.notes);
-        if (res?.days) {
-          setDayRec((prev) => ({
-            lastDay: res.lastDay || prev?.lastDay,
-            map: res.days.map || {},
-            seeded: prev?.seeded === true,
-          }));
-        }
-        // The server snapshot may be from yesterday (a morning reload, or the
-        // last visit was the day before). Roll it forward the same way the
-        // rollover hook does: freeze the fetched list into its day, clear the
-        // standing list. The day-history save effect below persists it.
-        //
-        // Only do this when THIS device also sees a day change. Rolling purely
-        // because the server's lastDay looked old is what deleted freshly typed
-        // tasks: whenever a day-history save failed (or lagged), lastDay stayed
-        // in the past, so every reload cleared the standing list out from under
-        // the user. The local rollover already handles a real new day; this path
-        // exists only for a snapshot another device left behind.
-        const tk = todayKeyOf();
-        const localLast = dayRecRef.current?.lastDay;
-        if (res?.days?.lastDay && res.days.lastDay !== tk && localLast !== tk) {
-          setDayRec((prev) => {
-            const map = { ...(prev?.map || {}) };
-            // Same rule as the local rollover: the fetched list is that day's
-            // real work, so it overwrites any seeded example on the same date.
-            if (Array.isArray(res.notes) && res.notes.length) {
-              map[res.days.lastDay] = res.notes.map((n) => ({
-                id: n.id,
-                text: n.text,
-                done: !!n.done,
-              }));
-            }
-            return { lastDay: tk, map, seeded: prev?.seeded === true };
-          });
-          setNotes([]);
-        }
+        const prev = dayRecRef.current || { lastDay: null, map: {}, seeded: false };
+        // The server's copy can be OLDER than this device's: a save that
+        // failed, a stale lastDay, another device that never rolled over.
+        // Replacing the local map with it deleted the days this device had
+        // already archived — the checklist showed a day, and then it was gone.
+        // Merge instead: the server fills in the days this device has never
+        // seen, and the local copy wins on a date both have, because the local
+        // one is the real work and the server's is often a seeded example.
+        const mergedMap = { ...(res?.days?.map || {}), ...(prev.map || {}) };
+        // The rollover already filed the standing list under its day and
+        // emptied it. The server still holds that list, so loading it again
+        // would put yesterday's tasks back on today's sheet.
+        if (!rolledRef.current && Array.isArray(res?.notes)) setNotes(res.notes);
+        setDayRec({
+          // The server's lastDay lives under `days`, not at the top level.
+          lastDay: prev.lastDay || res?.days?.lastDay || null,
+          map: mergedMap,
+          seeded: prev.seeded === true,
+        });
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[checklist] load failed", err);
+      });
     // Runs once per successful restore; later edits flow through the save
     // effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps

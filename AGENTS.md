@@ -86,6 +86,15 @@ npm test               # unit tests (node:test, no DB)
   spread. Keep new ordering fields out of the blind spot. `fullWidth` (the
   full/half placement toggle) is in the same blind spot and must be named in
   **both** `server/src/lib/calc.js` and `src/lib/score.js`.
+- **A day row's own id must not be the note id** — `NoteDay.id` is the row's uuid
+  (schema default); the note's client id belongs in `noteId`, and the upsert key is
+  `userId_date_noteId`. Forcing the note id into `id` made one note id usable on
+  ONE date only: filing the same task on a second date raised P2002 and rolled back
+  the whole transaction, so every day in the map was lost, not just the offending
+  one, and the client swallowed the 500. The day history silently stopped saving.
+  The client must also MERGE the server's day map into the local one — replacing it
+  deleted the days the device had archived and the server had not received, which
+  is what made a saved day disappear on the next load.
 - **The tunnel watchdog must not tear down on one failed probe** — a quick tunnel
   needs time to propagate through Cloudflare's edge, and the edge drops the odd
   request. A single `000` used to exit, which became a restart loop that burned a
