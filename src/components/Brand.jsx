@@ -1,42 +1,38 @@
 import { BRAND } from "../lib/brand";
 
-/** The Paceline mark — the app's existing lens glyph, untouched. */
+/** The Paceline mark, painted from the supplied logo artwork. */
+export const MARK_SRC = `${import.meta.env.BASE_URL}paceline-mark.png`;
+
 export function BrandMark({ size = 18, className = "" }) {
+  const box = size + 14;
   return (
     <span
       className={`grid place-items-center shrink-0 ${className}`}
       style={{
-        width: size + 14,
-        height: size + 14,
+        width: box,
+        height: box,
         borderRadius: 10,
         background: "var(--color-accent-muted)",
-        color: "var(--color-accent)",
         boxShadow: "0 0 18px rgba(109,245,227,0.35)",
       }}
       aria-hidden="true"
     >
-      <svg
-        width={size}
+      <img
+        src={MARK_SRC}
+        alt=""
+        width={size * 1.4}
         height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
+        style={{ width: "auto", height: size, display: "block" }}
+      />
     </span>
   );
 }
 
 /**
- * The wordmark. Text only, the existing display font, the existing accent
- * colour — no copied artwork anywhere in the product.
+ * The wordmark. The display font, the existing accent colour, plus the mark
+ * wherever the space allows.
  */
-export default function Brand({ size = "md", withMark = false, className = "" }) {
+export default function Brand({ size = "md", withMark = true, className = "" }) {
   const sizes = {
     sm: { fontSize: 14 },
     md: { fontSize: 16 },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Brand, { BrandMark } from "../components/Brand";
+import Brand, { BrandMark, MARK_SRC } from "../components/Brand";
 import CookieBanner from "../components/CookieBanner";
 import { Btn } from "../components/ui";
 import { BRAND } from "../lib/brand";
@@ -598,6 +598,12 @@ export default function Landing() {
       <section className="relative px-4 sm:px-6 pt-10 sm:pt-16 pb-16 sm:pb-24">
         <div className="mx-auto max-w-[1140px] grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
           <div>
+            <img
+              src={MARK_SRC}
+              alt={`${BRAND.name} logo`}
+              className="mb-5 block h-10 w-auto sm:h-11"
+              style={{ filter: "drop-shadow(0 0 26px rgba(109,245,227,0.35))" }}
+            />
             <span
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide"
               style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)", border: "1px solid rgba(109,245,227,0.25)" }}
