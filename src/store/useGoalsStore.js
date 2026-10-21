@@ -1295,6 +1295,20 @@ export const useGoalsStore = create(
         } catch {
           /* storage unavailable */
         }
+        // Forget the local profile too: otherwise the deleted email stays in
+        // the offline account list and "logs in" with a month of ghost goals.
+        if (user?.email) {
+          const map = readProfiles();
+          if (map[user.email]) {
+            delete map[user.email];
+            writeProfiles(map);
+          }
+        }
+        // Back to the guest namespace so later writes cannot land in the blob
+        // that belonged to the deleted account.
+        setIdentityScope(null);
+        setAccessToken(null);
+        clearRefreshToken();
         set({
           user: null,
           isGuest: true,
@@ -1306,6 +1320,7 @@ export const useGoalsStore = create(
           tourSeen: false,
           categories: seedClone(),
         });
+        if (typeof window !== "undefined") window.location.hash = "/";
         return true;
       },
 

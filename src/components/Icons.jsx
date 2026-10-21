@@ -221,3 +221,25 @@ export const IconSignOut = (p) => (
     <path d="M10 8 6 12l4 4M6 12h9" />
   </Svg>
 );
+
+export const IconHelp = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.3 9a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.2-2.7 4" />
+    <line x1="12" y1="17.4" x2="12" y2="17.5" />
+  </Svg>
+);
+
+export const IconHome = (p) => (
+  <Svg {...p}>
+    <path d="M4 10.5 12 4l8 6.5" />
+    <path d="M6 9.8V20h12V9.8" />
+  </Svg>
+);
+
+export const IconTrash = (p) => (
+  <Svg {...p}>
+    <path d="M4 7h16M9 7V5h6v2M6.5 7l.8 13h9.4l.8-13" />
+    <path d="M10 11v5M14 11v5" />
+  </Svg>
+);

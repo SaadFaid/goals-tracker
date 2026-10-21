@@ -8,7 +8,7 @@ import { BRAND } from "../lib/brand";
 import { CURRENCIES, COUNTRIES } from "../lib/geo";
 import { computeStreak, streakLabel } from "../lib/streak";
 import { toast } from "../lib/toast";
-import { IconExternal, IconKey, IconSignOut } from "./Icons";
+import { IconHelp, IconHome, IconKey, IconSignOut, IconTrash } from "./Icons";
 
 const go = (hash) => {
   window.location.hash = hash;
@@ -337,30 +337,28 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
           <Divider />
 
           {/* ── Help ── */}
-          <section className="flex flex-col gap-2">
+          <section>
             <SectionLabel>Help</SectionLabel>
-            <button
-              type="button"
-              onClick={() => {
-                onClose?.();
-                onOpenTour?.();
-              }}
-              className="text-left text-sm py-1 cursor-pointer hover:text-heading transition-colors"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              How to use {BRAND.name}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onClose?.();
-                go("#/");
-              }}
-              className="inline-flex items-center gap-1.5 text-left text-sm py-1 cursor-pointer hover:text-heading transition-colors"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Main site <IconExternal size={12} />
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <ActionButton
+                onClick={() => {
+                  onClose?.();
+                  onOpenTour?.();
+                }}
+                label={`How to use ${BRAND.name}`}
+                hint="A short walkthrough of the dashboard"
+                icon={<IconHelp size={17} />}
+              />
+              <ActionButton
+                onClick={() => {
+                  onClose?.();
+                  go("#/");
+                }}
+                label="Visit main site"
+                hint="Pricing, FAQ and the full story"
+                icon={<IconHome size={17} />}
+              />
+            </div>
           </section>
 
           <Divider />
@@ -368,17 +366,13 @@ export default function SettingsPanel({ open, onClose, onOpenTour }) {
           {/* ── Danger zone ── */}
           <section>
             <SectionLabel>Danger zone</SectionLabel>
-            <button
-              type="button"
+            <ActionButton
               onClick={() => openDialog({ type: "delete-account" })}
-              className="text-xs font-semibold cursor-pointer hover:underline"
-              style={{ color: "var(--color-danger)" }}
-            >
-              Delete account
-            </button>
-            <p className="text-[11px] text-text-tertiary mt-1">
-              Removes your goals, progress and streak for good.
-            </p>
+              label="Delete account"
+              hint="Removes your goals, progress and streak for good"
+              icon={<IconTrash size={17} />}
+              danger
+            />
           </section>
         </div>
       </aside>
