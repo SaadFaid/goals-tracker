@@ -67,6 +67,51 @@ export function makeExampleDays({ months = 3 } = {}) {
   return out;
 }
 
+// The task set a seed run would have written for one date. The formula depends
+// only on the date, not on when the seed ran, so this also recognises days
+// written by older builds that seeded different months relative to their own
+// "now". Returns null for a malformed key.
+export function seededDayFor(dateStr) {
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const start = (year + month + day) % TASK_POOL.length;
+  const count = 2 + ((year + month * 2 + day) % 3);
+  const rows = [];
+  for (let i = 0; i < count; i++) {
+    rows.push({
+      text: TASK_POOL[(start + i * 3) % TASK_POOL.length],
+      done: ((year * month + day + i * 2) % 5) < 3,
+    });
+  }
+  return rows;
+}
+
+const rowKey = (r) => `${r.text}\u0000${r.done ? 1 : 0}`;
+
+// True only when a saved day is exactly what the seeder would have written:
+// same tasks, same count, same ticks. A day the user edited never matches.
+export function isSeededDay(dateStr, rows) {
+  const expected = seededDayFor(dateStr);
+  if (!expected || !Array.isArray(rows) || rows.length !== expected.length) return false;
+  return rows.map(rowKey).sort().join("\n") === expected.map(rowKey).sort().join("\n");
+}
+
+// A list of tasks that is some seeded day's set, carried forward as a standing
+// checklist (older builds moved the whole demo set into "today").
+export function isSeededTaskList(list, { days = 400 } = {}) {
+  if (!Array.isArray(list) || list.length === 0) return false;
+  // The standing list has no tick state of its own, so compare texts only.
+  const texts = (rows) => rows.map((r) => r.text).sort().join("\u0000");
+  const mine = texts(list);
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const rows = seededDayFor(dk(d.getFullYear(), d.getMonth() + 1, d.getDate()));
+    if (rows && texts(rows) === mine) return true;
+  }
+  return false;
+}
+
 // Give the demo (guest) account a month that already looks lived-in: each
 // action and result is filled to a plausible fraction of its target, with a
 // few check-type rows left ticked. Deterministic, applied once per guest

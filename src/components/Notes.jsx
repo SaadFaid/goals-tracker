@@ -4,7 +4,7 @@ import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconClose } from "./Icons";
 import { scopeKey } from "../lib/storageScope";
-import { makeExampleDays } from "../lib/seedExamples";
+import { makeExampleDays, isSeededDay, isSeededTaskList } from "../lib/seedExamples";
 
 const NOTES_BASE = "paceline-notes";
 const DAYS_BASE = "paceline-notes-days";
@@ -85,18 +85,33 @@ function loadDayRec() {
   return { lastDay: todayKeyOf(), map: {}, seeded: false };
 }
 
-// Fill in example days the first time there's nothing (or almost nothing) to
-// look at, so the Days history has data across the last months. Real days win
-// on the same date; runs once per identity (guarded by the seeded flag).
-function ensureSeeded(map, seeded) {
-  if (seeded) return null;
-  const realDays = Object.keys(map || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
-  if (realDays.length >= 10) return null;
-  return { ...makeExampleDays(), ...map };
-}
-
 function todayKeyOf(d = new Date()) {
   return dk(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+const isDayKey = (k) => /^\d{4}-\d{2}-\d{2}$/.test(k);
+
+// Freeze a standing list into the day it was written for. `list` is what the
+// sheet currently holds; a stale `lastDay` means that list belongs to an older
+// day, not to today.
+function archiveInto(rec, list, day) {
+  if (!day || !Array.isArray(list) || list.length === 0) return { ...(rec?.map || {}) };
+  return {
+    ...(rec?.map || {}),
+    [day]: list.map((n) => ({ id: n.id, text: n.text, done: !!n.done })),
+  };
+}
+
+// Example days are a demo device's furniture. In a real account a fake day is
+// indistinguishable from work that was lost, so they are never seeded there —
+// and the ones older builds already wrote get pruned on load. A date only
+// counts as seeded when it matches the seeder's own date formula exactly
+// (tasks, count and ticks), so a day the user has edited stays theirs. The
+// formula is date-based, which catches months seeded by older builds too.
+function seededDatesToDrop(map, seeded) {
+  if (!seeded) return [];
+  const today = todayKeyOf();
+  return Object.keys(map || {}).filter((date) => isDayKey(date) && date < today && isSeededDay(date, map[date]));
 }
 
 export default function Notes() {
@@ -105,12 +120,7 @@ export default function Notes() {
   const isServerBacked = useGoalsStore((st) => st.isServerBacked === true);
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => loadNotes());
-  const [dayRec, setDayRec] = useState(() => {
-    const rec = loadDayRec();
-    const merged = ensureSeeded(rec.map, rec.seeded);
-    if (merged) return { ...rec, map: merged, seeded: true };
-    return rec;
-  });
+  const [dayRec, setDayRec] = useState(() => loadDayRec());
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -124,9 +134,14 @@ export default function Notes() {
   const justDragged = useRef(false);
   const latestNotes = useRef(notes);
   const dayRecRef = useRef(dayRec);
+  const dropRef = useRef([]);
   const panelRef = useDialogBehavior(open, () => setOpen(false));
   const identity = useGoalsStore((st) => (st.isGuest ? "guest" : st.user?.email || "guest"));
   const rolledRef = useRef(false);
+  // The account's copy has been read (or there is no account). No write goes
+  // out before this: a mount-time PUT/DELETE used to push this device's empty
+  // or stale sheet over the account's real one.
+  const [syncedFor, setSyncedFor] = useState(null);
   useEffect(() => {
     dayRecRef.current = dayRec;
   }, [dayRec]);
@@ -139,30 +154,33 @@ export default function Notes() {
   // reads it: the server still holds yesterday's standing list, and re-loading
   // it after the rollover put yesterday's tasks back on today's sheet.
   const rollToToday = () => {
-    const tk = todayKeyOf();
+    const today = todayKeyOf();
     const prev = dayRecRef.current;
     const prevLast = prev?.lastDay;
-    if (!prevLast || prevLast === tk) return false;
-    const hadNotes = latestNotes.current.length > 0;
-    const map = { ...(prev?.map || {}) };
-    if (hadNotes) {
-      map[prevLast] = latestNotes.current.map((n) => ({
-        id: n.id,
-        text: n.text,
-        done: !!n.done,
-      }));
+    if (prevLast && prevLast !== today) {
+      const next = {
+        lastDay: today,
+        map: archiveInto(prev, latestNotes.current, prevLast),
+        seeded: prev?.seeded === true,
+      };
+      // Both mount effects call this, and the ref they read has to move with
+      // the state: the second call still saw the OLD day and archived the list
+      // a second time under a different date. The same note ids then landed on
+      // two dates, which the server rejected with a unique-constraint failure
+      // that rolled back the whole day map — so the history never saved.
+      dayRecRef.current = next;
+      latestNotes.current = [];
+      rolledRef.current = true;
+      setDayRec(next);
+      setNotes([]);
+      return true;
     }
-    const next = { lastDay: tk, map, seeded: prev?.seeded === true };
-    // Both mount effects call this, and the ref they read has to move with the
-    // state: the second call still saw the OLD day and archived the list a
-    // second time under a different date. The same note ids then landed on two
-    // dates, which the server rejected with a unique-constraint failure that
-    // rolled back the whole day map — so the history never saved.
-    dayRecRef.current = next;
-    rolledRef.current = true;
-    setDayRec(next);
-    if (hadNotes) setNotes([]);
-    return true;
+    if (!prev || !prevLast) {
+      const next = { lastDay: today, map: prev?.map || {}, seeded: prev?.seeded === true };
+      dayRecRef.current = next;
+      setDayRec(next);
+    }
+    return false;
   };
 
   // Run the rollover on mount, whenever the checklist opens/closes (the old
@@ -182,7 +200,10 @@ export default function Notes() {
   useEffect(() => {
     latestNotes.current = notes;
     localStorage.setItem(scopeKey(NOTES_BASE), JSON.stringify(notes));
-    if (isServerBacked && getAccessToken()) {
+    // Only write to the account whose copy is already in memory. Before that,
+    // an empty local list issued `clearNotes()` on mount and deleted the
+    // standing list the user had typed on another device.
+    if (isServerBacked && getAccessToken() && syncedFor === identity) {
       if (notes.length === 0) {
         // A cleared checklist means the standing list on the server goes too;
         // merge mode only upserts and would resurrect the old rows on reload.
@@ -191,21 +212,41 @@ export default function Notes() {
         api.saveNotes({ mode: "merge", notes }).catch((err) => console.error("[checklist] notes save failed", err));
       }
     }
-  }, [notes, isServerBacked]);
+  }, [notes, isServerBacked, syncedFor, identity]);
 
   useEffect(() => {
     localStorage.setItem(scopeKey(DAYS_BASE), JSON.stringify(dayRec));
-    if (isServerBacked && getAccessToken()) {
+    if (isServerBacked && getAccessToken() && syncedFor === identity) {
       // `seeded` has to travel with the save: the server stores it next to
       // lastDay, and leaving it out reset the flag to false on every save.
+      const drop = dropRef.current;
+      dropRef.current = [];
       api
         .saveNotes({
           mode: "merge",
-          days: { map: dayRec?.map || {}, lastDay: dayRec?.lastDay, seeded: dayRec?.seeded === true },
+          days: {
+            map: dayRec?.map || {},
+            lastDay: dayRec?.lastDay,
+            seeded: dayRec?.seeded === true,
+            ...(drop.length ? { drop } : {}),
+          },
         })
         .catch((err) => console.error("[checklist] day-history save failed", err));
     }
-  }, [dayRec, isServerBacked]);
+  }, [dayRec, isServerBacked, syncedFor, identity]);
+
+  // The demo account gets a lived-in history so the Days view and the tour
+  // have something to show. Real accounts never do: a fake day is
+  // indistinguishable from work that went missing.
+  useEffect(() => {
+    if (isServerBacked || identity !== "guest") return;
+    if (dayRec.seeded) return;
+    const realDays = Object.keys(dayRec.map || {}).filter(isDayKey);
+    if (realDays.length >= 10) return;
+    setDayRec({ ...dayRec, map: { ...makeExampleDays(), ...dayRec.map }, seeded: true });
+    // Once per identity; later edits must not re-seed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isServerBacked, identity]);
 
   // The checklist and its day history belong to the identity that wrote them.
   // Without this, logging in (or out) kept the previous account's sheet in
@@ -217,9 +258,17 @@ export default function Notes() {
     // otherwise it would undo the midnight archive that just ran.
     if (lastIdentity.current === identity) return;
     lastIdentity.current = identity;
+    setSyncedFor(null);
     rolledRef.current = false;
-    setNotes(loadNotes());
-    setDayRec(loadDayRec());
+    const list = loadNotes();
+    const rec = loadDayRec();
+    latestNotes.current = list;
+    dayRecRef.current = rec;
+    setNotes(list);
+    setDayRec(rec);
+    // File that identity's stale day straight away. Waiting for the minute
+    // tick let the server's standing list land on top of it first.
+    rollToToday();
     setActiveDay(null);
     setView("list");
     setEditMode(false);
@@ -236,33 +285,84 @@ export default function Notes() {
   // before firing: the first mount on a reload has the flag and no token yet.
   const sessionRestoring = useGoalsStore((st) => st.sessionRestoring);
   useEffect(() => {
-    if (!isServerBacked || !getAccessToken() || sessionRestoring) return;
+    if (!isServerBacked) {
+      setSyncedFor(null);
+      return;
+    }
+    if (!getAccessToken() || sessionRestoring) return;
+    let alive = true;
+    setSyncedFor(null);
     api
       .getNotes()
       .then((res) => {
+        if (!alive) return;
+        const today = todayKeyOf();
         const prev = dayRecRef.current || { lastDay: null, map: {}, seeded: false };
-        // The server's copy can be OLDER than this device's: a save that
-        // failed, a stale lastDay, another device that never rolled over.
-        // Replacing the local map with it deleted the days this device had
-        // already archived — the checklist showed a day, and then it was gone.
-        // Merge instead: the server fills in the days this device has never
-        // seen, and the local copy wins on a date both have, because the local
-        // one is the real work and the server's is often a seeded example.
-        const mergedMap = { ...(res?.days?.map || {}), ...(prev.map || {}) };
-        // The rollover already filed the standing list under its day and
-        // emptied it. The server still holds that list, so loading it again
-        // would put yesterday's tasks back on today's sheet.
-        if (!rolledRef.current && Array.isArray(res?.notes)) setNotes(res.notes);
-        setDayRec({
-          // The server's lastDay lives under `days`, not at the top level.
-          lastDay: prev.lastDay || res?.days?.lastDay || null,
-          map: mergedMap,
-          seeded: prev.seeded === true,
-        });
+        const serverDays = res?.days || {};
+        const serverNotes = Array.isArray(res?.notes) ? res.notes : [];
+        const serverLast = serverDays.lastDay || null;
+        const seeded = prev.seeded === true || serverDays.seeded === true;
+
+        // Merge the day maps. The server fills in the days this device has
+        // never seen; the local copy wins where it actually has rows, because
+        // a save that failed leaves the server behind. An empty local day must
+        // never erase a full server day, though.
+        const map = { ...(serverDays.map || {}) };
+        for (const [date, rows] of Object.entries(prev.map || {})) {
+          if (!isDayKey(date)) continue;
+          if (Array.isArray(rows) && rows.length > 0) map[date] = rows;
+          else if (!Array.isArray(map[date])) map[date] = rows;
+        }
+
+        // Accounts never show example furniture; delete the ones older builds
+        // wrote into them.
+        const drop = seededDatesToDrop(map, seeded);
+        for (const date of drop) delete map[date];
+        if (drop.length) {
+          dropRef.current = Array.from(new Set([...dropRef.current, ...drop]));
+        }
+
+        let list = latestNotes.current;
+        // Adopt the server's list only when this device has nothing and did
+        // not just file a day. Otherwise it replaced tasks typed here — and a
+        // device with an empty cache silently erased the account's list.
+        if (list.length === 0 && !rolledRef.current && serverNotes.length > 0) {
+          if (serverLast && serverLast !== today) {
+            Object.assign(map, archiveInto({ map }, serverNotes, serverLast));
+          } else {
+            list = serverNotes;
+          }
+        }
+        // File this device's list under the day it was written for, then move
+        // to today. (The mount roll normally did this already.)
+        if (prev.lastDay && prev.lastDay !== today && list.length > 0) {
+          Object.assign(map, archiveInto({ map }, list, prev.lastDay));
+          list = [];
+          rolledRef.current = true;
+        }
+
+        // A demo task carried into today is not the user's own work either.
+        if (seeded && list.length > 0 && isSeededTaskList(list)) {
+          list = [];
+          rolledRef.current = true;
+        }
+
+        const next = { lastDay: today, map, seeded: true };
+        dayRecRef.current = next;
+        latestNotes.current = list;
+        setDayRec(next);
+        setNotes(list);
+        setSyncedFor(identity);
       })
       .catch((err) => {
         console.error("[checklist] load failed", err);
+        // Offline: keep reading and writing this device's cache, and try the
+        // account again on the next mount.
+        if (alive) setSyncedFor(identity);
       });
+    return () => {
+      alive = false;
+    };
     // Runs once per successful restore; later edits flow through the save
     // effects above.
     // eslint-disable-next-line react-hooks/exhaustive-deps

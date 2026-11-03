@@ -464,6 +464,11 @@ html, body {
 }
 .nav-btn[aria-pressed="true"] { box-shadow: 0 0 18px rgba(109, 245, 227, 0.22); }
 .nav-btn-label { line-height: 1; }
+
+/* Plain-timer digits: 84px reads well in the desktop sheet, but three pairs
+   plus the colons need ~360px — wider than a 360px phone's sheet. Scale with
+   the viewport so the clock never runs out of its card. */
+.timer-digits { font-size: clamp(44px, 22vw, 84px); }
 .nav-btn-primary {
   box-shadow: 0 0 18px rgba(109, 245, 227, 0.35);
 }
@@ -559,6 +564,10 @@ html, body {
   }
   .fab-checkin button span,
   .fab-focus button span { white-space: nowrap; }
+  /* A 46px circle cannot hold "00:24:58": the badge used to spill its digits
+     across the pill. The running state is the ring instead, and the clock
+     itself is one tap away. */
+  .fab-focus .fab-count { display: none; }
 
   /* Keep page content clear of the dock. */
   .page-container { padding-bottom: 84px; }

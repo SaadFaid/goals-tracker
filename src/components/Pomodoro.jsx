@@ -153,13 +153,22 @@ export default function Pomodoro() {
   notifRef.current = notif;
   const repeatRefVal = useRef(repeat);
   repeatRefVal.current = repeat;
+  // Live snapshot for the server load: it must not stop a timer that was
+  // started here while the request was in flight.
+  const liveRef = useRef({ running, endAt, tRunning, tEndAt });
+  liveRef.current = { running, endAt, tRunning, tEndAt };
+  // True once the account's copy has been read. Until then this device must
+  // not push its idle clock over a timer that is running elsewhere.
+  const [syncedFor, setSyncedFor] = useState(null);
 
   // Persist settings.
   useEffect(() => {
     const settings = { workM, breakM, soundId, phase, pomodoros, repeat, mode, fRunning: running, fEndAt: endAt, fHold: hold, tH, tM, tS, tRunning, tEndAt, tHold };
     localStorage.setItem(scopeKey(STORAGE_BASE), JSON.stringify(settings));
-    if (isServerBacked && getAccessToken()) api.savePomodoro(settings).catch(() => {});
-  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold, isServerBacked]);
+    if (isServerBacked && getAccessToken() && syncedFor === identity) {
+      api.savePomodoro(settings).catch(() => {});
+    }
+  }, [workM, breakM, soundId, phase, pomodoros, repeat, mode, running, endAt, hold, tH, tM, tS, tRunning, tEndAt, tHold, isServerBacked, syncedFor, identity]);
 
   // Each identity owns its own timer and session. Without this, signing in or
   // out kept the previous account's clock and wrote it into the new slot.
@@ -167,6 +176,7 @@ export default function Pomodoro() {
   useEffect(() => {
     if (lastPomodoroIdentity.current === identity) return;
     lastPomodoroIdentity.current = identity;
+    setSyncedFor(null);
     const next = loadState();
     setMode(next.mode || "focus");
     setWorkM(next.workM);
@@ -204,34 +214,65 @@ export default function Pomodoro() {
   // clear before firing (a reload's first mount has the flag, no token yet).
   const sessionRestoring = useGoalsStore((st) => st.sessionRestoring);
   useEffect(() => {
-    if (!isServerBacked || !getAccessToken() || sessionRestoring) return;
+    if (!isServerBacked) {
+      setSyncedFor(null);
+      return;
+    }
+    if (!getAccessToken() || sessionRestoring) return;
+    let alive = true;
+    setSyncedFor(null);
     api
       .getPomodoro()
       .then((remote) => {
+        if (!alive) return;
         const r = remote?.settings;
-        if (!r) return;
-        setWorkM(r.workM ?? workM);
-        setBreakM(r.breakM ?? breakM);
-        setSoundId(soundIdFrom(r));
-        setPhase(r.phase ?? phase);
-        setPomodoros(r.pomodoros ?? 0);
-        setRepeat(r.repeat ?? repeat);
-        setMode(r.mode ?? mode);
-        setRunning(!!r.fRunning);
-        setEndAt(toMs(r.fEndAt));
-        setHold(r.fHold ?? 0);
-        setTH(r.tH ?? 0);
-        setTM(r.tM ?? 0);
-        setTS(r.tS ?? 0);
-        setTRunning(!!r.tRunning);
-        setTEndAt(toMs(r.tEndAt));
-        setTHold(r.tHold ?? 0);
+        if (r) {
+          const now = Date.now();
+          const local = liveRef.current;
+          const remoteFocusEnd = toMs(r.fEndAt);
+          const remoteTimerEnd = toMs(r.tEndAt);
+          const remoteFocusLive = !!r.fRunning && !!remoteFocusEnd && remoteFocusEnd > now;
+          const remoteTimerLive = !!r.tRunning && !!remoteTimerEnd && remoteTimerEnd > now;
+          // A timer started here while the request was in flight is newer than
+          // the server's copy — keep it, the persist effect pushes it next.
+          const keepLocalFocus = !!local.running && local.endAt > now;
+          const keepLocalTimer = !!local.tRunning && local.tEndAt > now;
+
+          setWorkM(r.workM ?? 25);
+          setBreakM(r.breakM ?? 5);
+          setSoundId(soundIdFrom(r));
+          setPhase(r.phase ?? "work");
+          setPomodoros(r.pomodoros ?? 0);
+          setRepeat(r.repeat ?? true);
+          setMode(r.mode ?? "focus");
+          if (!keepLocalFocus) {
+            setRunning(remoteFocusLive);
+            setEndAt(remoteFocusLive ? remoteFocusEnd : null);
+            // An expired session comes back idle, not as a frozen countdown.
+            setHold(remoteFocusLive ? 0 : Math.max(0, Number(r.fHold) || 0));
+          }
+          setTH(r.tH ?? 0);
+          setTM(r.tM ?? 0);
+          setTS(r.tS ?? 0);
+          if (!keepLocalTimer) {
+            setTRunning(remoteTimerLive);
+            setTEndAt(remoteTimerLive ? remoteTimerEnd : null);
+            setTHold(remoteTimerLive ? 0 : Math.max(0, Number(r.tHold) || 0));
+          }
+        }
+        setSyncedFor(identity);
       })
-      .catch(() => {});
+      .catch(() => {
+        // Offline: keep the device's own timer running and retry on next mount.
+        if (alive) setSyncedFor(identity);
+      });
+    return () => {
+      alive = false;
+    };
     // Runs once per successful restore; later edits flow through the persist
     // effect above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isServerBacked, sessionRestoring]);
+  }, [isServerBacked, sessionRestoring, identity]);
 
   useEffect(() => {
     if (!running) return;
@@ -431,7 +472,7 @@ export default function Pomodoro() {
 
   return (
     <>
-      <div className="fab-focus fixed bottom-24 left-5 z-40 sm:bottom-5 sm:left-44">
+      <div className={`fab-focus fixed bottom-24 left-5 z-40 sm:bottom-5 sm:left-44${livingRemaining !== null ? " is-live" : ""}`}>
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
@@ -439,7 +480,10 @@ export default function Pomodoro() {
             background: "var(--color-elevated)",
             color: "var(--color-accent)",
             border: "1px solid var(--color-border-active)",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.45)",
+            boxShadow:
+              livingRemaining !== null
+                ? "0 0 0 2px var(--color-accent), 0 6px 24px rgba(0,0,0,0.45)"
+                : "0 6px 24px rgba(0,0,0,0.45)",
             fontFamily: SF,
           }}
           aria-label="Open timer"
@@ -452,7 +496,7 @@ export default function Pomodoro() {
           <span className="fab-label">{label}</span>
           {livingRemaining !== null && (
             <span
-              className="grid place-items-center min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold tabular-nums"
+              className="fab-count grid place-items-center min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold tabular-nums shrink-0 whitespace-nowrap"
               style={{ background: "var(--color-accent)", color: "#101010" }}
             >
               {fmtClock(livingRemaining, mode === "timer")}
@@ -803,11 +847,11 @@ function TimerPanel(props) {
           </svg>
         </button>
         <div className="flex items-end" style={{ fontVariantNumeric: "tabular-nums" }}>
-          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(hh)}</span>
-          <span className="text-[84px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
-          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(mm)}</span>
-          <span className="text-[84px] font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
-          <span className="text-[84px] font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(ss)}</span>
+          <span className="timer-digits font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(hh)}</span>
+          <span className="timer-digits font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
+          <span className="timer-digits font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(mm)}</span>
+          <span className="timer-digits font-medium leading-none pb-[2px]" style={{ color: "#FFFFFF", opacity: 0.9 }}>:</span>
+          <span className="timer-digits font-medium leading-none" style={{ color: "#FFFFFF", letterSpacing: "-0.03em" }}>{pad2(ss)}</span>
         </div>
         <span className="mt-2 text-[13px] font-semibold" style={{ color: "#8E8E93" }}>
           {running ? (endClock || "counting") : paused ? "paused" : "ready"}

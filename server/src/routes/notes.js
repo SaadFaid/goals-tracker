@@ -105,11 +105,18 @@ router.put("/", async (req, res, next) => {
     if (lastDay != null && lastDay !== "" && !isIsoDate(lastDay)) {
       throw createHttpError(400, "Invalid days.lastDay");
     }
+    // Dates the client is retiring (example days injected by older builds).
+    const dropDays = Array.isArray(req.body?.days?.drop)
+      ? Array.from(new Set(req.body.days.drop.filter((d) => typeof d === "string" && isIsoDate(d))))
+      : [];
 
     const saved = await prisma.$transaction(async (tx) => {
       if (mode === "replace") {
         await tx.note.deleteMany({ where: { userId } });
         await tx.noteDay.deleteMany({ where: { userId } });
+      }
+      if (dropDays.length) {
+        await tx.noteDay.deleteMany({ where: { userId, date: { in: dropDays } } });
       }
       if (mode === "replace") {
         // Bulk insert. Per-row findFirst+create was ~110 round trips through the
@@ -143,10 +150,18 @@ router.put("/", async (req, res, next) => {
         }
       }
       if (lastDay) {
+        // A device that sat unused for a week must not roll the account's day
+        // backwards: that re-archived an old list and made the newer days look
+        // unsaved on the next load.
+        const state = await tx.noteDayState.findUnique({
+          where: { userId },
+          select: { lastDay: true },
+        });
+        const nextLast = state?.lastDay && state.lastDay > lastDay ? state.lastDay : lastDay;
         await tx.noteDayState.upsert({
           where: { userId },
-          create: { userId, lastDay, seeded: !!req.body?.days?.seeded },
-          update: { lastDay, seeded: !!req.body?.days?.seeded },
+          create: { userId, lastDay: nextLast, seeded: !!req.body?.days?.seeded },
+          update: { lastDay: nextLast, seeded: !!req.body?.days?.seeded },
         });
       }
       return { notes: notes.length, days: dayRows.length, dayCount: Object.keys(rawMap || {}).length };
