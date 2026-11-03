@@ -70,12 +70,16 @@ export default function ProgressChart({ logs, dashboard }) {
   const today = showLiveToday ? now.getDate() : (lastLoggedDay ?? 1);
   const origin = { day: 0, value: 0 };
 
-  const x = (day) => pad.left + ((day - 1) / (totalDays - 1)) * cw;
+  // Day 0 sits on the left axis and the last day on the right one, so the
+  // dashed pace line really runs 0% → 100% edge to edge.
+  const x = (day) => pad.left + (day / totalDays) * cw;
   const y = (pct) => pad.top + ch - (Math.max(0, Math.min(pct, 100)) / 100) * ch;
 
-  // Should be: straight pace line from 0% on day 1 to 100% on the last day.
-  const expectedAt = (d) => (totalDays > 1 ? ((d - 1) / (totalDays - 1)) * 100 : 0);
-  const expectedPath = `M ${x(1)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
+  // Pace = how much of the month has passed, the same number the rings and the
+  // status strip use: day 3 of 30 is 10%, not 6.9%. The old (day-1)/(total-1)
+  // curve put the line ~3 points low all month and never reached 100% on day 1.
+  const expectedAt = (d) => (totalDays > 0 ? (Math.max(0, Math.min(d, totalDays)) / totalDays) * 100 : 0);
+  const expectedPath = `M ${x(0)} ${y(0)} L ${x(totalDays)} ${y(100)}`;
 
   // Shared line builder for Execution and Results. Same rule for both:
   //  - no fabricated 0 baseline: days before the first real value stay empty;
@@ -123,8 +127,9 @@ export default function ProgressChart({ logs, dashboard }) {
     ? `M ${x(origin.day)} ${y(origin.value)}` + resSteps.map((p) => ` L ${x(p.day)} ${y(p.value)}`).join("")
     : "";
 
-  const ticks = [5, 10, 15, 20, 25, 30];
-  const gridLines = [25, 50, 75, 100];
+  const ticks = Array.from({ length: Math.floor(totalDays / 5) }, (_, i) => (i + 1) * 5);
+  if (totalDays % 5 !== 0) ticks.push(totalDays);
+  const gridLines = [0, 25, 50, 75, 100];
 
   const expectedToday = expectedAt(today);
   const lastStatus =
@@ -138,7 +143,7 @@ export default function ProgressChart({ logs, dashboard }) {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const px = ((e.clientX - rect.left) / rect.width) * w;
-    const dayFrac = ((px - pad.left) / cw) * (totalDays - 1) + 1;
+    const dayFrac = ((px - pad.left) / cw) * totalDays;
     const nearest = Math.max(1, Math.min(today, Math.round(dayFrac)));
     setHoverDay(nearest);
   };
@@ -236,14 +241,22 @@ export default function ProgressChart({ logs, dashboard }) {
           <circle cx={x(origin.day)} cy={y(origin.value)} r="2" fill={EXPECTED} stroke="#0E1817" strokeWidth="0.8" />
 
           {/* Should be: dashed grey, straight 0% → 100% pace */}
-          <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="4 6" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95" />
+          <path d={expectedPath} stroke={EXPECTED} strokeWidth="1" strokeDasharray="3 5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
 
           {/* Results line */}
           <path d={resultsPath} stroke={RESULT} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
 
           {/* Execution progress line: solid pink, from 0% day 1 through progress days */}
           {execSteps.length > 0 ? (
-            <path d={actualPath} stroke={PINK} strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d={actualPath}
+              stroke={PINK}
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ filter: `drop-shadow(0 0 4px ${PINK}88)` }}
+            />
           ) : null}
 
           {/* Execution dots: only on days the score actually moved. A day that
@@ -333,7 +346,29 @@ export default function ProgressChart({ logs, dashboard }) {
 
         {/* Add a motivational message based on status */}
       </div>
-      <div className="mt-1 text-center text-sm text-text-tertiary">
+
+      {/* The two numbers side by side. When execution and pace sit on the same
+          level the lines overlap by definition, so the readout is what makes
+          "on pace" versus "just under" unambiguous. */}
+      <div className="mt-3 flex items-center justify-center gap-4 flex-wrap text-[11px] font-semibold">
+        <span className="inline-flex items-center gap-1.5" style={{ color: "var(--color-text-secondary)" }}>
+          <span className="w-2 h-2 rounded-full" style={{ background: PINK }} />
+          You <span style={{ color: PINK }}>{Math.round(liveScore)}%</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5" style={{ color: "var(--color-text-secondary)" }}>
+          <span className="w-3" style={{ borderTop: `1px dashed ${EXPECTED}` }} />
+          Pace <span style={{ color: "var(--color-text-primary)" }}>{Math.round(expectedToday)}%</span>
+        </span>
+        <span
+          className="inline-flex items-center gap-1 font-bold"
+          style={{ color: STATUS_COLORS[lastStatus] }}
+        >
+          {liveScore - expectedToday >= 0 ? "+" : ""}
+          {Math.round(liveScore - expectedToday)} pts
+        </span>
+      </div>
+
+      <div className="mt-1.5 text-center text-sm text-text-tertiary">
         {lastStatus === "AHEAD" && (
           <>
             You're ahead of schedule! Keep up the great work!{" "}
