@@ -425,19 +425,45 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  height: 28px;
+  gap: 0.5rem;
+  height: 34px;
   padding: 0 12px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   background: transparent;
-  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
   white-space: nowrap;
 }
 .nav-btn:hover { transform: translateY(-1px); border-color: var(--color-border-active); }
+.nav-btn:active { transform: translateY(0) scale(0.985); }
 .nav-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Icon tile — a small rounded square that carries the accent, so the label is
+   the only thing that changes colour when a control is active. */
+.nav-btn-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  flex: none;
+  color: var(--color-accent);
+  background: rgba(109, 245, 227, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(109, 245, 227, 0.16);
+  transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+.nav-btn-deck { padding-left: 6px; }
+.nav-btn:hover .nav-btn-icon { background: rgba(109, 245, 227, 0.2); }
+.nav-btn[aria-pressed="true"] .nav-btn-icon {
+  background: var(--color-accent);
+  color: #0B1514;
+  box-shadow: 0 0 12px rgba(109, 245, 227, 0.45);
+}
+.nav-btn[aria-pressed="true"] { box-shadow: 0 0 18px rgba(109, 245, 227, 0.22); }
+.nav-btn-label { line-height: 1; }
 .nav-btn-primary {
   box-shadow: 0 0 18px rgba(109, 245, 227, 0.35);
 }
@@ -507,13 +533,6 @@ html, body {
   .nav-btn { height: 34px; padding: 0 14px; }
   .check-circle { width: 30px !important; height: 30px !important; }
 
-  /* Control deck: month on its own line, then a tidy 2×2 button grid
-     instead of the ragged wrap (Print/Analysis/Plan then a lone Edit). */
-  .controls-card { flex-direction: column; }
-  .controls-card .nav-divider { display: none; }
-  .controls-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
-  .controls-actions .nav-btn { width: 100%; }
-
   /* One dock instead of three stray pills: Checklist left, Focus centre,
      Check in right, all sitting on the same 12px safe-area line. */
   .fab-notes,
@@ -543,6 +562,18 @@ html, body {
 
   /* Keep page content clear of the dock. */
   .page-container { padding-bottom: 84px; }
+}
+
+/* ── Narrow screens ────────────────────────────────────────
+   Desktop keeps the month and the three controls on one calm row. On a
+   phone the deck stacks: month first, then Leaderboard across the full
+   width, then Plan and Edit as an even pair. */
+@media (max-width: 640px) {
+  .controls-card { flex-direction: column; }
+  .controls-card .nav-divider { display: none; }
+  .controls-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+  .controls-actions .nav-btn { width: 100%; height: 40px; padding: 0 12px 0 8px; }
+  .controls-actions .nav-btn-wide { grid-column: 1 / -1; }
 }
 
 /* Animations for enhanced components */

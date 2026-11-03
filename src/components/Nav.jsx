@@ -79,44 +79,49 @@ export default function Nav({ view = "dashboard", onSetView, onOpenLeaderboard, 
             <button
               type="button"
               onClick={() => onOpenLeaderboard?.()}
-              className="nav-btn"
+              className="nav-btn nav-btn-deck nav-btn-wide"
               title="Leaderboard — ranked by streak"
+              aria-haspopup="dialog"
               style={pill(false)}
             >
-              <span style={{ color: "var(--color-accent)" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <span className="nav-btn-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M6 21V13M12 21V4M18 21v-6" />
                 </svg>
               </span>
-              Leaderboard
+              <span className="nav-btn-label">Leaderboard</span>
             </button>
             <button
+              type="button"
               onClick={() => onSetView?.(view === "plan" ? "dashboard" : "plan")}
-              className="nav-btn"
+              className="nav-btn nav-btn-deck"
               aria-pressed={view === "plan"}
               title={view === "plan" ? "Back to dashboard" : "Plan your day on a calendar"}
               style={pill(view === "plan")}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              Plan
+              <span className="nav-btn-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </span>
+              <span className="nav-btn-label">Plan</span>
             </button>
             <button
+              type="button"
               onClick={toggleEditMode}
-              className="nav-btn"
+              className="nav-btn nav-btn-deck"
               aria-pressed={editMode}
+              aria-label={editMode ? "Exit edit mode" : "Edit everything"}
               title={editMode ? "Exit edit mode" : "Edit everything"}
               style={pill(editMode)}
             >
-              {editMode ? (
-                <span className="inline-flex items-center gap-1.5"><IconCheck size={13} /> Done</span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5"><IconPencil size={12} /> Edit</span>
-              )}
+              <span className="nav-btn-icon">
+                {editMode ? <IconCheck size={13} /> : <IconPencil size={12} />}
+              </span>
+              <span className="nav-btn-label">{editMode ? "Done" : "Edit"}</span>
             </button>
           </div>
         </div>
