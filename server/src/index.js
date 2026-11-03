@@ -47,6 +47,13 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Traffic arrives through the Cloudflare quick tunnel, so the client address is
+// in X-Forwarded-For. Without this Express ignores it, express-rate-limit
+// throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR, and every visitor shares one
+// 5-attempts bucket — one person mistyping their password could lock out
+// everybody for 15 minutes.
+app.set("trust proxy", 1);
+
 // Guards against password guessing, so it must only count FAILED attempts.
 // Counting successes as well meant that logging in, logging out and logging
 // back in — or simply retrying because the app had not finished loading — ate

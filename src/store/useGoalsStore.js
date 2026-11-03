@@ -814,11 +814,17 @@ export const useGoalsStore = create(
           set({ onboarding: { ...defaultOnboarding(), started: true, step: 0 }, tourSeen: false });
           return;
         } catch (err) {
-          // The server already knows this email, or is unreachable. A local-only
-          // account is still a valid destination, so fall through instead of
-          // hard-failing — this is a guest-first app that must work offline.
           if (err?.status === 409) {
             const msg = "An account with this email already exists. Log in instead.";
+            set({ error: msg, loading: false });
+            throw new Error(msg);
+          }
+          // No HTTP status means the request never got an answer. Creating a
+          // device-only account here looks like a successful signup, then the
+          // same email "does not exist" on any other device. Say what happened
+          // and let the attempt be retried once the connection is back.
+          if (!err?.status) {
+            const msg = "Can't reach Paceline. Check your connection and try again.";
             set({ error: msg, loading: false });
             throw new Error(msg);
           }
@@ -841,6 +847,7 @@ export const useGoalsStore = create(
       login: async (credentials) => {
         const email = String(credentials?.email || "").trim().toLowerCase();
         const password = String(credentials?.password || "");
+        let networkError = null;
         if (!email || !password) {
           set({ error: "Enter your email and password", loading: false });
           throw new Error("Enter your email and password");
@@ -851,6 +858,11 @@ export const useGoalsStore = create(
           saveRefreshToken(refreshToken);
           return;
         } catch (err) {
+          // Remember that this was a transport failure, not a verdict from the
+          // server. If no local profile matches, the message below must say so
+          // instead of claiming the email does not exist — that sent people to
+          // "register first" when the tunnel was simply unreachable.
+          if (!err?.status) networkError = err;
           // The server gave a definitive answer — never let the local cache
           // contradict it. Falling through here used to turn a rate-limit (429)
           // or an unreachable API into a misleading "Incorrect password".
@@ -870,7 +882,9 @@ export const useGoalsStore = create(
         const map = readProfiles();
         const slot = map[email];
         if (!slot) {
-          const msg = "No account found with that email. Register first.";
+          const msg = networkError
+            ? "Can't reach Paceline. Check your connection and try again."
+            : "No account found with that email. Register first.";
           set({ error: msg, loading: false });
           throw new Error(msg);
         }
