@@ -532,7 +532,11 @@ html, body {
 /* ── Phone layout ──────────────────────────────────────────
    Bigger touch targets and no clipped text on narrow screens.
    `hover: none` covers touch-only devices regardless of width;
-   the max-width arm also lifts hybrid laptops folded to small.  */
+   the max-width arm also lifts hybrid laptops folded to small.
+
+   Desktop keeps the tool pills stacked at the left edge (Focus above
+   Checklist): a fixed left offset put Focus right where the Checklist
+   pill grew once its done/total badge appeared. */
 @media (hover: none), (max-width: 640px) {
   .stepper-btn { width: 32px; height: 32px; border-radius: 9px; }
   .nav-btn { height: 34px; padding: 0 14px; }

@@ -472,7 +472,7 @@ export default function Pomodoro() {
 
   return (
     <>
-      <div className={`fab-focus fixed bottom-24 left-5 z-40 sm:bottom-5 sm:left-44${livingRemaining !== null ? " is-live" : ""}`}>
+      <div className={`fab-focus fixed bottom-24 left-5 z-40 sm:bottom-20 sm:left-5${livingRemaining !== null ? " is-live" : ""}`}>
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 px-4 py-3 rounded-full font-bold text-sm"
