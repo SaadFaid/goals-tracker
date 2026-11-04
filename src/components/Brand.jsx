@@ -2,27 +2,30 @@ import { BRAND } from "../lib/brand";
 
 /** The Paceline mark, painted from the supplied logo artwork. */
 export const MARK_SRC = `${import.meta.env.BASE_URL}paceline-mark.png`;
+// The same glyph on its dark tile: the mark alone sits on transparency, so at
+// a small size its anti-aliased edge reads as stray bits against the page.
+export const MARK_TILE_SRC = `${import.meta.env.BASE_URL}icon-192.png`;
 
 export function BrandMark({ size = 18, className = "" }) {
   const box = size + 14;
   return (
     <span
-      className={`grid place-items-center shrink-0 ${className}`}
+      className={`block shrink-0 overflow-hidden ${className}`}
       style={{
         width: box,
         height: box,
-        borderRadius: 10,
-        background: "var(--color-accent-muted)",
-        boxShadow: "0 0 18px rgba(109,245,227,0.35)",
+        borderRadius: Math.round(box * 0.32),
+        background: "#0B1514",
+        boxShadow: "0 0 18px rgba(109,245,227,0.3)",
       }}
       aria-hidden="true"
     >
       <img
-        src={MARK_SRC}
+        src={MARK_TILE_SRC}
         alt=""
-        width={size * 1.4}
-        height={size}
-        style={{ width: "auto", height: size, display: "block" }}
+        width={box}
+        height={box}
+        style={{ width: "100%", height: "100%", display: "block", objectFit: "cover" }}
       />
     </span>
   );

@@ -559,6 +559,7 @@ html, body {
   .fab-focus .fab-label { display: none; }
   .fab-notes button,
   .fab-focus button {
+    position: relative;
     width: 46px;
     min-width: 46px;
     height: 46px;
@@ -566,6 +567,21 @@ html, body {
     border-radius: 999px;
     justify-content: center;
   }
+  /* A 46px circle has room for one thing. The count rides the corner as a
+     small bubble instead of squeezing in beside the icon with a gap. */
+  .fab-notes .fab-notes-count {
+    position: absolute;
+    top: -7px;
+    right: -6px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  .fab-notes button svg,
+  .fab-focus button svg { width: 19px; height: 19px; }
   .fab-checkin button span,
   .fab-focus button span { white-space: nowrap; }
   /* A 46px circle cannot hold "00:24:58": the badge used to spill its digits

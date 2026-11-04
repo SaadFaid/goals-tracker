@@ -500,7 +500,7 @@ export default function Notes() {
           <span className="fab-label">Checklist</span>
           {notes.length > 0 && (
             <span
-              className="grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold"
+              className="fab-notes-count grid place-items-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold"
               style={{ background: "var(--color-accent)", color: "#101010" }}
             >
               {doneCount}/{notes.length}
