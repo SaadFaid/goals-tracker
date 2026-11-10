@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import useBackdropClose from "../lib/useBackdropClose";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { Btn, Divider, SectionLabel, Select, Toggle } from "./ui";
 import { initialOf } from "./Avatar";
@@ -86,6 +87,7 @@ export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysi
   const [rendered, setRendered] = useState(open);
   const [showPassword, setShowPassword] = useState(false);
   const panelRef = useRef(null);
+  const backdrop = useBackdropClose(() => onClose?.());
   const { streak } = computeStreak(activityDays);
 
   useEffect(() => {
@@ -126,9 +128,7 @@ export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysi
     <div
       className="settings-backdrop fixed inset-0 z-[85] flex items-end sm:items-stretch sm:justify-end"
       style={{ background: "rgba(8,20,19,0.62)", backdropFilter: "blur(10px)" }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
+      {...backdrop}
     >
       <aside
         ref={panelRef}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import useBackdropClose from "../lib/useBackdropClose";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -30,8 +31,22 @@ export default function Modal({
   const [rendered, setRendered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [dragY, setDragY] = useState(0);
+  // Parents pass fresh inline callbacks on every keystroke. Keeping them in
+  // refs keeps requestClose stable, so the focus trap (which depends on it)
+  // does not tear down and steal focus while the user types.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const confirmRef = useRef(confirmClose);
+  confirmRef.current = confirmClose;
   const autoId = useId();
   const titleId = labelId || `dlg-title-${autoId}`;
+
+  const requestClose = useCallback(() => {
+    const confirm = confirmRef.current;
+    if (confirm && confirm() === false) return;
+    onCloseRef.current?.();
+  }, []);
+  const backdrop = useBackdropClose(requestClose);
 
   // Mount / unmount with a short exit animation.
   useEffect(() => {
@@ -48,11 +63,6 @@ export default function Modal({
     }, 190);
     return () => clearTimeout(t);
   }, [open, rendered]);
-
-  const requestClose = useCallback(() => {
-    if (confirmClose && confirmClose() === false) return;
-    onClose?.();
-  }, [confirmClose, onClose]);
 
   // Lock the page behind the dialog and trap the focus inside it.
   useEffect(() => {
@@ -135,9 +145,7 @@ export default function Modal({
     <div
       className="modal-backdrop fixed inset-0 z-[80] flex items-end sm:items-center justify-center"
       style={{ background: "rgba(8, 20, 19, 0.62)", backdropFilter: "blur(10px)" }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) requestClose();
-      }}
+      {...backdrop}
     >
       <div
         ref={panelRef}
@@ -151,7 +159,6 @@ export default function Modal({
           transform: dragY ? `translateY(${dragY}px)` : undefined,
           transition: dragY ? "none" : undefined,
         }}
-        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Drag handle — mobile sheet affordance. */}
         <div

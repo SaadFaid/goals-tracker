@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import useDialogBehavior from "../lib/useDialogBehavior";
+import useBackdropClose from "../lib/useBackdropClose";
 import { api, getAccessToken } from "../lib/api";
 import { useGoalsStore } from "../store/useGoalsStore";
 import { IconClose } from "./Icons";
@@ -136,6 +137,7 @@ export default function Notes() {
   const dayRecRef = useRef(dayRec);
   const dropRef = useRef([]);
   const panelRef = useDialogBehavior(open, () => setOpen(false));
+  const backdrop = useBackdropClose(() => setOpen(false));
   const identity = useGoalsStore((st) => (st.isGuest ? "guest" : st.user?.email || "guest"));
   const rolledRef = useRef(false);
   // The account's copy has been read (or there is no account). No write goes
@@ -513,7 +515,7 @@ export default function Notes() {
         <div
           className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
           style={{ background: "rgba(11,31,30,0.32)", backdropFilter: "blur(12px)" }}
-          onClick={() => setOpen(false)}
+          {...backdrop}
         >
           <div
             ref={panelRef}

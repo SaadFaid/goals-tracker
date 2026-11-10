@@ -58,6 +58,51 @@ function CadencePicker({ value, onChange }) {
   );
 }
 
+const UNIT_PRESETS = ["", "km", "kg", "hours", "pages", "reps", "%"];
+
+function UnitPicker({ value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {UNIT_PRESETS.map((u) => {
+        const on = (value || "") === u;
+        return (
+          <button
+            key={u || "none"}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(u)}
+            className="px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer"
+            style={{
+              background: on ? "var(--color-accent-muted)" : "var(--color-sunken)",
+              border: `1px solid ${on ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
+              color: on ? "var(--color-accent)" : "var(--color-text-secondary)",
+            }}
+          >
+            {u || "No unit"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Results are measured across the whole month; there is nothing to reset. The
+   panel keeps the result form the same shape as the action form instead of
+   silently dropping the section. */
+function NoResetPanel() {
+  return (
+    <div
+      className="rounded-lg px-3 py-2.5"
+      style={{ background: "var(--color-sunken)", border: "1px solid var(--color-border-subtle)" }}
+    >
+      <span className="block text-[12.5px] font-bold text-heading">Tracked all month</span>
+      <span className="block text-[10.5px] text-text-tertiary mt-0.5 leading-snug">
+        Results are measured, not reset — the total builds up until the month ends.
+      </span>
+    </div>
+  );
+}
+
 function TypePicker({ value, onChange }) {
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -171,6 +216,9 @@ export function AddGoalDialog({ categoryId, categoryName, initialType = "action"
             <Input id="pl-add-unit" value={unit} onChange={setUnit} placeholder="km, DH, hours" />
           </Field>
         </div>
+        <div className="-mt-1">
+          <UnitPicker value={unit} onChange={setUnit} />
+        </div>
 
         <label className="flex items-start gap-2.5 cursor-pointer">
           <input
@@ -187,7 +235,9 @@ export function AddGoalDialog({ categoryId, categoryName, initialType = "action"
             <CadencePicker value={resetType} onChange={setResetType} />
           </Field>
         ) : (
-          <p className="text-[11px] text-text-tertiary">Results are tracked across the month and never reset.</p>
+          <Field label="Resets" id="pl-add-nore" hint="Results never go back to zero.">
+            <NoResetPanel />
+          </Field>
         )}
 
         {error ? (
@@ -340,6 +390,9 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
             <Input id="pl-edit-unit" value={form.unit} onChange={(v) => setForm((f) => ({ ...f, unit: v }))} />
           </Field>
         </div>
+        <div className="-mt-1">
+          <UnitPicker value={form.unit} onChange={(v) => setForm((f) => ({ ...f, unit: v }))} />
+        </div>
 
         <Field label="Category" id="pl-edit-cat" hint="Move this goal to another category.">
           <Select id="pl-edit-cat" value={form.categoryId} onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}>
@@ -366,7 +419,11 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
           <Field label="Resets" id="pl-edit-cadence" hint="How often progress goes back to zero.">
             <CadencePicker value={form.resetType} onChange={(v) => setForm((f) => ({ ...f, resetType: v }))} />
           </Field>
-        ) : null}
+        ) : (
+          <Field label="Resets" id="pl-edit-nore" hint="Results never go back to zero.">
+            <NoResetPanel />
+          </Field>
+        )}
 
         {kind === "result" ? (
           <p className="text-[11px] text-text-tertiary">Results are tracked, not scored.</p>

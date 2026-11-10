@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useDialogBehavior from "../lib/useDialogBehavior";
+import useBackdropClose from "../lib/useBackdropClose";
 import { actionPct, resultPct } from "../lib/score";
 import { IconCheckCircle, IconClose } from "./Icons";
 
@@ -9,6 +10,7 @@ const isKgResult = (item) =>
 export default function CheckIn({ categories, onIncrement, onDecrement, onResultToggle }) {
   const [open, setOpen] = useState(false);
   const panelRef = useDialogBehavior(open, () => setOpen(false));
+  const backdrop = useBackdropClose(() => setOpen(false));
 
   const rows = [];
   (categories || []).forEach((cat) => {
@@ -78,7 +80,7 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
         <div
           className="checkin-backdrop fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
           style={{ background: "rgba(11,31,30,0.7)", backdropFilter: "blur(6px)" }}
-          onClick={() => setOpen(false)}
+          {...backdrop}
         >
           <div
             ref={panelRef}
