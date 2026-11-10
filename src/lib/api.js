@@ -21,9 +21,11 @@ async function resolveApiBase() {
   }
   if (resolvingBase) return resolvingBase;
   resolvingBase = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
       const url = `${location.origin}${import.meta.env.BASE_URL}api-config.json?t=${Date.now()}`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
       if (res.ok) {
         const cfg = await res.json();
         const base = cfg?.apiBase;
@@ -34,6 +36,8 @@ async function resolveApiBase() {
       }
     } catch {
       // config unreachable (e.g. served under a different origin); fall back
+    } finally {
+      clearTimeout(timer);
     }
     apiBase = BAKED_API_BASE;
     return apiBase;
@@ -89,12 +93,17 @@ function refreshAccessToken() {
   return refreshInFlight;
 }
 
-async function request(method, path, body, { authed = true, retried = false } = {}) {
+async function request(method, path, body, { authed = true, retried = false, timeoutMs = 15000 } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (authed && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
   const base = await resolveApiBase();
+
+  // A rotated tunnel or a dead host can leave a fetch hanging for minutes, and
+  // a phone shows that as "the page froze". Fail fast instead.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
   let res;
   try {
@@ -103,10 +112,13 @@ async function request(method, path, body, { authed = true, retried = false } = 
       headers,
       credentials: "include",
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
     });
   } catch (err) {
     resetApiBase();
     throw err;
+  } finally {
+    clearTimeout(timer);
   }
 
   let data = null;

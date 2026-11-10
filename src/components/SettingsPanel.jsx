@@ -124,7 +124,7 @@ export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysi
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[85] flex items-end sm:items-stretch sm:justify-end"
+      className="settings-backdrop fixed inset-0 z-[85] flex items-end sm:items-stretch sm:justify-end"
       style={{ background: "rgba(8,20,19,0.62)", backdropFilter: "blur(10px)" }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose?.();
@@ -135,7 +135,7 @@ export default function SettingsPanel({ open, onClose, onOpenTour, onOpenAnalysi
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
-        className="settings-drawer w-full sm:max-w-[420px] h-[92vh] sm:h-full flex flex-col overflow-hidden"
+        className="settings-drawer w-full sm:max-w-[420px] h-[92%] sm:h-full flex flex-col overflow-hidden"
         style={{
           background: "var(--color-elevated)",
           borderLeft: "1px solid var(--color-border-active)",

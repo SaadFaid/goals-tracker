@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useGoalsStore } from "./store/useGoalsStore";
+import { BrandMark } from "./components/Brand";
+import useViewportHeight from "./lib/useViewportHeight";
 import { resultDoneValue, resultNotDoneValue } from "./lib/score";
 import Nav from "./components/Nav";
 import StatsBar from "./components/StatsBar";
@@ -61,8 +63,20 @@ function useDashboard() {
 
 function Loading() {
   return (
-    <div className="min-h-screen bg-navy-900 flex items-center justify-center">
-      <p className="text-text-tertiary">Loading…</p>
+    <div className="min-h-screen bg-navy-900 flex flex-col items-center justify-center gap-5">
+      <BrandMark size={58} />
+      <div className="text-center">
+        <p className="font-display text-lg font-bold text-white">Paceline</p>
+        <p className="text-xs text-text-tertiary mt-1">Getting your month ready…</p>
+      </div>
+      <div
+        className="h-1 w-32 rounded-full overflow-hidden"
+        style={{ background: "var(--color-sunken)" }}
+        role="status"
+        aria-label="Loading"
+      >
+        <div className="boot-bar h-full w-1/2 rounded-full" style={{ background: "var(--color-accent)" }} />
+      </div>
     </div>
   );
 }
@@ -76,8 +90,21 @@ export default function App() {
   const restoreSession = useGoalsStore((s) => s.restoreSession);
   const onboarding = useGoalsStore((s) => s.onboarding);
   const { pathname, params } = useHashRoute();
+  useViewportHeight();
 
   const signedIn = !!userEmail && !isGuest;
+
+  // The saved payload hydrates synchronously, but one bad row used to be able
+  // to throw inside bootstrap() and leave the shell on "Loading…" forever.
+  // Retry once, from a clean baseline if need be.
+  useEffect(() => {
+    if (bootstrapped) return undefined;
+    const id = setTimeout(() => {
+      const s = useGoalsStore.getState();
+      if (!s.bootstrapped) s.boot();
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [bootstrapped]);
 
   // A reload rehydrates "logged in" from localStorage, but the access token is
   // gone. Re-establish it on mount, otherwise every edit this session would

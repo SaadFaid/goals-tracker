@@ -76,7 +76,7 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
+          className="checkin-backdrop fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
           style={{ background: "rgba(11,31,30,0.7)", backdropFilter: "blur(6px)" }}
           onClick={() => setOpen(false)}
         >
@@ -86,7 +86,7 @@ export default function CheckIn({ categories, onIncrement, onDecrement, onResult
             aria-modal="true"
             aria-label="Check in"
             tabIndex={-1}
-            className="w-full max-w-[520px] max-h-[90vh] sm:max-h-[84vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            className="w-full max-w-[520px] max-h-[90%] sm:max-h-[84%] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
             style={{ background: "var(--color-elevated)", border: "1px solid var(--color-border-active)", boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >

@@ -15,6 +15,49 @@ const TYPE_NOTE = {
   result: "What you get. Tracked, not scored.",
 };
 
+/* Cadence is the single knob most people never find: an action that resets
+   every day is a habit, one that resets every month is a target. Ask for it
+   when the goal is created instead of burying it in the row editor. */
+const CADENCE = [
+  { id: "daily", label: "Every day", hint: "Back to zero each morning" },
+  { id: "weekly", label: "Every week", hint: "Back to zero each Monday" },
+  { id: "monthly", label: "Every month", hint: "Back to zero on the 1st" },
+  { id: "none", label: "Never", hint: "Keeps the running total" },
+];
+
+const CADENCE_LABEL = Object.fromEntries(CADENCE.map((c) => [c.id, c.label]));
+
+function CadencePicker({ value, onChange }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {CADENCE.map((c) => {
+        const on = value === c.id;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(c.id)}
+            aria-pressed={on}
+            className="text-left px-3 py-2 rounded-lg cursor-pointer transition-colors"
+            style={{
+              background: on ? "var(--color-accent-muted)" : "var(--color-sunken)",
+              border: `1px solid ${on ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
+            }}
+          >
+            <span
+              className="block text-[12.5px] font-bold leading-tight"
+              style={{ color: on ? "var(--color-accent)" : "var(--color-text-primary)" }}
+            >
+              {c.label}
+            </span>
+            <span className="block text-[10.5px] text-text-tertiary mt-0.5 leading-snug">{c.hint}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function TypePicker({ value, onChange }) {
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -55,6 +98,7 @@ export function AddGoalDialog({ categoryId, categoryName, initialType = "action"
   const [target, setTarget] = useState("");
   const [unit, setUnit] = useState("");
   const [oneTime, setOneTime] = useState(false);
+  const [resetType, setResetType] = useState("monthly");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -73,6 +117,7 @@ export function AddGoalDialog({ categoryId, categoryName, initialType = "action"
           unit: unit.trim(),
           weight: 50,
           actionType: oneTime ? "check" : unit.trim() ? "amount" : "count",
+          resetType,
         });
       } else {
         addResult(categoryId, {
@@ -137,6 +182,14 @@ export function AddGoalDialog({ categoryId, categoryName, initialType = "action"
           <span className="text-sm text-muted">One-time goal (just tick it when done)</span>
         </label>
 
+        {type === "action" ? (
+          <Field label="Resets" id="pl-add-cadence" hint="How often progress goes back to zero.">
+            <CadencePicker value={resetType} onChange={setResetType} />
+          </Field>
+        ) : (
+          <p className="text-[11px] text-text-tertiary">Results are tracked across the month and never reset.</p>
+        )}
+
         {error ? (
           <p className="text-xs" style={{ color: "var(--color-danger)" }} role="alert">
             {error}
@@ -172,6 +225,7 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
         kind === "action"
           ? item.actionType === "check"
           : (item.resultType || (item.invert ? "check" : "count")) === "check",
+      resetType: item.resetType || "monthly",
       categoryId,
     });
   }, [item, kind, categoryId]);
@@ -190,6 +244,7 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
     targetNum !== item.target ||
     form.unit.trim() !== (item.unit || "") ||
     form.oneTime !== (kind === "action" ? item.actionType === "check" : (item.resultType || (item.invert ? "check" : "count")) === "check") ||
+    (kind === "action" && form.resetType !== (item.resetType || "monthly")) ||
     form.categoryId !== categoryId;
 
   const save = async () => {
@@ -204,6 +259,9 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
         updateAction(categoryId, index, "target", targetNum);
         updateAction(categoryId, index, "unit", form.unit.trim());
         updateAction(categoryId, index, "actionType", form.oneTime ? "check" : item.actionType === "check" ? "count" : item.actionType);
+        if (form.resetType !== (item.resetType || "monthly")) {
+          updateAction(categoryId, index, "resetType", form.resetType);
+        }
       } else {
         updateResult(categoryId, index, "label", form.name.trim());
         updateResult(categoryId, index, "target", targetNum);
@@ -250,7 +308,19 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
       }
     >
       <div className="flex flex-col gap-4">
-        <TypePicker value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.12em] px-2 py-1 rounded-md"
+            style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)" }}
+          >
+            {kind}
+          </span>
+          <span className="text-[11px] text-text-tertiary">
+            {kind === "action"
+              ? `${CADENCE_LABEL[form.resetType] || "Every month"} · counts toward Execution`
+              : "Tracked all month · not scored"}
+          </span>
+        </div>
 
         <Field label="Goal name" id="pl-edit-name" required>
           <Input id="pl-edit-name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
@@ -291,6 +361,12 @@ export function EditGoalDialog({ kind, categoryId, index, onClose }) {
           />
           <span className="text-sm text-muted">One-time goal (just tick it when done)</span>
         </label>
+
+        {kind === "action" ? (
+          <Field label="Resets" id="pl-edit-cadence" hint="How often progress goes back to zero.">
+            <CadencePicker value={form.resetType} onChange={(v) => setForm((f) => ({ ...f, resetType: v }))} />
+          </Field>
+        ) : null}
 
         {kind === "result" ? (
           <p className="text-[11px] text-text-tertiary">Results are tracked, not scored.</p>

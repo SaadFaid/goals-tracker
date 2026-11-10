@@ -503,6 +503,23 @@ function ActionRow({ item, color, onUpdate, onFieldChange, onDelete, onIncrement
               item.weight
             )}%
           </span>
+          {item.resetType && item.resetType !== "monthly" ? (
+            <span
+              className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-[0.06em]"
+              style={{
+                background: "var(--color-sunken)",
+                color: "var(--color-text-tertiary)",
+                border: "1px solid var(--color-border-subtle)",
+              }}
+              title={
+                item.resetType === "none"
+                  ? "Never resets — progress keeps adding up"
+                  : `Resets every ${item.resetType === "daily" ? "day" : item.resetType === "weekly" ? "week" : item.resetType === "yearly" ? "year" : "month"}`
+              }
+            >
+              {item.resetType === "none" ? "no reset" : item.resetType}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isCheck ? (

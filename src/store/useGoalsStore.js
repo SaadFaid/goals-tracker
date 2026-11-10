@@ -590,6 +590,23 @@ export const useGoalsStore = create(
         get().ensureDailyLog(get().categories, get().dashboard);
       },
 
+      // A saved payload can be half-written (quota, an interrupted write, an
+      // old schema). Never let that pin the whole app on the loading screen.
+      boot: () => {
+        try {
+          get().bootstrap();
+        } catch (err) {
+          console.error("Paceline could not restore the saved tracker:", err);
+          const fresh = repairBrokenRows(normalizeResetTypes(ensureRewardTiers(seedClone())));
+          set({
+            categories: fresh,
+            progressLogs: [],
+            dashboard: calculateDashboardState(fresh, new Date(), 0),
+            bootstrapped: true,
+          });
+        }
+      },
+
       // Switch to the guest identity. Guest is its OWN namespace: every field
       // derived from the signed-in account (chart history, snapshots, the month
       // being viewed) has to be cleared, or the account's progress shows up in
@@ -1937,7 +1954,7 @@ export const useGoalsStore = create(
           ...cat,
           actions: (cat.actions || []).map((a) => {
             if (a.current === 0) return a;
-            if (a.resetType && a.resetType !== "monthly") {
+            if (a.resetType && a.resetType !== "monthly" && a.resetType !== "none") {
               resets.push({ id: a.id, server: !String(a.id || "").startsWith("tmp-") });
               return { ...a, current: 0 };
             }
@@ -2087,7 +2104,7 @@ export const useGoalsStore = create(
         },
         onRehydrateStorage: () => (state) => {
           if (!state) return;
-          state.bootstrap();
+          state.boot();
         },
       }
     )

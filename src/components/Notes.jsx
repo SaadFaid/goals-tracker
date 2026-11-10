@@ -511,7 +511,7 @@ export default function Notes() {
 
       {open && (
         <div
-          className="notes-backdrop-in fixed inset-0 z-50 flex items-end justify-center p-3 pb-0 sm:items-center sm:p-4"
+          className="notes-backdrop-in fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
           style={{ background: "rgba(11,31,30,0.32)", backdropFilter: "blur(12px)" }}
           onClick={() => setOpen(false)}
         >
@@ -521,7 +521,7 @@ export default function Notes() {
             aria-modal="true"
             aria-label={view === "days" ? "Days history" : "Checklist"}
             tabIndex={-1}
-            className="notes-pop w-full max-w-[540px] max-h-[92vh] sm:max-h-[84vh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            className="notes-pop w-full max-w-[540px] max-h-[min(86%,760px)] sm:max-h-[84%] flex flex-col rounded-2xl overflow-hidden"
             style={{
               border: "1px solid rgba(109,245,227,0.16)",
               boxShadow:
@@ -529,10 +529,6 @@ export default function Notes() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sm:hidden grid place-items-center pt-2 pb-1 shrink-0">
-              <span className="block rounded-full" style={{ width: 38, height: 4, background: "var(--color-border-active)" }} />
-            </div>
-
             {/* Glass navbar — matches the site's floating controls card */}
             <div
               className="relative flex items-center justify-between gap-3 px-5 py-3"

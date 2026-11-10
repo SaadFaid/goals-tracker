@@ -145,7 +145,7 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`modal-panel card w-full ${widths[size] || widths.md} max-h-[92vh] sm:max-h-[86vh] flex flex-col overflow-hidden ${className}`}
+        className={`modal-panel card w-full ${widths[size] || widths.md} max-h-[92%] sm:max-h-[86%] flex flex-col overflow-hidden ${className}`}
         style={{
           borderRadius: "var(--radius-lg)",
           transform: dragY ? `translateY(${dragY}px)` : undefined,
